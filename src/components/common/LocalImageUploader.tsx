@@ -9,6 +9,7 @@ interface LocalImageUploaderProps {
   folder?: string;
   value: string;
   onChange: (url: string) => void;
+  placeholder?: string;
 }
 
 export default function LocalImageUploader({

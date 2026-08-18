@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { 
@@ -67,6 +67,53 @@ const TOP_SELLERS = [
 export default function HomePage() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [catalogProducts, setCatalogProducts] = useState<any[]>(PRODUCTS_CATALOG);
+
+  // Sync frontpage with Admin Hub products
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('groceryhub_admin_products');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const formatted = parsed.map((p: any) => ({
+              id: p.id,
+              name: p.name,
+              category: p.category,
+              image: p.image,
+              rating: 4.9,
+              ratingCount: 120,
+              variants: [
+                { id: p.id, title: 'Standard Pack', price: p.price, originalPrice: Math.round(p.price * 1.25), stock: p.stock },
+              ],
+              description: p.description || p.name,
+            }));
+            setCatalogProducts(formatted);
+          }
+        } catch {}
+      }
+    }
+  }, []);
+
+  const getCategoryCount = (slug: string) => {
+    const matched = catalogProducts.filter((p) =>
+      p.category.toLowerCase().includes(slug.toLowerCase())
+    );
+    return `${matched.length} Items`;
+  };
+
+  const CATEGORIES = [
+    { id: 1, name: 'Vegetables', slug: 'vegetables', icon: '🥬', count: getCategoryCount('vegetable'), color: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600' },
+    { id: 2, name: 'Fresh Fruits', slug: 'fruits', icon: '🍎', count: getCategoryCount('fruit'), color: 'bg-amber-50 dark:bg-amber-950/40 text-amber-600' },
+    { id: 3, name: 'Dairy & Eggs', slug: 'dairy', icon: '🥛', count: getCategoryCount('dairy'), color: 'bg-blue-50 dark:bg-blue-950/40 text-blue-600' },
+    { id: 4, name: 'Bakery & Bread', slug: 'bakery', icon: '🍞', count: getCategoryCount('bakery'), color: 'bg-orange-50 dark:bg-orange-950/40 text-orange-600' },
+    { id: 5, name: 'Beverages', slug: 'beverages', icon: '🧃', count: getCategoryCount('beverage'), color: 'bg-purple-50 dark:bg-purple-950/40 text-purple-600' },
+    { id: 6, name: 'Snacks & Munchies', slug: 'snacks', icon: '🍿', count: getCategoryCount('snack'), color: 'bg-pink-50 dark:bg-pink-950/40 text-pink-600' },
+    { id: 7, name: 'Pantry Staples', slug: 'pantry', icon: '🍚', count: getCategoryCount('pantry'), color: 'bg-teal-50 dark:bg-teal-950/40 text-teal-600' },
+  ];
+
+  const POPULAR_PRODUCTS = catalogProducts.slice(0, 8);
 
   const handleAddToCart = (variantId: number, qty: number) => {
     // Find the product & variant
@@ -74,7 +121,7 @@ export default function HomePage() {
     let matchedVariant: any = null;
 
     for (const p of POPULAR_PRODUCTS) {
-      const v = p.variants.find((item) => item.id === variantId);
+      const v = p.variants?.find((item: any) => item.id === variantId);
       if (v) {
         matchedProduct = p;
         matchedVariant = v;
