@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   Truck, 
@@ -39,16 +39,37 @@ interface DriverItem {
 }
 
 const INITIAL_DRIVERS: DriverItem[] = [
-  { id: 1, name: 'Marcus Vance', phone: '+1 (555) 789-0123', email: 'marcus.v@gmail.com', vehicle: 'Honda Super Cub Scooter', licenseNo: 'DL-NY-89104', city: 'New York (Downtown)', activeOrders: 1, completed: 342, cashInHand: 28.50, tripBonus: 2.50, status: 'On Duty' },
-  { id: 2, name: 'David Chen', phone: '+1 (555) 345-6789', email: 'david.chen@gmail.com', vehicle: 'Electric Cargo Bike (EB-102)', licenseNo: 'DL-NY-44821', city: 'Brooklyn', activeOrders: 0, completed: 512, cashInHand: 0.00, tripBonus: 2.50, status: 'On Duty' },
-  { id: 3, name: 'Alex Rivera', phone: '+1 (555) 678-9012', email: 'alex.rivera@gmail.com', vehicle: 'Yamaha Zuma 125', licenseNo: 'DL-NY-19034', city: 'Queens', activeOrders: 0, completed: 0, cashInHand: 0.00, tripBonus: 2.50, status: 'Pending' },
-  { id: 4, name: 'James Wilson', phone: '+1 (555) 456-7890', email: 'j.wilson@outlook.com', vehicle: 'Toyota Prius (NY-3901)', licenseNo: 'DL-NY-90234', city: 'New York (Midtown)', activeOrders: 0, completed: 189, cashInHand: 75.00, tripBonus: 2.50, status: 'Offline' },
+  { id: 1, name: 'Marcus Vance', phone: '+234 809 111 2233', email: 'marcus.v@groceryhub.ng', vehicle: 'Honda Super Cub 125cc (LAG-8492)', licenseNo: 'DL-LAG-89104', city: 'Lagos (Victoria Island)', activeOrders: 1, completed: 342, cashInHand: 15500, tripBonus: 500, status: 'On Duty' },
+  { id: 2, name: 'David Chen', phone: '+234 803 987 6543', email: 'david.chen@groceryhub.ng', vehicle: 'Electric Cargo Bike (EB-102)', licenseNo: 'DL-LAG-44821', city: 'Lagos (Ikeja)', activeOrders: 0, completed: 512, cashInHand: 0, tripBonus: 500, status: 'On Duty' },
+  { id: 3, name: 'Alex Rivera', phone: '+234 802 345 6789', email: 'alex.rivera@groceryhub.ng', vehicle: 'Yamaha Zuma 125', licenseNo: 'DL-LAG-19034', city: 'Lagos (Lekki Phase 1)', activeOrders: 0, completed: 0, cashInHand: 0, tripBonus: 500, status: 'Pending' },
+  { id: 4, name: 'James Wilson', phone: '+234 805 123 4567', email: 'j.wilson@groceryhub.ng', vehicle: 'TVS Star HLX 150', licenseNo: 'DL-LAG-90234', city: 'Lagos (Surulere)', activeOrders: 0, completed: 189, cashInHand: 42000, tripBonus: 500, status: 'Offline' },
 ];
 
 export default function AdminDeliveryFleetPage() {
   const [drivers, setDrivers] = useState<DriverItem[]>(INITIAL_DRIVERS);
   const [activeTab, setActiveTab] = useState<'All' | 'Pending' | 'On Duty' | 'Offline' | 'Suspended'>('All');
   const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('groceryhub_admin_drivers');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setDrivers(parsed);
+          }
+        } catch {}
+      }
+    }
+  }, []);
+
+  const saveDriversToStorage = (updated: DriverItem[]) => {
+    setDrivers(updated);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('groceryhub_admin_drivers', JSON.stringify(updated));
+    }
+  };
 
   // Modals
   const [isModalOpen, setIsModalOpen] = useState(false);

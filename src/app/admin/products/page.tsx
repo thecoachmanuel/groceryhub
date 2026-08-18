@@ -58,18 +58,22 @@ export default function AdminProductsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
 
-  // Load from localStorage on mount
+  // Load from localStorage on mount & ensure full catalog sync
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('groceryhub_admin_products');
       if (saved) {
         try {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
+          const parsed: AdminProduct[] = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length >= PRODUCTS_CATALOG.length) {
             setProducts(parsed);
+            return;
           }
         } catch {}
       }
+      // If no saved list or stale 4-5 items, save full catalog
+      localStorage.setItem('groceryhub_admin_products', JSON.stringify(INITIAL_ADMIN_PRODUCTS));
+      setProducts(INITIAL_ADMIN_PRODUCTS);
     }
   }, []);
 
