@@ -36,9 +36,38 @@ interface SavedAddress {
   isDefault: boolean;
 }
 
+interface CheckoutCartItem {
+  id: number;
+  name: string;
+  price: number;
+  quantity: number;
+  unit?: string;
+  image?: string;
+}
+
+const DEFAULT_CHECKOUT_ITEMS: CheckoutCartItem[] = [
+  { id: 1, name: 'Fresh Organic Hass Avocados (Pack of 4)', price: 3800, quantity: 2, unit: '4 pcs pack' },
+  { id: 2, name: 'Pasture-Raised Organic Grade A Large Eggs', price: 4200, quantity: 1, unit: '12 count carton' },
+  { id: 3, name: 'Cold-Pressed Valencia Orange Juice (100% Pure)', price: 3500, quantity: 2, unit: '1 Litre bottle' },
+  { id: 4, name: 'Organic Sliced Country Sourdough Bread', price: 3200, quantity: 1, unit: '750g loaf' },
+];
+
 export default function CheckoutPage() {
   const router = useRouter();
   const { user } = useAuth();
+
+  const [cartItems, setCartItems] = useState<CheckoutCartItem[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('groceryhub_cart_items');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        } catch {}
+      }
+    }
+    return DEFAULT_CHECKOUT_ITEMS;
+  });
 
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
@@ -133,12 +162,12 @@ export default function CheckoutPage() {
   };
 
   const walletBalance = user?.walletBalance ?? 0.00;
-  const itemSubtotal = 18500.00; // ₦18,500
-  const deliveryFee = 0.00; // Free above ₦15,000
-  const platformServiceFee = 500.00; // ₦500 platform service charge
-  const tax = itemSubtotal * 0.05; // 5% VAT (₦925)
+  const itemSubtotal = cartItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
+  const deliveryFee = itemSubtotal >= 15000 || itemSubtotal === 0 ? 0.00 : 1500.00;
+  const platformServiceFee = itemSubtotal > 0 ? 500.00 : 0.00;
+  const tax = Math.round(itemSubtotal * 0.05 * 100) / 100; // 5% VAT
   
-  const discountFromWallet = useWallet ? Math.min(walletBalance, itemSubtotal + platformServiceFee + tax - couponDiscount) : 0;
+  const discountFromWallet = useWallet ? Math.min(walletBalance, itemSubtotal + deliveryFee + platformServiceFee + tax - couponDiscount) : 0;
   const grandTotal = Math.max(0, itemSubtotal + deliveryFee + platformServiceFee + tax - couponDiscount - discountFromWallet);
 
   const handleApplyCoupon = (e: React.FormEvent) => {
@@ -190,6 +219,7 @@ export default function CheckoutPage() {
           payment_method: paymentMethod,
           delivery_timeslot: selectedTimeslot,
           delivery_address: activeAddress,
+          items: cartItems,
         }),
       });
 
@@ -200,13 +230,20 @@ export default function CheckoutPage() {
       if (typeof window !== 'undefined' && user?.id) {
         const userOrdersKey = `groceryhub_orders_${user.id}`;
         const existingOrders = JSON.parse(localStorage.getItem(userOrdersKey) || '[]');
+        const totalQty = cartItems.reduce((acc, i) => acc + i.quantity, 0);
+        const orderItemSummary = cartItems.map(i => ({
+          name: i.name,
+          qty: i.quantity,
+          price: i.price,
+        }));
+
         const newOrderObj = {
           id: placedOrderId,
           date: 'Just Now',
           status: 'Out for Delivery',
           statusStep: 3,
           total: grandTotal,
-          itemsCount: 4,
+          itemsCount: totalQty,
           deliverySlot: selectedTimeslot,
           deliveryAddress: `${activeAddress.flat}, ${activeAddress.area}, ${activeAddress.city}`,
           driver: {
@@ -214,13 +251,10 @@ export default function CheckoutPage() {
             phone: '+234 809 111 2233',
             vehicle: 'Honda Super Cub 125cc (LAG-8492)',
           },
-          items: [
-            { name: 'Fresh Organic Farm Broccoli (500g)', qty: 2, price: 3500 },
-            { name: 'Red Sweet Crisp Apples (1kg Pack)', qty: 1, price: 4500 },
-            { name: 'Farm Fresh Pure Whole Milk (1L)', qty: 2, price: 3800 },
-          ],
+          items: orderItemSummary,
         };
         localStorage.setItem(userOrdersKey, JSON.stringify([newOrderObj, ...existingOrders]));
+        localStorage.removeItem('groceryhub_cart_items');
       }
 
       setIsSubmitting(false);
@@ -458,6 +492,24 @@ export default function CheckoutPage() {
                 <h3 className="text-base font-black text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-800 pb-3">
                   Bill Summary
                 </h3>
+
+                {/* Basket Items Summary */}
+                <div className="space-y-2 border-b border-gray-100 dark:border-gray-800 pb-3">
+                  <span className="text-[10px] font-black uppercase text-[#0aad0a] tracking-wider block">
+                    Basket Items ({cartItems.reduce((sum, i) => sum + i.quantity, 0)})
+                  </span>
+                  <div className="max-h-36 overflow-y-auto space-y-2 pr-1">
+                    {cartItems.map((item) => (
+                      <div key={item.id} className="flex items-center justify-between text-xs">
+                        <div className="truncate pr-2">
+                          <span className="font-bold text-gray-800 dark:text-gray-200">{item.name}</span>
+                          <span className="text-gray-400 text-[11px] block">x{item.quantity}</span>
+                        </div>
+                        <span className="font-mono font-bold text-gray-900 dark:text-white shrink-0">{formatNaira(item.price * item.quantity)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
                 {/* Promo Code Form */}
                 <form onSubmit={handleApplyCoupon} className="space-y-2">

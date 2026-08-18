@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
@@ -91,11 +91,29 @@ const INITIAL_CART_ITEMS: CartItem[] = [
 export default function CartPage() {
   const router = useRouter();
   const { isAuthenticated } = useAuth();
-  const [items, setItems] = useState<CartItem[]>(INITIAL_CART_ITEMS);
+  const [items, setItems] = useState<CartItem[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('groceryhub_cart_items');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        } catch {}
+      }
+    }
+    return INITIAL_CART_ITEMS;
+  });
   const [couponCode, setCouponCode] = useState('');
   const [couponDiscount, setCouponDiscount] = useState(0);
   const [couponApplied, setCouponApplied] = useState(false);
   const [couponError, setCouponError] = useState('');
+
+  // Persist cart changes to localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('groceryhub_cart_items', JSON.stringify(items));
+    }
+  }, [items]);
 
   const freeDeliveryThreshold = 15000.00; // ₦15,000
   const platformServiceFee = 500.00; // ₦500
