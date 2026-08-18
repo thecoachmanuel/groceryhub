@@ -19,11 +19,14 @@ export interface CustomerProfile {
 export interface SellerProfile {
   id: number;
   name: string;
+  storeName: string;
   email: string;
   mobile: string;
-  storeName: string;
+  storeAddress?: string;
+  storeArea?: string;
   storeCity?: string;
   walletBalance: number;
+  balance?: number;
   role: 'seller';
 }
 
@@ -33,6 +36,8 @@ export interface RiderProfile {
   mobile: string;
   vehicle: string;
   cashInHand: number;
+  balance?: number;
+  tripBonus?: number;
   role: 'delivery';
 }
 

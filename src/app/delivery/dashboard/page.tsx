@@ -21,7 +21,7 @@ import { useRiderAuth } from '@/context/AuthContext';
 
 export default function DeliveryDashboardPage() {
   const router = useRouter();
-  const { isRiderAuthenticated, isInitialized } = useRiderAuth();
+  const { rider, isRiderAuthenticated, isInitialized } = useRiderAuth();
 
   useEffect(() => {
     if (!isInitialized) return;
@@ -41,6 +41,14 @@ export default function DeliveryDashboardPage() {
 
   const hasRiderToken = typeof window !== 'undefined' && !!localStorage.getItem('groceryhub_rider_token');
   if (!isRiderAuthenticated && !hasRiderToken) return null;
+
+  const isDemoRider = rider?.mobile === '+2348091112233' || rider?.mobile === '08091112233';
+  const completedRuns = isDemoRider ? 8 : 0;
+  const tripEarnings = isDemoRider ? 64500 : (rider?.balance || 0);
+  const cashInHand = isDemoRider ? 103500 : (rider?.cashInHand || 0);
+  const rating = isDemoRider ? '4.95' : '5.00';
+  const totalRuns = isDemoRider ? '342 lifetime runs' : 'New Courier Partner';
+
   return (
     <div className="min-h-screen bg-[#121820] text-white flex flex-col justify-between">
       <div>
@@ -51,21 +59,21 @@ export default function DeliveryDashboardPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             <div className="bg-[#1e2632] border border-gray-800 p-5 rounded-2xl space-y-2">
               <span className="text-xs text-gray-400 font-bold">Today&apos;s Deliveries</span>
-              <h3 className="text-2xl font-black text-white">8 Completed</h3>
+              <h3 className="text-2xl font-black text-white">{completedRuns} Completed</h3>
               <p className="text-[11px] text-[#0aad0a] font-semibold flex items-center gap-1">
-                <ArrowUpRight size={14} /> 2 active runs in progress
+                {isDemoRider ? <><ArrowUpRight size={14} /> 2 active runs in progress</> : 'Awaiting dispatch'}
               </p>
             </div>
 
             <div className="bg-[#1e2632] border border-gray-800 p-5 rounded-2xl space-y-2">
               <span className="text-xs text-gray-400 font-bold">Today&apos;s Trip Earnings</span>
-              <h3 className="text-2xl font-black text-[#0aad0a] font-mono">{formatNaira(64500)}</h3>
-              <p className="text-[11px] text-gray-400">+{formatNaira(12000)} peak surge incentive</p>
+              <h3 className="text-2xl font-black text-[#0aad0a] font-mono">{formatNaira(tripEarnings)}</h3>
+              <p className="text-[11px] text-gray-400">{isDemoRider ? `+${formatNaira(12000)} peak surge incentive` : 'No trip earnings today'}</p>
             </div>
 
             <div className="bg-[#1e2632] border border-gray-800 p-5 rounded-2xl space-y-2">
               <span className="text-xs text-gray-400 font-bold">Cash in Hand (COD to Remit)</span>
-              <h3 className="text-2xl font-black text-amber-400 font-mono">{formatNaira(103500)}</h3>
+              <h3 className="text-2xl font-black text-amber-400 font-mono">{formatNaira(cashInHand)}</h3>
               <Link href="/delivery/earnings" className="text-[11px] text-amber-300 font-bold hover:underline block">
                 Deposit to Store Counter &rarr;
               </Link>
@@ -74,25 +82,34 @@ export default function DeliveryDashboardPage() {
             <div className="bg-[#1e2632] border border-gray-800 p-5 rounded-2xl space-y-2">
               <span className="text-xs text-gray-400 font-bold">Courier Rating</span>
               <h3 className="text-2xl font-black text-white flex items-center gap-1.5">
-                4.95 <Star size={18} className="text-amber-400 fill-amber-400" />
+                {rating} <Star size={18} className="text-amber-400 fill-amber-400" />
               </h3>
-              <p className="text-[11px] text-gray-400">342 lifetime runs</p>
+              <p className="text-[11px] text-gray-400">{totalRuns}</p>
             </div>
           </div>
 
           {/* Active Run Card */}
-          <div className="bg-gradient-to-r from-emerald-950/60 to-slate-900 border border-[#0aad0a]/40 rounded-3xl p-6 sm:p-8 space-y-6 shadow-xl relative overflow-hidden">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="bg-[#0aad0a] text-white text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase">
-                    Current Active Delivery
-                  </span>
-                  <span className="text-xs font-mono font-bold text-white">#ORD-98241</span>
-                </div>
-                <h3 className="text-xl font-black text-white">Alex Johnson (Flat 4B)</h3>
-                <p className="text-xs text-gray-300 flex items-center gap-1">
-                  <MapPin size={14} className="text-[#0aad0a]" /> Plot 14, Adeola Odeku St, Victoria Island (1.2 km away)
+          {!isDemoRider ? (
+            <div className="bg-[#1e2632] border border-gray-800 rounded-3xl p-8 text-center space-y-3 shadow-xl">
+              <Truck size={36} className="mx-auto text-amber-400" />
+              <h3 className="text-base font-bold text-white">No active delivery runs assigned</h3>
+              <p className="text-xs text-gray-400 max-w-sm mx-auto">
+                You are online and ready for dispatch. As soon as a customer order is packed in your area, it will be assigned to your route.
+              </p>
+            </div>
+          ) : (
+            <div className="bg-gradient-to-r from-emerald-950/60 to-slate-900 border border-[#0aad0a]/40 rounded-3xl p-6 sm:p-8 space-y-6 shadow-xl relative overflow-hidden">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="bg-[#0aad0a] text-white text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase">
+                      Current Active Delivery
+                    </span>
+                    <span className="text-xs font-mono font-bold text-white">#ORD-98241</span>
+                  </div>
+                  <h3 className="text-xl font-black text-white">Alex Johnson (Flat 4B)</h3>
+                  <p className="text-xs text-gray-300 flex items-center gap-1">
+                    <MapPin size={14} className="text-[#0aad0a]" /> Plot 14, Adeola Odeku St, Victoria Island (1.2 km away)
                 </p>
               </div>
 
@@ -139,6 +156,7 @@ export default function DeliveryDashboardPage() {
               </Link>
             </div>
           </div>
+          )}
 
           {/* Assigned Runs Table */}
           <div className="bg-[#1e2632] border border-gray-800 rounded-3xl p-6 space-y-4">
@@ -165,11 +183,11 @@ export default function DeliveryDashboardPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-800/60 font-medium text-gray-300">
-                  {[
+                  {(isDemoRider ? [
                     { id: 'ORD-98241', customer: 'Alex Johnson', addr: 'Adeola Odeku, Victoria Island', store: 'Green Valley Farms', pay: `Online (${formatNaira(45000)})`, fee: formatNaira(1500), status: 'Out for Delivery', color: 'text-amber-400 bg-amber-950/40' },
                     { id: 'ORD-98240', customer: 'Michael Scott', addr: 'Admiralty Way, Lekki Phase 1', store: 'Daily Dairy Fresh', pay: `COD (${formatNaira(28500)})`, fee: formatNaira(1200), status: 'Assigned', color: 'text-blue-400 bg-blue-950/40' },
                     { id: 'ORD-98235', customer: 'Chinedu Okafor', addr: 'Oceanview Towers, VI', store: 'Artisanal Bakery', pay: `Online (${formatNaira(62100)})`, fee: formatNaira(2000), status: 'Delivered', color: 'text-[#0aad0a] bg-emerald-950/40' },
-                  ].map((r) => (
+                  ] : []).map((r) => (
                     <tr key={r.id} className="hover:bg-gray-800/40">
                       <td className="py-3.5 px-3 font-bold text-white font-mono">{r.id}</td>
                       <td className="py-3.5 px-3">

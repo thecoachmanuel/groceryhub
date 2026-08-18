@@ -17,7 +17,7 @@ import { useSellerAuth } from '@/context/AuthContext';
 
 export default function SellerDashboardPage() {
   const router = useRouter();
-  const { isSellerAuthenticated, isInitialized } = useSellerAuth();
+  const { seller, isSellerAuthenticated, isInitialized } = useSellerAuth();
 
   useEffect(() => {
     if (!isInitialized) return;
@@ -37,6 +37,13 @@ export default function SellerDashboardPage() {
 
   const hasSellerToken = typeof window !== 'undefined' && !!localStorage.getItem('groceryhub_seller_token');
   if (!isSellerAuthenticated && !hasSellerToken) return null;
+
+  const isDemoSeller = seller?.email === 'vendor@groceryhub.ng';
+  const revenue = isDemoSeller ? 142050 : (seller?.balance || 0);
+  const pendingOrders = isDemoSeller ? 8 : 0;
+  const catalogCount = isDemoSeller ? 240 : 0;
+  const walletBalance = isDemoSeller ? 890400 : (seller?.balance || 0);
+
   return (
     <div className="min-h-screen bg-[#121820] text-white flex flex-col justify-between">
       <div>
@@ -47,27 +54,27 @@ export default function SellerDashboardPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             <div className="bg-[#1e2632] border border-gray-800 p-5 rounded-2xl space-y-2">
               <span className="text-xs text-gray-400 font-bold">Today&apos;s Revenue</span>
-              <h3 className="text-2xl font-black text-white font-mono">{formatNaira(142050)}</h3>
+              <h3 className="text-2xl font-black text-white font-mono">{formatNaira(revenue)}</h3>
               <p className="text-[11px] text-[#0aad0a] font-semibold flex items-center gap-1">
-                <ArrowUpRight size={14} /> +22.4% from yesterday
+                {isDemoSeller ? <><ArrowUpRight size={14} /> +22.4% from yesterday</> : 'Fresh Store Account'}
               </p>
             </div>
 
             <div className="bg-[#1e2632] border border-gray-800 p-5 rounded-2xl space-y-2">
               <span className="text-xs text-gray-400 font-bold">Pending Orders</span>
-              <h3 className="text-2xl font-black text-amber-400">8 Orders</h3>
-              <p className="text-[11px] text-gray-400">4 awaiting dispatch</p>
+              <h3 className="text-2xl font-black text-amber-400">{pendingOrders} Orders</h3>
+              <p className="text-[11px] text-gray-400">{isDemoSeller ? '4 awaiting dispatch' : 'No active orders'}</p>
             </div>
 
             <div className="bg-[#1e2632] border border-gray-800 p-5 rounded-2xl space-y-2">
               <span className="text-xs text-gray-400 font-bold">Total Catalog Items</span>
-              <h3 className="text-2xl font-black text-white">240 Products</h3>
-              <p className="text-[11px] text-gray-400">12 low stock alerts</p>
+              <h3 className="text-2xl font-black text-white">{catalogCount} Products</h3>
+              <p className="text-[11px] text-gray-400">{isDemoSeller ? '12 low stock alerts' : 'No listed products'}</p>
             </div>
 
             <div className="bg-[#1e2632] border border-gray-800 p-5 rounded-2xl space-y-2">
               <span className="text-xs text-gray-400 font-bold">Wallet Balance</span>
-              <h3 className="text-2xl font-black text-[#0aad0a] font-mono">{formatNaira(485000)}</h3>
+              <h3 className="text-2xl font-black text-[#0aad0a] font-mono">{formatNaira(walletBalance)}</h3>
               <Link href="/seller/earnings" className="text-[11px] text-amber-400 font-bold hover:underline block">
                 Request Payout Withdrawal &rarr;
               </Link>

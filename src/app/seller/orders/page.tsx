@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ShoppingBag, Search, CheckCircle2, Truck, Printer, Eye, Filter } from 'lucide-react';
 import SellerNav from '@/components/seller/SellerNav';
 import { formatNaira } from '@/lib/currency';
+import { useSellerAuth } from '@/context/AuthContext';
 
 const INITIAL_STORE_ORDERS = [
   { id: 'ORD-98241', date: 'Aug 17, 2026 at 08:30 PM', customer: 'Alex Johnson', itemsCount: 4, total: 45000.00, status: 'Out for Delivery', driver: 'Marcus Vance (+234 809 111 2233)' },
@@ -13,7 +14,9 @@ const INITIAL_STORE_ORDERS = [
 ];
 
 export default function SellerOrdersPage() {
-  const [orders, setOrders] = useState(INITIAL_STORE_ORDERS);
+  const { seller } = useSellerAuth();
+  const isDemoSeller = seller?.email === 'vendor@groceryhub.ng';
+  const [orders, setOrders] = useState(isDemoSeller ? INITIAL_STORE_ORDERS : []);
   const [statusFilter, setStatusFilter] = useState('all');
 
   const handleUpdateStatus = (id: string, newStatus: string) => {
@@ -58,83 +61,61 @@ export default function SellerOrdersPage() {
 
           {/* Table */}
           <div className="bg-[#1e2632] border border-gray-800 rounded-3xl p-6 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="border-b border-gray-800 text-gray-400 font-bold uppercase tracking-wider">
-                  <tr>
-                    <th className="pb-3 px-3">Order ID</th>
-                    <th className="pb-3 px-3">Customer</th>
-                    <th className="pb-3 px-3">Items</th>
-                    <th className="pb-3 px-3">Order Total (₦)</th>
-                    <th className="pb-3 px-3">Assigned Courier</th>
-                    <th className="pb-3 px-3">Status</th>
-                    <th className="pb-3 px-3 text-right">Fulfillment Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-800/60 font-medium text-gray-300">
-                  {filtered.map((order) => (
-                    <tr key={order.id} className="hover:bg-gray-800/40 transition-colors">
-                      <td className="py-3.5 px-3">
-                        <div>
-                          <span className="font-bold text-white block">{order.id}</span>
-                          <span className="text-[11px] text-gray-500">{order.date}</span>
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-3 text-white font-bold">{order.customer}</td>
-                      <td className="py-3.5 px-3">{order.itemsCount} products</td>
-                      <td className="py-3.5 px-3 font-mono font-bold text-white">{formatNaira(order.total)}</td>
-                      <td className="py-3.5 px-3 text-gray-400">{order.driver}</td>
-                      <td className="py-3.5 px-3">
-                        <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
-                          order.status === 'Delivered'
-                            ? 'bg-emerald-950/40 text-[#0aad0a]'
-                            : order.status === 'Out for Delivery'
-                            ? 'bg-amber-950/40 text-amber-400'
-                            : 'bg-blue-950/40 text-blue-400'
-                        }`}>
-                          ● {order.status}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-3 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          {order.status === 'Received' && (
-                            <button
-                              onClick={() => handleUpdateStatus(order.id, 'Packed')}
-                              className="px-3 py-1.5 bg-[#0aad0a] hover:bg-[#088f08] text-white font-bold rounded-lg transition-colors text-[11px]"
-                            >
-                              Mark Packed
-                            </button>
-                          )}
-                          {order.status === 'Packed' && (
-                            <button
-                              onClick={() => handleUpdateStatus(order.id, 'Out for Delivery')}
-                              className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-gray-950 font-bold rounded-lg transition-colors text-[11px]"
-                            >
-                              Handover to Courier
-                            </button>
-                          )}
-                          {order.status === 'Out for Delivery' && (
-                            <span className="text-[11px] text-amber-400 font-bold">In Transit</span>
-                          )}
-                          {order.status === 'Delivered' && (
-                            <span className="text-[11px] text-[#0aad0a] font-bold flex items-center gap-1">
-                              <CheckCircle2 size={13} /> Completed
-                            </span>
-                          )}
-                          <button
-                            onClick={() => alert(`Printing packing slip for ${order.id}`)}
-                            className="p-1.5 hover:bg-gray-700 rounded-lg text-gray-400 hover:text-white ml-1"
-                            title="Print Packing Slip"
-                          >
-                            <Printer size={15} />
-                          </button>
-                        </div>
-                      </td>
+            {filtered.length === 0 ? (
+              <div className="py-16 text-center space-y-3">
+                <ShoppingBag size={36} className="mx-auto text-gray-500" />
+                <h3 className="text-base font-bold text-white">No store orders received yet</h3>
+                <p className="text-xs text-gray-400 max-w-sm mx-auto">
+                  Your store pipeline is fresh and ready. When customers purchase your listed inventory, incoming orders will show up here.
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="border-b border-gray-800 text-gray-400 font-bold uppercase tracking-wider text-[10px]">
+                    <tr>
+                      <th className="pb-3">Order ID</th>
+                      <th className="pb-3">Date</th>
+                      <th className="pb-3">Customer</th>
+                      <th className="pb-3">Total (₦)</th>
+                      <th className="pb-3">Status</th>
+                      <th className="pb-3">Assigned Courier</th>
+                      <th className="pb-3 text-right">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-gray-800/60 font-medium">
+                    {filtered.map((order) => (
+                      <tr key={order.id} className="hover:bg-gray-800/30 transition-colors">
+                        <td className="py-4 font-bold text-white font-mono">{order.id}</td>
+                        <td className="py-4 text-gray-400">{order.date}</td>
+                        <td className="py-4 text-white font-bold">{order.customer}</td>
+                        <td className="py-4 font-mono font-bold text-[#0aad0a]">{formatNaira(order.total)}</td>
+                        <td className="py-4">
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                            order.status === 'Delivered' ? 'bg-emerald-950 text-[#0aad0a]' : 'bg-amber-950 text-amber-400'
+                          }`}>
+                            ● {order.status}
+                          </span>
+                        </td>
+                        <td className="py-4 text-gray-300">{order.driver}</td>
+                        <td className="py-4 text-right">
+                          <select
+                            value={order.status}
+                            onChange={(e) => handleUpdateStatus(order.id, e.target.value)}
+                            className="bg-[#121820] border border-gray-700 text-xs font-bold text-white rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-[#0aad0a]"
+                          >
+                            <option value="Received">Received</option>
+                            <option value="Packed">Packed</option>
+                            <option value="Out for Delivery">Out for Delivery</option>
+                            <option value="Delivered">Delivered</option>
+                          </select>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </main>
       </div>

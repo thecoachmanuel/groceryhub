@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import DeliveryNav from '@/components/delivery/DeliveryNav';
 import { formatNaira } from '@/lib/currency';
+import { useRiderAuth } from '@/context/AuthContext';
 
 interface RiderOrder {
   id: string;
@@ -81,7 +82,10 @@ const INITIAL_RIDER_ORDERS: RiderOrder[] = [
 ];
 
 export default function DeliveryOrdersPage() {
-  const [orders, setOrders] = useState<RiderOrder[]>(INITIAL_RIDER_ORDERS);
+  const { rider } = useRiderAuth();
+  const isDemoRider = rider?.mobile === '+2348091112233' || rider?.mobile === '08091112233';
+  const [orders, setOrders] = useState<RiderOrder[]>(isDemoRider ? INITIAL_RIDER_ORDERS : []);
+  const [activeTab, setActiveTab] = useState<'all' | 'Assigned' | 'Picked Up' | 'Delivered'>('all');
   const [activeOtpModal, setActiveOtpModal] = useState<RiderOrder | null>(null);
   const [enteredOtp, setEnteredOtp] = useState('');
   const [otpError, setOtpError] = useState('');
@@ -143,7 +147,16 @@ export default function DeliveryOrdersPage() {
           )}
 
           <div className="space-y-6">
-            {orders.map((order) => (
+            {orders.length === 0 ? (
+              <div className="bg-[#1e2632] border border-gray-800 rounded-3xl p-12 text-center space-y-3">
+                <Truck size={36} className="mx-auto text-amber-400" />
+                <h3 className="text-base font-bold text-white">No delivery tasks assigned yet</h3>
+                <p className="text-xs text-gray-400 max-w-sm mx-auto">
+                  Your route manifest is clear. Stay online to receive automated dispatch requests from nearby grocery merchants.
+                </p>
+              </div>
+            ) : (
+              orders.map((order) => (
               <div
                 key={order.id}
                 className={`bg-[#1e2632] border rounded-3xl p-6 sm:p-8 space-y-6 transition-all ${
@@ -268,7 +281,8 @@ export default function DeliveryOrdersPage() {
                   </div>
                 </div>
               </div>
-            ))}
+            ))
+            )}
           </div>
         </main>
       </div>

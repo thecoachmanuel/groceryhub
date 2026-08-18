@@ -28,18 +28,37 @@ const INITIAL_ADDRESSES: SavedAddress[] = [
 export default function CustomerProfilePage() {
   const { user, loginSession, logout } = useAuth();
 
-  const [name, setName] = useState(user?.name || 'Chinedu Okafor');
-  const [email, setEmail] = useState(user?.email || 'customer@groceryhub.ng');
-  const [mobile, setMobile] = useState(user?.mobile || '+234 802 345 6789');
-  const [addresses, setAddresses] = useState<SavedAddress[]>(INITIAL_ADDRESSES);
+  const isDemoUser = user?.email === 'customer@groceryhub.ng';
+
+  const [name, setName] = useState(user?.name || '');
+  const [email, setEmail] = useState(user?.email || '');
+  const [mobile, setMobile] = useState(user?.mobile || '');
+  const [addresses, setAddresses] = useState<SavedAddress[]>(() => {
+    if (typeof window !== 'undefined' && user?.id) {
+      const saved = localStorage.getItem(`groceryhub_addresses_${user.id}`);
+      if (saved) {
+        try { return JSON.parse(saved); } catch {}
+      }
+    }
+    return isDemoUser ? INITIAL_ADDRESSES : [];
+  });
   const [showAddModal, setShowAddModal] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   useEffect(() => {
     if (user) {
-      setName(user.name);
-      setEmail(user.email);
-      setMobile(user.mobile);
+      setName(user.name || '');
+      setEmail(user.email || '');
+      setMobile(user.mobile || '');
+      // Load user saved addresses
+      const saved = localStorage.getItem(`groceryhub_addresses_${user.id}`);
+      if (saved) {
+        try { setAddresses(JSON.parse(saved)); } catch {}
+      } else if (user.email === 'customer@groceryhub.ng') {
+        setAddresses(INITIAL_ADDRESSES);
+      } else {
+        setAddresses([]);
+      }
     }
   }, [user]);
 
@@ -62,9 +81,13 @@ export default function CustomerProfilePage() {
   };
 
   const handleSetDefault = (id: number) => {
-    setAddresses((prev) =>
-      prev.map((a) => ({ ...a, isDefault: a.id === id }))
-    );
+    setAddresses((prev) => {
+      const updated = prev.map((a) => ({ ...a, isDefault: a.id === id }));
+      if (typeof window !== 'undefined' && user?.id) {
+        localStorage.setItem(`groceryhub_addresses_${user.id}`, JSON.stringify(updated));
+      }
+      return updated;
+    });
   };
 
   const handleAddAddress = (e: React.FormEvent) => {
@@ -80,7 +103,11 @@ export default function CustomerProfilePage() {
       pincode: modalPincode,
       isDefault: addresses.length === 0,
     };
-    setAddresses([...addresses, newAddr]);
+    const updated = [...addresses, newAddr];
+    setAddresses(updated);
+    if (typeof window !== 'undefined' && user?.id) {
+      localStorage.setItem(`groceryhub_addresses_${user.id}`, JSON.stringify(updated));
+    }
     setShowAddModal(false);
     setModalFlat('');
     setModalArea('');
@@ -204,43 +231,59 @@ export default function CustomerProfilePage() {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {addresses.map((addr) => (
-                <div
-                  key={addr.id}
-                  className={`bg-white dark:bg-[#1e2632] border-2 rounded-3xl p-5 space-y-3 relative transition-all ${
-                    addr.isDefault ? 'border-[#0aad0a]' : 'border-gray-100 dark:border-gray-800'
-                  }`}
+            {addresses.length === 0 ? (
+              <div className="bg-white dark:bg-[#1e2632] border border-dashed border-gray-300 dark:border-gray-700 rounded-3xl p-8 text-center space-y-3">
+                <MapPin size={36} className="mx-auto text-[#0aad0a]" />
+                <h4 className="font-black text-sm text-gray-900 dark:text-white">No saved addresses yet</h4>
+                <p className="text-xs text-gray-500 max-w-sm mx-auto">
+                  Add your primary delivery address in Lagos, Abuja, or across Nigeria for fast 1-click express checkout.
+                </p>
+                <button
+                  onClick={() => setShowAddModal(true)}
+                  className="inline-flex items-center gap-1.5 bg-[#0aad0a] text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md"
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-1.5 text-xs font-black text-gray-900 dark:text-white">
-                      {addr.type === 'Home' ? <Home size={14} className="text-[#0aad0a]" /> : <Briefcase size={14} className="text-blue-400" />}
-                      {addr.type}
-                    </span>
-
-                    {addr.isDefault ? (
-                      <span className="text-[10px] font-black bg-emerald-100 dark:bg-emerald-950/60 text-[#0aad0a] px-2 py-0.5 rounded-full">
-                        Default
+                  <Plus size={14} /> Add Delivery Address
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {addresses.map((addr) => (
+                  <div
+                    key={addr.id}
+                    className={`bg-white dark:bg-[#1e2632] border-2 rounded-3xl p-5 space-y-3 relative transition-all ${
+                      addr.isDefault ? 'border-[#0aad0a]' : 'border-gray-100 dark:border-gray-800'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-1.5 text-xs font-black text-gray-900 dark:text-white">
+                        {addr.type === 'Home' ? <Home size={14} className="text-[#0aad0a]" /> : <Briefcase size={14} className="text-blue-400" />}
+                        {addr.type}
                       </span>
-                    ) : (
-                      <button
-                        onClick={() => handleSetDefault(addr.id)}
-                        className="text-[11px] text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 underline font-medium"
-                      >
-                        Set Default
-                      </button>
-                    )}
-                  </div>
 
-                  <div className="space-y-1 text-xs text-gray-600 dark:text-gray-400">
-                    <div className="font-bold text-gray-900 dark:text-white">{addr.name}</div>
-                    <div>{addr.flat}, {addr.area}</div>
-                    <div>{addr.city} - {addr.pincode}</div>
-                    <div className="font-mono text-gray-500">{addr.mobile}</div>
+                      {addr.isDefault ? (
+                        <span className="text-[10px] font-black bg-emerald-100 dark:bg-emerald-950/60 text-[#0aad0a] px-2 py-0.5 rounded-full">
+                          Default
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => handleSetDefault(addr.id)}
+                          className="text-[11px] text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 underline font-medium"
+                        >
+                          Set Default
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="space-y-1 text-xs text-gray-600 dark:text-gray-400">
+                      <div className="font-bold text-gray-900 dark:text-white">{addr.name}</div>
+                      <div>{addr.flat}, {addr.area}</div>
+                      <div>{addr.city} - {addr.pincode}</div>
+                      <div className="font-mono text-gray-500">{addr.mobile}</div>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </main>

@@ -6,6 +6,7 @@ import { Package, Plus, Search, Trash2, Edit3, X, Filter } from 'lucide-react';
 import SellerNav from '@/components/seller/SellerNav';
 import LocalImageUploader from '@/components/common/LocalImageUploader';
 import { formatNaira } from '@/lib/currency';
+import { useSellerAuth } from '@/context/AuthContext';
 
 interface VendorProduct {
   id: number;
@@ -26,7 +27,9 @@ const INITIAL_VENDOR_PRODUCTS: VendorProduct[] = [
 ];
 
 export default function SellerProductsPage() {
-  const [products, setProducts] = useState<VendorProduct[]>(INITIAL_VENDOR_PRODUCTS);
+  const { seller } = useSellerAuth();
+  const isDemoSeller = seller?.email === 'vendor@groceryhub.ng';
+  const [products, setProducts] = useState<VendorProduct[]>(isDemoSeller ? INITIAL_VENDOR_PRODUCTS : []);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<VendorProduct | null>(null);
 
@@ -157,21 +160,36 @@ export default function SellerProductsPage() {
 
           {/* Product Table */}
           <div className="bg-[#1e2632] border border-gray-800 rounded-3xl p-6 shadow-xl space-y-4">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="text-gray-400 border-b border-gray-800">
-                    <th className="pb-3 px-3 font-bold">Product Item</th>
-                    <th className="pb-3 px-3 font-bold">Category</th>
-                    <th className="pb-3 px-3 font-bold">Unit Measure</th>
-                    <th className="pb-3 px-3 font-bold">Price (₦)</th>
-                    <th className="pb-3 px-3 font-bold">Inventory</th>
-                    <th className="pb-3 px-3 font-bold">Status</th>
-                    <th className="pb-3 px-3 font-bold text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-800">
-                  {filtered.map((p) => (
+            {filtered.length === 0 ? (
+              <div className="py-16 text-center space-y-3">
+                <Package size={36} className="mx-auto text-gray-500" />
+                <h3 className="text-base font-bold text-white">No products listed in catalog</h3>
+                <p className="text-xs text-gray-400 max-w-sm mx-auto">
+                  Your store catalog is empty. Click &apos;Add New Product&apos; above to list your fresh produce, vegetables, and groceries.
+                </p>
+                <button
+                  onClick={openCreateModal}
+                  className="inline-flex items-center gap-1.5 bg-[#0aad0a] text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md"
+                >
+                  <Plus size={14} /> Add First Product
+                </button>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="text-gray-400 border-b border-gray-800">
+                      <th className="pb-3 px-3 font-bold">Product Item</th>
+                      <th className="pb-3 px-3 font-bold">Category</th>
+                      <th className="pb-3 px-3 font-bold">Unit Measure</th>
+                      <th className="pb-3 px-3 font-bold">Price (₦)</th>
+                      <th className="pb-3 px-3 font-bold">Inventory</th>
+                      <th className="pb-3 px-3 font-bold">Status</th>
+                      <th className="pb-3 px-3 font-bold text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-800">
+                    {filtered.map((p) => (
                     <tr key={p.id} className="hover:bg-gray-800/40 transition-colors">
                       <td className="py-3.5 px-3">
                         <div className="flex items-center gap-3">
@@ -217,6 +235,7 @@ export default function SellerProductsPage() {
                 </tbody>
               </table>
             </div>
+            )}
           </div>
         </main>
       </div>

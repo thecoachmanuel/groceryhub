@@ -6,6 +6,7 @@ import { Wallet, Plus, ArrowUpRight, ArrowDownLeft, Sparkles, ShieldCheck, Arrow
 import Header from '@/components/website/Header';
 import Footer from '@/components/website/Footer';
 import { formatNaira } from '@/lib/currency';
+import { useAuth } from '@/context/AuthContext';
 
 const WALLET_HISTORY = [
   { id: 'WAL-1092', type: 'Refund Credit', ref: 'Order #ORD-98241', amount: 3500, date: 'Aug 17, 2026', status: 'Credited' },
@@ -15,10 +16,19 @@ const WALLET_HISTORY = [
 ];
 
 export default function CustomerWalletPage() {
-  const [balance, setBalance] = useState(12500.00); // ₦12,500
+  const { user, updateWallet } = useAuth();
+  const isDemoUser = user?.email === 'customer@groceryhub.ng';
+  const initialBalance = user ? user.walletBalance : 0;
+  const [balance, setBalance] = useState(initialBalance);
   const [showTopupModal, setShowTopupModal] = useState(false);
   const [topupAmount, setTopupAmount] = useState('10000');
   const [topupSuccess, setTopupSuccess] = useState(false);
+
+  const history = isDemoUser
+    ? WALLET_HISTORY
+    : (user?.walletBalance && user.walletBalance > 0
+        ? [{ id: 'WAL-BONUS', type: 'Welcome Bonus', ref: 'Referral Credit', amount: user.walletBalance, date: 'Today', status: 'Credited' }]
+        : []);
 
   const handleTopup = (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,32 +95,40 @@ export default function CustomerWalletPage() {
           </div>
 
           <div className="space-y-4 divide-y divide-gray-100 dark:divide-gray-800">
-            {WALLET_HISTORY.map((item) => (
-              <div key={item.id} className="pt-4 first:pt-0 flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${
-                    item.amount > 0 
-                      ? 'bg-emerald-100 dark:bg-emerald-950/60 text-[#0aad0a]' 
-                      : 'bg-red-100 dark:bg-red-950/60 text-red-500'
-                  }`}>
-                    {item.amount > 0 ? <ArrowDownLeft size={18} /> : <ArrowUpRight size={18} />}
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-gray-900 dark:text-white">{item.type}</div>
-                    <div className="text-[11px] text-gray-400">{item.ref} • {item.date}</div>
-                  </div>
-                </div>
-
-                <div className="text-right">
-                  <div className={`text-xs font-black font-mono ${
-                    item.amount > 0 ? 'text-[#0aad0a]' : 'text-gray-900 dark:text-white'
-                  }`}>
-                    {item.amount > 0 ? `+${formatNaira(item.amount)}` : formatNaira(item.amount)}
-                  </div>
-                  <span className="text-[10px] text-gray-400 font-medium">{item.status}</span>
-                </div>
+            {history.length === 0 ? (
+              <div className="py-8 text-center space-y-2">
+                <Wallet size={32} className="mx-auto text-gray-400" />
+                <h4 className="font-bold text-xs text-gray-700 dark:text-gray-300">No wallet transactions yet</h4>
+                <p className="text-[11px] text-gray-400">Top up your wallet to start making fast 1-click doorstep purchases.</p>
               </div>
-            ))}
+            ) : (
+              history.map((item) => (
+                <div key={item.id} className="pt-4 first:pt-0 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${
+                      item.amount > 0 
+                        ? 'bg-emerald-100 dark:bg-emerald-950/60 text-[#0aad0a]' 
+                        : 'bg-red-100 dark:bg-red-950/60 text-red-500'
+                    }`}>
+                      {item.amount > 0 ? <ArrowDownLeft size={18} /> : <ArrowUpRight size={18} />}
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-gray-900 dark:text-white">{item.type}</div>
+                      <div className="text-[11px] text-gray-400">{item.ref} • {item.date}</div>
+                    </div>
+                  </div>
+
+                  <div className="text-right">
+                    <div className={`text-xs font-black font-mono ${
+                      item.amount > 0 ? 'text-[#0aad0a]' : 'text-gray-900 dark:text-white'
+                    }`}>
+                      {item.amount > 0 ? `+${formatNaira(item.amount)}` : formatNaira(item.amount)}
+                    </div>
+                    <span className="text-[10px] text-gray-400 font-medium">{item.status}</span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </main>

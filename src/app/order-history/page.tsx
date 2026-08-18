@@ -18,6 +18,7 @@ import {
 import Header from '@/components/website/Header';
 import Footer from '@/components/website/Footer';
 import { formatNaira } from '@/lib/currency';
+import { useAuth } from '@/context/AuthContext';
 
 const SAMPLE_ORDERS = [
   {
@@ -62,7 +63,11 @@ const SAMPLE_ORDERS = [
 ];
 
 export default function OrderHistoryPage() {
+  const { user } = useAuth();
   const [selectedOrderForTracking, setSelectedOrderForTracking] = useState<any | null>(null);
+
+  const isDemoUser = user?.email === 'customer@groceryhub.ng';
+  const orders = isDemoUser ? SAMPLE_ORDERS : [];
 
   return (
     <div className="min-h-screen flex flex-col justify-between bg-gray-50 dark:bg-[#121820]">
@@ -88,75 +93,96 @@ export default function OrderHistoryPage() {
 
         {/* Orders List */}
         <div className="space-y-6">
-          {SAMPLE_ORDERS.map((order) => (
-            <div
-              key={order.id}
-              className="bg-white dark:bg-[#1e2632] rounded-3xl p-6 border border-gray-100 dark:border-gray-800 shadow-sm space-y-4 transition-all hover:shadow-md"
-            >
-              {/* Order Top Bar */}
-              <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-gray-100 dark:border-gray-800">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-black text-gray-900 dark:text-white">{order.id}</span>
-                    <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
-                      order.status === 'Delivered' 
-                        ? 'bg-emerald-100 dark:bg-emerald-950/60 text-[#0aad0a]' 
-                        : 'bg-amber-100 dark:bg-amber-950/60 text-amber-500 animate-pulse'
-                    }`}>
-                      ● {order.status}
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-400">{order.date}</p>
-                </div>
-
-                <div className="flex items-center gap-4">
-                  <div className="text-right">
-                    <span className="text-xs text-gray-400 block">Total Amount (Naira)</span>
-                    <span className="text-base font-black text-gray-900 dark:text-white font-mono">
-                      {formatNaira(order.total)}
-                    </span>
-                  </div>
-
-                  <button
-                    onClick={() => setSelectedOrderForTracking(order)}
-                    className="bg-[#0aad0a]/10 hover:bg-[#0aad0a] text-[#0aad0a] hover:text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all flex items-center gap-1"
-                  >
-                    <span>Track Order</span>
-                    <ChevronRight size={14} />
-                  </button>
-                </div>
+          {orders.length === 0 ? (
+            <div className="bg-white dark:bg-[#1e2632] rounded-3xl p-12 text-center border border-gray-100 dark:border-gray-800 space-y-4 shadow-sm">
+              <div className="w-16 h-16 rounded-3xl bg-[#0aad0a]/10 text-[#0aad0a] flex items-center justify-center mx-auto">
+                <ShoppingBag size={32} />
               </div>
-
-              {/* Order Items Summary in Naira */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                <div className="space-y-2">
-                  <span className="font-bold text-gray-400 uppercase tracking-wider text-[10px]">Items in Order ({order.itemsCount})</span>
-                  <div className="space-y-1">
-                    {order.items.map((item, idx) => (
-                      <div key={idx} className="flex justify-between text-gray-700 dark:text-gray-300">
-                        <span>{item.name} x{item.qty}</span>
-                        <span className="font-mono font-bold text-gray-900 dark:text-white">{formatNaira(item.price * item.qty)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-2 border-t md:border-t-0 md:border-l border-gray-100 dark:border-gray-800 pt-3 md:pt-0 md:pl-4">
-                  <span className="font-bold text-gray-400 uppercase tracking-wider text-[10px]">Delivery Information</span>
-                  <div className="space-y-1 text-gray-600 dark:text-gray-400">
-                    <div className="flex items-center gap-1.5">
-                      <Clock size={14} className="text-[#0aad0a]" />
-                      <span>{order.deliverySlot}</span>
-                    </div>
-                    <div className="flex items-start gap-1.5">
-                      <MapPin size={14} className="text-[#0aad0a] shrink-0 mt-0.5" />
-                      <span className="truncate">{order.deliveryAddress}</span>
-                    </div>
-                  </div>
-                </div>
+              <div className="space-y-1">
+                <h3 className="text-lg font-black text-gray-900 dark:text-white">No orders placed yet</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
+                  You haven't placed any grocery orders yet. Start exploring fresh vegetables, organic fruits, and pantry staples!
+                </p>
               </div>
+              <Link
+                href="/"
+                className="inline-flex items-center gap-2 bg-[#0aad0a] hover:bg-[#088f08] text-white font-black px-6 py-3 rounded-2xl text-xs shadow-md shadow-[#0aad0a]/20 transition-all"
+              >
+                <ShoppingBag size={16} />
+                <span>Explore Store Catalog</span>
+              </Link>
             </div>
-          ))}
+          ) : (
+            orders.map((order) => (
+              <div
+                key={order.id}
+                className="bg-white dark:bg-[#1e2632] rounded-3xl p-6 border border-gray-100 dark:border-gray-800 shadow-sm space-y-4 transition-all hover:shadow-md"
+              >
+                {/* Order Top Bar */}
+                <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-gray-100 dark:border-gray-800">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-black text-gray-900 dark:text-white">{order.id}</span>
+                      <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
+                        order.status === 'Delivered' 
+                          ? 'bg-emerald-100 dark:bg-emerald-950/60 text-[#0aad0a]' 
+                          : 'bg-amber-100 dark:bg-amber-950/60 text-amber-500 animate-pulse'
+                      }`}>
+                        ● {order.status}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-400">{order.date}</p>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <span className="text-xs text-gray-400 block">Total Amount (Naira)</span>
+                      <span className="text-base font-black text-gray-900 dark:text-white font-mono">
+                        {formatNaira(order.total)}
+                      </span>
+                    </div>
+
+                    <button
+                      onClick={() => setSelectedOrderForTracking(order)}
+                      className="bg-[#0aad0a]/10 hover:bg-[#0aad0a] text-[#0aad0a] hover:text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all flex items-center gap-1"
+                    >
+                      <span>Track Order</span>
+                      <ChevronRight size={14} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Order Items Summary in Naira */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                  <div className="space-y-2">
+                    <span className="font-bold text-gray-400 uppercase tracking-wider text-[10px]">Items in Order ({order.itemsCount})</span>
+                    <div className="space-y-1">
+                      {order.items.map((item, idx) => (
+                        <div key={idx} className="flex justify-between text-gray-700 dark:text-gray-300">
+                          <span>{item.name} x{item.qty}</span>
+                          <span className="font-mono font-bold text-gray-900 dark:text-white">{formatNaira(item.price * item.qty)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 border-t md:border-t-0 md:border-l border-gray-100 dark:border-gray-800 pt-3 md:pt-0 md:pl-4">
+                    <span className="font-bold text-gray-400 uppercase tracking-wider text-[10px]">Delivery Information</span>
+                    <div className="space-y-1 text-gray-600 dark:text-gray-400">
+                      <div className="flex items-center gap-1.5">
+                        <Clock size={14} className="text-[#0aad0a]" />
+                        <span>{order.deliverySlot}</span>
+                      </div>
+                      <div className="flex items-start gap-1.5">
+                        <MapPin size={14} className="text-[#0aad0a] shrink-0 mt-0.5" />
+                        <span className="truncate">{order.deliveryAddress}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </main>
 
