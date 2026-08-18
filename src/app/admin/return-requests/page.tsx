@@ -1,156 +1,150 @@
 'use client';
 
-import { useState } from 'react';
-import Image from 'next/image';
-import { RotateCcw, CheckCircle2, XCircle, Search, Eye, Filter } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { RotateCcw, Search, X, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import { formatNaira } from '@/lib/currency';
 
-const INITIAL_REQUESTS = [
-  { id: 'RET-1042', orderId: 'ORD-98241', customer: 'Alice Johnson', item: 'Fresh Organic Farm Broccoli (500g)', refundAmount: 3500, reason: 'Bruised during transit', proofImage: 'https://images.unsplash.com/photo-1459411621453-7b03977f4bfc?w=300', date: 'Aug 17, 2026', status: 'Pending' },
-  { id: 'RET-1041', orderId: 'ORD-98235', customer: 'Michael Scott', item: 'Farm Fresh Pure Whole Milk (1L)', refundAmount: 3800, reason: 'Packaging seal broken', proofImage: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=300', date: 'Aug 16, 2026', status: 'Approved' },
-  { id: 'RET-1040', orderId: 'ORD-98220', customer: 'Eleanor Shellstrop', item: 'Artisan Sourdough Bakery Bread (750g)', refundAmount: 3200, reason: 'Ordered wrong variant', proofImage: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=300', date: 'Aug 14, 2026', status: 'Rejected' },
-];
+interface ReturnRequest {
+  id: string;
+  orderId: string;
+  customer: string;
+  amount: number;
+  reason: string;
+  status: string;
+  date: string;
+}
+
+const formatReturnFromApi = (o: any): ReturnRequest => ({
+  id: o._id,
+  orderId: o.order_id || `ORD-${String(o._id).slice(-5).toUpperCase()}`,
+  customer: o.user_id || o.customer_name || 'Customer',
+  amount: o.total_payable || 0,
+  reason: o.return_reason || o.cancel_reason || 'Requested by customer',
+  status: o.active_status || o.return_status || 'return_requested',
+  date: o.created_at ? new Date(o.created_at).toLocaleDateString('en-NG') : '—',
+});
 
 export default function AdminReturnRequestsPage() {
-  const [requests, setRequests] = useState(INITIAL_REQUESTS);
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [requests, setRequests] = useState<ReturnRequest[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedRequest, setSelectedRequest] = useState<ReturnRequest | null>(null);
+  const [saving, setSaving] = useState(false);
 
-  const handleAction = (id: string, newStatus: 'Approved' | 'Rejected') => {
-    setRequests((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, status: newStatus } : r))
-    );
-    if (newStatus === 'Approved') {
-      const match = requests.find(r => r.id === id);
-      alert(`Return ${id} approved! ${formatNaira(match?.refundAmount || 0)} credited to customer's wallet.`);
-    }
+  const fetchRequests = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/admin/return-requests');
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) setRequests(json.data.map(formatReturnFromApi));
+    } catch (err) { console.warn(err); }
+    finally { setLoading(false); }
   };
 
-  const filtered = requests.filter((r) => {
-    const matchesSearch =
-      r.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      r.orderId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      r.customer.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || r.status.toLowerCase() === statusFilter.toLowerCase();
-    return matchesSearch && matchesStatus;
-  });
+  useEffect(() => { fetchRequests(); }, []);
+
+  const handleUpdateStatus = async (id: string, status: string) => {
+    setSaving(true);
+    try {
+      await fetch('/api/admin/return-requests', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: id, active_status: status, return_status: status }),
+      });
+      setRequests((prev) => prev.map((r) => r.id === id ? { ...r, status } : r));
+      if (selectedRequest?.id === id) setSelectedRequest((r) => r ? { ...r, status } : null);
+    } catch (err) { console.warn(err); }
+    setSaving(false);
+  };
+
+  const statusBadge = (status: string) => {
+    if (status === 'refunded') return 'bg-emerald-950/40 text-[#0aad0a]';
+    if (status === 'rejected') return 'bg-red-950/40 text-red-400';
+    return 'bg-amber-950/40 text-amber-400';
+  };
+
+  const filtered = requests.filter((r) =>
+    r.orderId.toLowerCase().includes(searchQuery.toLowerCase()) || r.customer.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="flex bg-[#121820] text-white min-h-screen">
       <AdminSidebar />
-
       <main className="flex-1 p-8 space-y-6 overflow-y-auto">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-black flex items-center gap-2">
-              <RotateCcw size={24} className="text-[#0aad0a]" /> Customer Return &amp; Refund Requests
-            </h1>
-            <p className="text-xs text-gray-400 mt-0.5">Inspect item condition, reason tickets, and process direct digital wallet credits in Naira (₦)</p>
+            <h1 className="text-2xl font-black flex items-center gap-2"><RotateCcw size={24} className="text-[#0aad0a]" /> Return Requests</h1>
+            <p className="text-xs text-gray-400 mt-0.5">Customer return and refund requests from live orders database</p>
           </div>
+          <button onClick={fetchRequests} disabled={loading} className="inline-flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-bold px-3 py-2 rounded-xl">
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh
+          </button>
         </div>
 
-        {/* Filter Bar */}
-        <div className="bg-[#1e2632] border border-gray-800 p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4">
-          <div className="relative flex-1 max-w-md">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search Ticket ID, Order ID, or customer..."
-              className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl py-2 pl-9 pr-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-            />
+        <div className="bg-[#1e2632] border border-gray-800 p-4 rounded-2xl">
+          <div className="relative max-w-md">
+            <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search order ID or customer..."
+              className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl py-2 pl-9 pr-3 text-xs focus:outline-none focus:border-[#0aad0a]" />
             <Search size={16} className="absolute left-3 top-2.5 text-gray-400" />
           </div>
-
-          <div className="flex items-center gap-2">
-            <Filter size={15} className="text-gray-400" />
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-gray-900 border border-gray-700 text-white text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-[#0aad0a]"
-            >
-              <option value="all">All Request Statuses</option>
-              <option value="pending">Pending Review</option>
-              <option value="approved">Approved &amp; Refunded</option>
-              <option value="rejected">Rejected</option>
-            </select>
-          </div>
         </div>
 
-        {/* Table */}
-        <div className="bg-[#1e2632] border border-gray-800 rounded-3xl p-6 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-gray-800 text-gray-400 font-bold uppercase tracking-wider">
-                <tr>
-                  <th className="pb-3 px-3">Ticket / Order</th>
-                  <th className="pb-3 px-3">Customer</th>
-                  <th className="pb-3 px-3">Item Details</th>
-                  <th className="pb-3 px-3">Refund Amount (₦)</th>
-                  <th className="pb-3 px-3">Reason</th>
-                  <th className="pb-3 px-3">Status</th>
-                  <th className="pb-3 px-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-800/60 font-medium text-gray-300">
-                {filtered.map((r) => (
-                  <tr key={r.id} className="hover:bg-gray-800/40 transition-colors">
-                    <td className="py-3.5 px-3">
-                      <div>
-                        <span className="font-bold text-white block font-mono">{r.id}</span>
-                        <span className="text-[11px] text-gray-500 font-mono">{r.orderId}</span>
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-3 text-white font-medium">{r.customer}</td>
-                    <td className="py-3.5 px-3">
-                      <div className="flex items-center gap-2">
-                        <div className="relative w-8 h-8 rounded-lg overflow-hidden bg-gray-800 flex-shrink-0">
-                          <Image src={r.proofImage} alt={r.item} fill className="object-cover" />
-                        </div>
-                        <span className="truncate max-w-xs">{r.item}</span>
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-3 font-bold text-[#0aad0a] font-mono">{formatNaira(r.refundAmount)}</td>
-                    <td className="py-3.5 px-3 text-gray-400">{r.reason}</td>
-                    <td className="py-3.5 px-3">
-                      <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
-                        r.status === 'Approved'
-                          ? 'bg-emerald-950/40 text-[#0aad0a]'
-                          : r.status === 'Rejected'
-                          ? 'bg-red-950/40 text-red-400'
-                          : 'bg-amber-950/40 text-amber-500'
-                      }`}>
-                        ● {r.status}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-3 text-right">
-                      {r.status === 'Pending' ? (
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => handleAction(r.id, 'Approved')}
-                            className="bg-[#0aad0a] hover:bg-[#088f08] text-white font-bold px-3 py-1.5 rounded-xl text-[11px] transition-all flex items-center gap-1 shadow-sm"
-                          >
-                            <CheckCircle2 size={13} />
-                            <span>Approve</span>
-                          </button>
-                          <button
-                            onClick={() => handleAction(r.id, 'Rejected')}
-                            className="bg-red-950/60 hover:bg-red-900 border border-red-800 text-red-400 hover:text-white font-bold px-3 py-1.5 rounded-xl text-[11px] transition-all flex items-center gap-1"
-                          >
-                            <XCircle size={13} />
-                            <span>Reject</span>
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-[11px] text-gray-500 font-semibold">Resolved</span>
-                      )}
-                    </td>
+        <div className="bg-[#1e2632] border border-gray-800 rounded-3xl p-6">
+          {loading ? (
+            <div className="py-12 text-center space-y-3">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0aad0a] mx-auto" />
+              <p className="text-xs text-gray-400">Loading return requests...</p>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="py-12 text-center space-y-3">
+              <RotateCcw size={36} className="mx-auto text-gray-500" />
+              <h4 className="text-sm font-bold">No return requests</h4>
+              <p className="text-xs text-gray-400">
+                {requests.length === 0 ? 'No return or refund requests in the database. Requests will appear here when customers request returns from their orders.' : 'No requests match your search.'}
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="border-b border-gray-800 text-gray-400 font-bold uppercase tracking-wider">
+                  <tr>
+                    <th className="pb-3 px-3">Order</th>
+                    <th className="pb-3 px-3">Customer</th>
+                    <th className="pb-3 px-3">Amount</th>
+                    <th className="pb-3 px-3">Reason</th>
+                    <th className="pb-3 px-3">Status</th>
+                    <th className="pb-3 px-3 text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-800/60 font-medium text-gray-300">
+                  {filtered.map((r) => (
+                    <tr key={r.id} className="hover:bg-gray-800/40 transition-colors">
+                      <td className="py-3 px-3 font-bold text-white font-mono">{r.orderId}</td>
+                      <td className="py-3 px-3">{r.customer}</td>
+                      <td className="py-3 px-3 font-bold text-white font-mono">{formatNaira(r.amount)}</td>
+                      <td className="py-3 px-3 text-gray-400 max-w-xs truncate">{r.reason}</td>
+                      <td className="py-3 px-3">
+                        <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full capitalize ${statusBadge(r.status)}`}>
+                          ● {r.status.replace(/_/g, ' ')}
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button onClick={() => handleUpdateStatus(r.id, 'refunded')} disabled={saving || r.status === 'refunded'} className="text-[10px] font-bold px-2 py-1 rounded-lg bg-emerald-950/40 text-[#0aad0a] hover:bg-emerald-900/60 disabled:opacity-40 transition-all">
+                            ✓ Refund
+                          </button>
+                          <button onClick={() => handleUpdateStatus(r.id, 'rejected')} disabled={saving || r.status === 'rejected'} className="text-[10px] font-bold px-2 py-1 rounded-lg bg-red-950/40 text-red-400 hover:bg-red-900/60 disabled:opacity-40 transition-all">
+                            ✗ Reject
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </main>
     </div>

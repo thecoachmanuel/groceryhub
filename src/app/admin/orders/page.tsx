@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   ShoppingBag, 
   Search, 
@@ -11,86 +11,92 @@ import {
   FileText, 
   User, 
   MapPin, 
-  X
+  X,
+  RefreshCw
 } from 'lucide-react';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import { formatNaira } from '@/lib/currency';
 
-const ALL_ORDERS = [
-  {
-    id: 'ORD-98241',
-    user: 'Alex Johnson',
-    phone: '+234 802 234 5678',
-    address: 'Plot 14, Adeola Odeku St, Flat 4B, Victoria Island, Lagos',
-    vendor: 'Green Valley Organic Farms',
-    amount: 45000.00,
-    paymentMethod: 'COD',
-    status: 'Out for Delivery',
-    driver: 'Marcus Vance',
-    time: 'Aug 17, 08:30 PM',
-    items: [
-      { name: 'Organic Farm Broccoli (500g)', qty: 2, price: 3500 },
-      { name: 'Red Sweet Crisp Apples (1kg)', qty: 1, price: 4500 },
-      { name: 'Farm Fresh Pure Whole Milk (1L)', qty: 2, price: 3800 },
-    ],
-  },
-  {
-    id: 'ORD-98240',
-    user: 'Sarah Miller',
-    phone: '+234 803 345 6789',
-    address: '12 Admiralty Way, Lekki Phase 1, Lagos',
-    vendor: 'The Artisanal Bakery Co.',
-    amount: 28500.00,
-    paymentMethod: 'PAYSTACK',
-    status: 'Packed',
-    driver: 'Unassigned',
-    time: 'Aug 17, 07:15 PM',
-    items: [
-      { name: 'Artisan Sourdough Bakery Bread (750g)', qty: 2, price: 3200 },
-      { name: 'Pure Cold Pressed Extra Virgin Olive Oil (500ml)', qty: 1, price: 11500 },
-    ],
-  },
-  {
-    id: 'ORD-98239',
-    user: 'James Wilson',
-    phone: '+234 805 456 7890',
-    address: '55 Isaac John Street, Ikeja GRA, Lagos',
-    vendor: 'Daily Dairy & Poultry Fresh',
-    amount: 19200.00,
-    paymentMethod: 'PAYSTACK',
-    status: 'Delivered',
-    driver: 'David Chen',
-    time: 'Aug 17, 06:10 PM',
-    items: [
-      { name: 'Pasture-Raised Organic Eggs (Crate of 30)', qty: 1, price: 4200 },
-      { name: 'Fresh Hass Avocados (Pack of 4)', qty: 2, price: 3800 },
-    ],
-  },
-  {
-    id: 'ORD-98238',
-    user: 'Chinedu Okafor',
-    phone: '+234 809 111 2233',
-    address: 'Flat 12, Oceanview Towers, Victoria Island, Lagos',
-    vendor: 'Green Valley Organic Farms',
-    amount: 62100.00,
-    paymentMethod: 'PAYSTACK',
-    status: 'Delivered',
-    driver: 'David Chen',
-    time: 'Aug 16, 04:30 PM',
-    items: [
-      { name: 'Organic Honeycrisp Apples (1kg)', qty: 3, price: 4500 },
-      { name: 'Cold-Pressed Valencia Orange Juice (1L)', qty: 2, price: 3500 },
-    ],
-  },
-];
+interface OrderItem {
+  name: string;
+  qty: number;
+  price: number;
+}
+
+interface Order {
+  id: string;
+  _id?: string;
+  user: string;
+  phone: string;
+  address: string;
+  vendor: string;
+  amount: number;
+  paymentMethod: string;
+  status: string;
+  driver: string;
+  time: string;
+  items: OrderItem[];
+}
+
+const formatOrderFromApi = (o: any): Order => ({
+  id: o.order_id || `ORD-${String(o._id).slice(-5).toUpperCase()}`,
+  _id: o._id,
+  user: o.user_id || o.customer_name || 'Customer',
+  phone: o.phone || o.delivery_address?.phone || '—',
+  address: o.delivery_address?.address
+    ? `${o.delivery_address.address}, ${o.delivery_address.city || ''}`
+    : o.delivery_address?.road || '—',
+  vendor: o.seller_id || 'GroceryHub Store',
+  amount: o.total_payable || o.final_total || 0,
+  paymentMethod: o.payment_method || 'Online',
+  status: o.active_status || 'placed',
+  driver: o.delivery_man_id || 'Unassigned',
+  time: o.created_at ? new Date(o.created_at).toLocaleString('en-NG') : '—',
+  items: Array.isArray(o.items)
+    ? o.items.map((it: any) => ({
+        name: it.product_name || it.name || 'Item',
+        qty: it.quantity || it.qty || 1,
+        price: it.price || 0,
+      }))
+    : [],
+});
 
 export default function AdminOrdersPage() {
-  const [orders, setOrders] = useState(ALL_ORDERS);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
-  const handleUpdateStatus = (id: string, newStatus: string) => {
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/orders');
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        setOrders(json.data.map(formatOrderFromApi));
+      }
+    } catch (err) {
+      console.warn('Failed to fetch orders:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  const handleUpdateStatus = async (id: string, newStatus: string) => {
+    try {
+      await fetch('/api/orders', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: id, active_status: newStatus }),
+      });
+    } catch (err) {
+      console.warn('Status update error:', err);
+    }
     setOrders((prev) =>
       prev.map((o) => (o.id === id ? { ...o, status: newStatus } : o))
     );
@@ -99,7 +105,7 @@ export default function AdminOrdersPage() {
     }
   };
 
-  const handleAssignDriver = (id: string, driver: string) => {
+  const handleAssignDriver = async (id: string, driver: string) => {
     setOrders((prev) =>
       prev.map((o) => (o.id === id ? { ...o, driver } : o))
     );
@@ -108,12 +114,20 @@ export default function AdminOrdersPage() {
     }
   };
 
+  const statusColor = (status: string) => {
+    const s = status.toLowerCase();
+    if (s === 'delivered') return 'bg-emerald-950/40 text-[#0aad0a]';
+    if (s.includes('delivery')) return 'bg-amber-950/40 text-amber-400';
+    if (s === 'cancelled') return 'bg-red-950/40 text-red-400';
+    return 'bg-blue-950/40 text-blue-400';
+  };
+
   const filtered = orders.filter((o) => {
-    const matchesStatus = statusFilter === 'all' || o.status.toLowerCase() === statusFilter.toLowerCase();
+    const matchesStatus = statusFilter === 'all' || o.status.toLowerCase().includes(statusFilter.toLowerCase());
     const matchesSearch =
       o.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
       o.user.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      o.phone.includes(searchQuery);
+      (o.phone && o.phone.includes(searchQuery));
     return matchesStatus && matchesSearch;
   });
 
@@ -128,8 +142,18 @@ export default function AdminOrdersPage() {
             <h1 className="text-2xl font-black flex items-center gap-2">
               <ShoppingBag size={24} className="text-[#0aad0a]" /> Customer Orders Management
             </h1>
-            <p className="text-xs text-gray-400 mt-0.5">Live order pipeline, courier assignment, and Naira receipt invoicing</p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Live order pipeline, courier assignment, and Naira receipt invoicing
+            </p>
           </div>
+          <button
+            onClick={fetchOrders}
+            disabled={loading}
+            className="inline-flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-bold px-3 py-2 rounded-xl transition-all"
+          >
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            Refresh
+          </button>
         </div>
 
         {/* Filter Bar */}
@@ -152,7 +176,7 @@ export default function AdminOrdersPage() {
               onChange={(e) => setStatusFilter(e.target.value)}
               className="bg-gray-900 border border-gray-700 text-white text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-[#0aad0a]"
             >
-              <option value="all">All Order Statuses</option>
+              <option value="all">All Order Statuses ({orders.length})</option>
               <option value="placed">Placed (New)</option>
               <option value="packed">Packed</option>
               <option value="out for delivery">Out for Delivery</option>
@@ -164,73 +188,83 @@ export default function AdminOrdersPage() {
 
         {/* Orders Table */}
         <div className="bg-[#1e2632] border border-gray-800 rounded-3xl p-6 overflow-hidden shadow-xl">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-gray-800 text-gray-400 font-bold uppercase tracking-wider">
-                <tr>
-                  <th className="pb-3 px-3">Order ID</th>
-                  <th className="pb-3 px-3">Customer</th>
-                  <th className="pb-3 px-3">Store Partner</th>
-                  <th className="pb-3 px-3">Amount (₦)</th>
-                  <th className="pb-3 px-3">Assigned Courier</th>
-                  <th className="pb-3 px-3">Status</th>
-                  <th className="pb-3 px-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-800/60 font-medium text-gray-300">
-                {filtered.map((o) => (
-                  <tr key={o.id} className="hover:bg-gray-800/40 transition-colors">
-                    <td className="py-3 px-3">
-                      <div>
-                        <span className="font-bold text-white block font-mono">{o.id}</span>
-                        <span className="text-[11px] text-gray-500">{o.time}</span>
-                      </div>
-                    </td>
-                    <td className="py-3 px-3">
-                      <div>
-                        <span className="font-bold text-white block">{o.user}</span>
-                        <span className="text-[11px] text-gray-400 font-mono">{o.phone}</span>
-                      </div>
-                    </td>
-                    <td className="py-3 px-3">{o.vendor}</td>
-                    <td className="py-3 px-3 font-bold text-white font-mono">{formatNaira(o.amount)}</td>
-                    <td className="py-3 px-3">
-                      <span className={o.driver === 'Unassigned' ? 'text-amber-400 font-bold' : 'text-gray-300'}>
-                        {o.driver}
-                      </span>
-                    </td>
-                    <td className="py-3 px-3">
-                      <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
-                        o.status === 'Delivered'
-                          ? 'bg-emerald-950/40 text-[#0aad0a]'
-                          : o.status === 'Out for Delivery'
-                          ? 'bg-amber-950/40 text-amber-400'
-                          : 'bg-blue-950/40 text-blue-400'
-                      }`}>
-                        ● {o.status}
-                      </span>
-                    </td>
-                    <td className="py-3 px-3 text-right">
-                      <button
-                        onClick={() => setSelectedOrder(o)}
-                        className="bg-[#0aad0a]/10 hover:bg-[#0aad0a] text-[#0aad0a] hover:text-white font-bold text-xs px-3 py-1.5 rounded-lg transition-all"
-                      >
-                        Manage
-                      </button>
-                    </td>
+          {loading ? (
+            <div className="py-12 text-center space-y-3">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0aad0a] mx-auto" />
+              <p className="text-xs text-gray-400">Loading live orders from database...</p>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="py-12 text-center space-y-3">
+              <ShoppingBag size={36} className="mx-auto text-gray-500" />
+              <h4 className="text-sm font-bold">No orders found</h4>
+              <p className="text-xs text-gray-400">
+                {orders.length === 0
+                  ? 'No customer orders in database yet. Orders placed by customers will appear here automatically.'
+                  : 'No orders match your current filter.'}
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="border-b border-gray-800 text-gray-400 font-bold uppercase tracking-wider">
+                  <tr>
+                    <th className="pb-3 px-3">Order ID</th>
+                    <th className="pb-3 px-3">Customer</th>
+                    <th className="pb-3 px-3">Store Partner</th>
+                    <th className="pb-3 px-3">Amount (₦)</th>
+                    <th className="pb-3 px-3">Courier</th>
+                    <th className="pb-3 px-3">Status</th>
+                    <th className="pb-3 px-3 text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-800/60 font-medium text-gray-300">
+                  {filtered.map((o) => (
+                    <tr key={o.id} className="hover:bg-gray-800/40 transition-colors">
+                      <td className="py-3 px-3">
+                        <div>
+                          <span className="font-bold text-white block font-mono">{o.id}</span>
+                          <span className="text-[11px] text-gray-500">{o.time}</span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-3">
+                        <div>
+                          <span className="font-bold text-white block">{o.user}</span>
+                          <span className="text-[11px] text-gray-400 font-mono">{o.phone}</span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-3 text-gray-300">{o.vendor}</td>
+                      <td className="py-3 px-3 font-bold text-white font-mono">{formatNaira(o.amount)}</td>
+                      <td className="py-3 px-3">
+                        <span className={o.driver === 'Unassigned' ? 'text-amber-400 font-bold' : 'text-gray-300'}>
+                          {o.driver}
+                        </span>
+                      </td>
+                      <td className="py-3 px-3">
+                        <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${statusColor(o.status)}`}>
+                          ● {o.status}
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-right">
+                        <button
+                          onClick={() => setSelectedOrder(o)}
+                          className="bg-[#0aad0a]/10 hover:bg-[#0aad0a] text-[#0aad0a] hover:text-white font-bold text-xs px-3 py-1.5 rounded-lg transition-all"
+                        >
+                          Manage
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
-
       </main>
 
       {/* Manage Order Modal */}
       {selectedOrder && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#1e2632] w-full max-w-xl rounded-3xl p-6 sm:p-8 border border-gray-800 space-y-6 relative">
+          <div className="bg-[#1e2632] w-full max-w-xl rounded-3xl p-6 sm:p-8 border border-gray-800 space-y-6 relative max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setSelectedOrder(null)}
               className="absolute right-5 top-5 p-2 rounded-full hover:bg-gray-800 text-gray-400"
@@ -259,12 +293,16 @@ export default function AdminOrdersPage() {
             {/* Items */}
             <div className="space-y-2 text-xs">
               <h4 className="font-bold text-gray-400 uppercase tracking-wider">Ordered Items</h4>
-              {selectedOrder.items.map((it: any, idx: number) => (
-                <div key={idx} className="flex justify-between py-1 border-b border-gray-800">
-                  <span>{it.qty}x {it.name}</span>
-                  <span className="font-bold font-mono">{formatNaira(it.price * it.qty)}</span>
-                </div>
-              ))}
+              {selectedOrder.items.length === 0 ? (
+                <p className="text-gray-500 text-xs">No item breakdown available</p>
+              ) : (
+                selectedOrder.items.map((it, idx) => (
+                  <div key={idx} className="flex justify-between py-1 border-b border-gray-800">
+                    <span>{it.qty}x {it.name}</span>
+                    <span className="font-bold font-mono">{formatNaira(it.price * it.qty)}</span>
+                  </div>
+                ))
+              )}
               <div className="flex justify-between font-black text-white text-sm pt-2">
                 <span>Total Amount</span>
                 <span className="text-[#0aad0a] font-mono">{formatNaira(selectedOrder.amount)}</span>
@@ -280,16 +318,16 @@ export default function AdminOrdersPage() {
                   onChange={(e) => handleUpdateStatus(selectedOrder.id, e.target.value)}
                   className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-2.5 text-xs focus:outline-none focus:border-[#0aad0a]"
                 >
-                  <option value="Placed">Placed</option>
-                  <option value="Packed">Packed</option>
-                  <option value="Out for Delivery">Out for Delivery</option>
-                  <option value="Delivered">Delivered</option>
-                  <option value="Cancelled">Cancelled</option>
+                  <option value="placed">Placed</option>
+                  <option value="packed">Packed</option>
+                  <option value="out_for_delivery">Out for Delivery</option>
+                  <option value="delivered">Delivered</option>
+                  <option value="cancelled">Cancelled</option>
                 </select>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-300">Assign Delivery Partner</label>
+                <label className="text-xs font-bold text-gray-300">Assign Delivery Courier</label>
                 <select
                   value={selectedOrder.driver}
                   onChange={(e) => handleAssignDriver(selectedOrder.id, e.target.value)}
@@ -298,7 +336,8 @@ export default function AdminOrdersPage() {
                   <option value="Unassigned">Unassigned</option>
                   <option value="Marcus Vance">Marcus Vance (Honda Scooter)</option>
                   <option value="David Chen">David Chen (Electric Bike)</option>
-                  <option value="Jordan Smith">Jordan Smith (Toyota Van)</option>
+                  <option value="Alex Rivera">Alex Rivera (Yamaha Zuma)</option>
+                  <option value="James Wilson">James Wilson (TVS Star)</option>
                 </select>
               </div>
             </div>
@@ -318,11 +357,9 @@ export default function AdminOrdersPage() {
                 Done
               </button>
             </div>
-
           </div>
         </div>
       )}
-
     </div>
   );
 }

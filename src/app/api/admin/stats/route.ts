@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
       Brand.countDocuments().catch(() => 0),
     ]);
 
-    // Aggregate Gross GMV
+    // Aggregate Gross GMV (exclude cancelled)
     let totalGMV = 0;
     try {
       const gmvAggregation = await Order.aggregate([
@@ -36,7 +36,33 @@ export async function GET(req: NextRequest) {
       console.warn('GMV aggregation warning:', err);
     }
 
-    // Recent Orders
+    // Category breakdown
+    let categoryCounts: Record<string, number> = {};
+    try {
+      const catAgg = await Product.aggregate([
+        { $group: { _id: { $toLower: '$category' }, count: { $sum: 1 } } },
+      ]);
+      catAgg.forEach((c: any) => {
+        if (c._id) categoryCounts[c._id] = c.count;
+      });
+    } catch (err) {
+      console.warn('Category breakdown warning:', err);
+    }
+
+    // Order status breakdown
+    let orderStatusBreakdown: Record<string, number> = {};
+    try {
+      const statusAgg = await Order.aggregate([
+        { $group: { _id: '$active_status', count: { $sum: 1 } } },
+      ]);
+      statusAgg.forEach((s: any) => {
+        if (s._id) orderStatusBreakdown[s._id] = s.count;
+      });
+    } catch (err) {
+      console.warn('Order status breakdown warning:', err);
+    }
+
+    // Recent Orders (5 most recent)
     let recentOrders: any[] = [];
     try {
       recentOrders = await Order.find()
@@ -57,6 +83,8 @@ export async function GET(req: NextRequest) {
         ordersCount,
         brandsCount,
         totalGMV,
+        categoryCounts,
+        orderStatusBreakdown,
         recentOrders,
       },
     });
@@ -73,6 +101,8 @@ export async function GET(req: NextRequest) {
           ordersCount: 0,
           brandsCount: 0,
           totalGMV: 0,
+          categoryCounts: {},
+          orderStatusBreakdown: {},
           recentOrders: [],
         },
       },

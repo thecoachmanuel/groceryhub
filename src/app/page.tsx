@@ -69,24 +69,50 @@ export default function HomePage() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [catalogProducts, setCatalogProducts] = useState<any[]>(PRODUCTS_CATALOG);
 
+  const formatProductForStore = (p: any) => {
+    const pId = p.product_id || p.id || Math.floor(Math.random() * 10000);
+    const rawPrice = typeof p.price === 'number' ? p.price : parseFloat(p.price || '3500') || 3500;
+    const originalPrice = Math.round(rawPrice * 1.25);
+    const variants = Array.isArray(p.variants) && p.variants.length > 0
+      ? p.variants.map((v: any, idx: number) => ({
+          id: v.variant_id || v.id || pId + idx,
+          title: v.title || 'Standard Pack',
+          price: v.price || originalPrice,
+          discounted_price: v.discounted_price || rawPrice,
+          stock: v.stock ?? 50,
+          unit: v.unit || '1 pack',
+        }))
+      : [
+          {
+            id: pId,
+            title: 'Standard Pack',
+            price: originalPrice,
+            discounted_price: rawPrice,
+            stock: p.stock ?? 50,
+            unit: '1 pack',
+          },
+        ];
+
+    return {
+      id: pId,
+      name: p.name || 'Grocery Item',
+      slug: p.slug || (p.name ? p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') : `product-${pId}`),
+      category: p.category || 'vegetables',
+      image: p.image || 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=300',
+      rating: p.rating || 4.9,
+      rating_count: p.rating_count || p.ratingCount || 120,
+      variants,
+      description: p.description || p.name || '',
+    };
+  };
+
   // Sync frontpage with Admin Hub products & API database
   const loadLiveCatalog = async () => {
     try {
       const res = await fetch('/api/products');
       const json = await res.json();
       if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-        const formatted = json.data.map((p: any) => ({
-          id: p.product_id || p.id,
-          name: p.name,
-          category: p.category,
-          image: p.image,
-          rating: 4.9,
-          ratingCount: 120,
-          variants: p.variants && p.variants.length > 0 ? p.variants : [
-            { id: p.product_id || p.id, title: 'Standard Pack', price: p.price || 3500, originalPrice: Math.round((p.price || 3500) * 1.25), stock: p.stock || 50 }
-          ],
-          description: p.description || p.name,
-        }));
+        const formatted = json.data.map(formatProductForStore);
         setCatalogProducts(formatted);
         return;
       }
@@ -99,18 +125,7 @@ export default function HomePage() {
         try {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            const formatted = parsed.map((p: any) => ({
-              id: p.id,
-              name: p.name,
-              category: p.category,
-              image: p.image,
-              rating: 4.9,
-              ratingCount: 120,
-              variants: [
-                { id: p.id, title: 'Standard Pack', price: p.price, originalPrice: Math.round(p.price * 1.25), stock: p.stock },
-              ],
-              description: p.description || p.name,
-            }));
+            const formatted = parsed.map(formatProductForStore);
             setCatalogProducts(formatted);
           }
         } catch {}
@@ -123,18 +138,7 @@ export default function HomePage() {
 
     const handleCatalogUpdate = (e: any) => {
       if (e?.detail && Array.isArray(e.detail)) {
-        const formatted = e.detail.map((p: any) => ({
-          id: p.id,
-          name: p.name,
-          category: p.category,
-          image: p.image,
-          rating: 4.9,
-          ratingCount: 120,
-          variants: [
-            { id: p.id, title: 'Standard Pack', price: p.price, originalPrice: Math.round(p.price * 1.25), stock: p.stock },
-          ],
-          description: p.description || p.name,
-        }));
+        const formatted = e.detail.map(formatProductForStore);
         setCatalogProducts(formatted);
       } else {
         loadLiveCatalog();
@@ -148,8 +152,11 @@ export default function HomePage() {
   }, []);
 
   const getCategoryCount = (slug: string) => {
+    if (!Array.isArray(catalogProducts)) return '0 Items';
     const matched = catalogProducts.filter((p) =>
-      p.category.toLowerCase().includes(slug.toLowerCase())
+      p && p.category && typeof p.category === 'string'
+        ? p.category.toLowerCase().includes(slug.toLowerCase())
+        : false
     );
     return `${matched.length} Items`;
   };
