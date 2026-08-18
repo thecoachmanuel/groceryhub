@@ -8,16 +8,26 @@ export async function GET(req: NextRequest) {
   try {
     await connectToDatabase();
     const searchParams = req.nextUrl.searchParams;
-    const limit = parseInt(searchParams.get('limit') || '50', 10);
+    const limit = parseInt(searchParams.get('limit') || '100', 10);
     const status = searchParams.get('status');
+    const userId = searchParams.get('user_id');
 
     let filter: any = {};
     if (status && status !== 'all') {
-      filter.active_status = new RegExp(status, 'i');
+      filter.order_status = new RegExp(status, 'i');
+    }
+    if (userId) {
+      // Match by numeric user_id OR by string
+      const numId = parseInt(userId, 10);
+      if (!isNaN(numId)) {
+        filter.user_id = numId;
+      } else {
+        filter.user_id = userId;
+      }
     }
 
     const orders = await Order.find(filter)
-      .sort({ created_at: -1, _id: -1 })
+      .sort({ createdAt: -1, _id: -1 })
       .limit(limit)
       .lean();
 

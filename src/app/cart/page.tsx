@@ -96,24 +96,23 @@ export default function CartPage() {
   const [couponApplied, setCouponApplied] = useState(false);
   const [couponError, setCouponError] = useState('');
 
-  // Sync cart from localStorage on mount & storage events
+  // Load cart from localStorage on mount — never fall back to hardcoded data
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('groceryhub_cart_items');
-      if (saved !== null) {
+      const raw = localStorage.getItem('groceryhub_cart_items');
+      if (raw !== null) {
+        // Key exists — use exactly what's stored (even if empty [])
         try {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) {
-            setItems(parsed);
-            setIsLoaded(true);
-            return;
-          }
-        } catch (e) {
-          console.error('Error parsing cart localStorage:', e);
+          const parsed = JSON.parse(raw);
+          setItems(Array.isArray(parsed) ? parsed : []);
+        } catch {
+          setItems([]);
         }
+      } else {
+        // True first visit — seed with demo items so cart isn't blank
+        setItems(INITIAL_CART_ITEMS);
+        localStorage.setItem('groceryhub_cart_items', JSON.stringify(INITIAL_CART_ITEMS));
       }
-      setItems(INITIAL_CART_ITEMS);
-      localStorage.setItem('groceryhub_cart_items', JSON.stringify(INITIAL_CART_ITEMS));
       setIsLoaded(true);
     }
   }, []);

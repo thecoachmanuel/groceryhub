@@ -37,7 +37,8 @@ interface SavedAddress {
 }
 
 interface CheckoutCartItem {
-  id: number;
+  id: number | string;
+  product_id?: number | string;
   name: string;
   price: number;
   quantity: number;
@@ -45,29 +46,14 @@ interface CheckoutCartItem {
   image?: string;
 }
 
-const DEFAULT_CHECKOUT_ITEMS: CheckoutCartItem[] = [
-  { id: 1, name: 'Fresh Organic Hass Avocados (Pack of 4)', price: 3800, quantity: 2, unit: '4 pcs pack' },
-  { id: 2, name: 'Pasture-Raised Organic Grade A Large Eggs', price: 4200, quantity: 1, unit: '12 count carton' },
-  { id: 3, name: 'Cold-Pressed Valencia Orange Juice (100% Pure)', price: 3500, quantity: 2, unit: '1 Litre bottle' },
-  { id: 4, name: 'Organic Sliced Country Sourdough Bread', price: 3200, quantity: 1, unit: '750g loaf' },
-];
+const DEFAULT_CHECKOUT_ITEMS: CheckoutCartItem[] = [];
 
 export default function CheckoutPage() {
   const router = useRouter();
   const { user } = useAuth();
 
-  const [cartItems, setCartItems] = useState<CheckoutCartItem[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('groceryhub_cart_items');
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-        } catch {}
-      }
-    }
-    return DEFAULT_CHECKOUT_ITEMS;
-  });
+  const [cartItems, setCartItems] = useState<CheckoutCartItem[]>([]);
+  const [cartLoaded, setCartLoaded] = useState(false);
 
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
@@ -89,6 +75,22 @@ export default function CheckoutPage() {
   const [couponApplied, setCouponApplied] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderPlacedSuccess, setOrderPlacedSuccess] = useState(false);
+
+  // Load cart from localStorage after mount to get accurate live data
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const raw = localStorage.getItem('groceryhub_cart_items');
+      if (raw !== null) {
+        try {
+          const parsed = JSON.parse(raw);
+          setCartItems(Array.isArray(parsed) ? parsed : []);
+        } catch {
+          setCartItems([]);
+        }
+      }
+      setCartLoaded(true);
+    }
+  }, []);
 
   // Load user saved addresses from localStorage
   useEffect(() => {
@@ -163,7 +165,8 @@ export default function CheckoutPage() {
 
   const walletBalance = user?.walletBalance ?? 0.00;
   const itemSubtotal = cartItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
-  const deliveryFee = itemSubtotal >= 15000 || itemSubtotal === 0 ? 0.00 : 1500.00;
+  const isFreeDelivery = itemSubtotal >= 15000 || itemSubtotal === 0;
+  const deliveryFee = isFreeDelivery ? 0.00 : 1500.00;
   const platformServiceFee = itemSubtotal > 0 ? 500.00 : 0.00;
   const tax = Math.round(itemSubtotal * 0.05 * 100) / 100; // 5% VAT
   
@@ -208,18 +211,28 @@ export default function CheckoutPage() {
         }
       }
 
-      // COD or Wallet Direct Checkout via API
       const orderRes = await fetch('/api/v1_6/customer/placeCODOrder', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           user_id: user?.id || Date.now(),
           seller_id: 1,
+          subtotal: itemSubtotal,
+          delivery_charge: deliveryFee,
+          service_fee: platformServiceFee,
+          tax_amount: tax,
+          discount_amount: couponDiscount,
+          wallet_amount_used: discountFromWallet,
           total_amount: grandTotal,
           payment_method: paymentMethod,
           delivery_timeslot: selectedTimeslot,
           delivery_address: activeAddress,
-          items: cartItems,
+          items: cartItems.map((i) => ({
+            product_id: i.product_id || i.id,
+            product_name: i.name,
+            price: i.price,
+            quantity: i.quantity,
+          })),
         }),
       });
 
@@ -284,14 +297,19 @@ export default function CheckoutPage() {
           <span className="text-gray-900 dark:text-white">Secure Checkout</span>
         </div>
 
-        {orderPlacedSuccess ? (
+        {!cartLoaded ? (
+          <div className="text-center py-20">
+            <div className="w-8 h-8 border-4 border-[#0aad0a] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+            <p className="text-xs text-gray-400">Loading your cart...</p>
+          </div>
+        ) : orderPlacedSuccess ? (
           <div className="bg-white dark:bg-[#1e2632] rounded-3xl p-12 text-center border border-gray-100 dark:border-gray-800 space-y-4 max-w-lg mx-auto shadow-sm">
             <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-[#0aad0a] flex items-center justify-center mx-auto">
               <CheckCircle2 size={36} />
             </div>
             <h2 className="text-2xl font-black text-gray-900 dark:text-white">Order Confirmed!</h2>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              Your grocery basket has been placed with our local farm partners. Total: <strong className="text-[#0aad0a] font-mono">{formatNaira(grandTotal)}</strong>
+              Your grocery basket has been placed. Total: <strong className="text-[#0aad0a] font-mono">{formatNaira(grandTotal)}</strong>
             </p>
             <p className="text-[11px] text-gray-400">Redirecting to live order tracking...</p>
           </div>
@@ -499,7 +517,9 @@ export default function CheckoutPage() {
                     Basket Items ({cartItems.reduce((sum, i) => sum + i.quantity, 0)})
                   </span>
                   <div className="max-h-36 overflow-y-auto space-y-2 pr-1">
-                    {cartItems.map((item) => (
+                    {cartItems.length === 0 ? (
+                      <p className="text-xs text-gray-400 italic">Cart is empty — <a href="/cart" className="text-[#0aad0a] hover:underline">go back to add items</a></p>
+                    ) : cartItems.map((item) => (
                       <div key={item.id} className="flex items-center justify-between text-xs">
                         <div className="truncate pr-2">
                           <span className="font-bold text-gray-800 dark:text-gray-200">{item.name}</span>
@@ -555,7 +575,9 @@ export default function CheckoutPage() {
                   </div>
                   <div className="flex justify-between">
                     <span>Delivery Charge</span>
-                    <span className="font-bold text-[#0aad0a]">FREE (Above ₦15,000)</span>
+                    <span className={`font-bold ${isFreeDelivery ? 'text-[#0aad0a]' : 'text-gray-900 dark:text-white font-mono'}`}>
+                      {isFreeDelivery ? 'FREE (Above ₦15,000)' : formatNaira(deliveryFee)}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span>Platform Service Fee</span>
@@ -587,10 +609,10 @@ export default function CheckoutPage() {
                 {/* Place Order CTA */}
                 <button
                   onClick={handlePlaceOrder}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || cartItems.length === 0}
                   className="w-full bg-[#0aad0a] hover:bg-[#088f08] disabled:opacity-50 text-white font-black py-4 px-6 rounded-2xl flex items-center justify-center gap-2 shadow-xl shadow-[#0aad0a]/30 transition-all active:scale-[0.98]"
                 >
-                  <span>{isSubmitting ? 'Securing Order...' : `Pay ${formatNaira(grandTotal)}`}</span>
+                  <span>{isSubmitting ? 'Securing Order...' : cartItems.length === 0 ? 'Cart is Empty' : `Pay ${formatNaira(grandTotal)}`}</span>
                 </button>
 
                 <div className="flex items-center justify-center gap-1.5 text-[11px] text-gray-400 text-center">

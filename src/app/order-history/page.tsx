@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   ShoppingBag, 
@@ -8,66 +8,149 @@ import {
   Clock, 
   Truck, 
   CheckCircle2, 
-  FileText, 
   ChevronRight, 
   X,
   Phone,
-  User,
-  ShieldCheck
+  Loader2
 } from 'lucide-react';
 import Header from '@/components/website/Header';
 import Footer from '@/components/website/Footer';
 import { formatNaira } from '@/lib/currency';
 import { useAuth } from '@/context/AuthContext';
 
-const SAMPLE_ORDERS = [
-  {
-    id: 'ORD-98241',
-    date: 'Aug 17, 2026 at 08:30 PM',
-    status: 'Out for Delivery',
-    statusStep: 3, // 1: Placed, 2: Packed, 3: Out for Delivery, 4: Delivered
-    total: 19500.00, // ₦19,500
-    itemsCount: 4,
-    deliverySlot: '08:00 PM - 10:00 PM',
-    deliveryAddress: 'Plot 14, Adeola Odeku Street, Victoria Island, Lagos',
-    driver: {
-      name: 'Marcus Vance',
-      phone: '+234 809 111 2233',
-      vehicle: 'Honda Super Cub 125cc (LAG-8492)',
-    },
-    items: [
-      { name: 'Fresh Organic Farm Broccoli (500g)', qty: 2, price: 3500 },
-      { name: 'Red Sweet Crisp Apples (1kg Pack)', qty: 1, price: 4500 },
-      { name: 'Farm Fresh Pure Whole Milk (1L)', qty: 2, price: 3800 },
-    ],
-  },
-  {
-    id: 'ORD-87123',
-    date: 'Aug 14, 2026 at 02:15 PM',
-    status: 'Delivered',
-    statusStep: 4,
-    total: 14500.00, // ₦14,500
-    itemsCount: 2,
-    deliverySlot: '02:00 PM - 04:00 PM',
-    deliveryAddress: 'Plot 14, Adeola Odeku Street, Victoria Island, Lagos',
-    driver: {
-      name: 'David Chen',
-      phone: '+234 802 345 6789',
-      vehicle: 'Electric Bike (EB-102)',
-    },
-    items: [
-      { name: 'Artisan Sourdough Country Loaf (750g)', qty: 2, price: 3200 },
-      { name: 'Pure Cold Pressed Extra Virgin Olive Oil (500ml)', qty: 1, price: 8100 },
-    ],
-  },
-];
+interface OrderItem {
+  name: string;
+  qty: number;
+  price: number;
+}
+
+interface OrderDriver {
+  name: string;
+  phone: string;
+  vehicle: string;
+}
+
+interface Order {
+  id: string;
+  date: string;
+  status: string;
+  statusStep: number;
+  total: number;
+  itemsCount: number;
+  deliverySlot: string;
+  deliveryAddress: string;
+  driver: OrderDriver;
+  items: OrderItem[];
+}
+
+const statusToStep: Record<string, number> = {
+  pending: 1,
+  confirmed: 1,
+  processing: 2,
+  packed: 2,
+  shipped: 3,
+  out_for_delivery: 3,
+  'Out for Delivery': 3,
+  delivered: 4,
+  Delivered: 4,
+};
+
+const DEFAULT_DRIVER = {
+  name: 'GroceryHub Rider',
+  phone: '+234 800 000 0000',
+  vehicle: 'Delivery Bike',
+};
 
 export default function OrderHistoryPage() {
   const { user } = useAuth();
-  const [selectedOrderForTracking, setSelectedOrderForTracking] = useState<any | null>(null);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedOrderForTracking, setSelectedOrderForTracking] = useState<Order | null>(null);
 
-  const isDemoUser = user?.email === 'customer@groceryhub.ng';
-  const orders = isDemoUser ? SAMPLE_ORDERS : [];
+  useEffect(() => {
+    loadOrders();
+  }, [user]);
+
+  const loadOrders = async () => {
+    setLoading(true);
+    try {
+      const allOrders: Order[] = [];
+
+      // 1. Load from localStorage (orders placed in this session)
+      if (typeof window !== 'undefined' && user?.id) {
+        const localKey = `groceryhub_orders_${user.id}`;
+        const raw = localStorage.getItem(localKey);
+        if (raw) {
+          try {
+            const localOrders: Order[] = JSON.parse(raw);
+            allOrders.push(...localOrders);
+          } catch {}
+        }
+      }
+
+      // 2. Load from MongoDB API
+      if (user?.id) {
+        try {
+          const res = await fetch(`/api/orders?user_id=${user.id}`, {
+            headers: { 'Content-Type': 'application/json' },
+          });
+          const data = await res.json();
+          if (data.success && Array.isArray(data.data)) {
+            const apiOrders: Order[] = data.data.map((o: any) => ({
+              id: o.order_id || o._id,
+              date: o.createdAt
+                ? new Date(o.createdAt).toLocaleString('en-NG', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })
+                : 'Recently',
+              status: o.order_status || o.status || 'Processing',
+              statusStep: statusToStep[o.order_status || o.status || 'confirmed'] || 2,
+              total: o.total_amount || o.final_total || 0,
+              itemsCount: (o.items || []).reduce((acc: number, i: any) => acc + (i.quantity || i.qty || 1), 0),
+              deliverySlot: o.delivery_timeslot || o.deliverySlot || 'Express Delivery',
+              deliveryAddress: o.delivery_address
+                ? typeof o.delivery_address === 'string'
+                  ? o.delivery_address
+                  : `${o.delivery_address.flat || ''}, ${o.delivery_address.area || ''}, ${o.delivery_address.city || ''}`.trim().replace(/^,\s*/, '')
+                : o.deliveryAddress || 'Lagos, Nigeria',
+              driver: o.driver || DEFAULT_DRIVER,
+              items: (o.items || []).map((i: any) => ({
+                name: i.product_name || i.name || 'Product',
+                qty: i.quantity || i.qty || 1,
+                price: i.price || 0,
+              })),
+            }));
+
+            // Merge API orders, deduplicating by order ID
+            const localIds = new Set(allOrders.map((o) => o.id));
+            for (const apiOrder of apiOrders) {
+              if (!localIds.has(apiOrder.id)) {
+                allOrders.push(apiOrder);
+              }
+            }
+          }
+        } catch (err) {
+          console.warn('Could not fetch orders from API:', err);
+        }
+      }
+
+      // Sort by most recent first (prefer local orders at top since they're newest)
+      setOrders(allOrders);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    const s = status.toLowerCase();
+    if (s === 'delivered') return 'bg-emerald-100 dark:bg-emerald-950/60 text-[#0aad0a]';
+    if (s === 'cancelled' || s === 'failed') return 'bg-red-100 dark:bg-red-950/60 text-red-500';
+    return 'bg-amber-100 dark:bg-amber-950/60 text-amber-500 animate-pulse';
+  };
 
   return (
     <div className="min-h-screen flex flex-col justify-between bg-gray-50 dark:bg-[#121820]">
@@ -93,7 +176,12 @@ export default function OrderHistoryPage() {
 
         {/* Orders List */}
         <div className="space-y-6">
-          {orders.length === 0 ? (
+          {loading ? (
+            <div className="bg-white dark:bg-[#1e2632] rounded-3xl p-12 text-center border border-gray-100 dark:border-gray-800 shadow-sm">
+              <Loader2 size={32} className="mx-auto text-[#0aad0a] animate-spin mb-3" />
+              <p className="text-xs text-gray-400">Loading your orders...</p>
+            </div>
+          ) : orders.length === 0 ? (
             <div className="bg-white dark:bg-[#1e2632] rounded-3xl p-12 text-center border border-gray-100 dark:border-gray-800 space-y-4 shadow-sm">
               <div className="w-16 h-16 rounded-3xl bg-[#0aad0a]/10 text-[#0aad0a] flex items-center justify-center mx-auto">
                 <ShoppingBag size={32} />
@@ -101,16 +189,27 @@ export default function OrderHistoryPage() {
               <div className="space-y-1">
                 <h3 className="text-lg font-black text-gray-900 dark:text-white">No orders placed yet</h3>
                 <p className="text-xs text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
-                  You haven't placed any grocery orders yet. Start exploring fresh vegetables, organic fruits, and pantry staples!
+                  {user
+                    ? "You haven't placed any grocery orders yet. Start exploring fresh vegetables, organic fruits, and pantry staples!"
+                    : 'Please log in to view your order history.'}
                 </p>
               </div>
-              <Link
-                href="/"
-                className="inline-flex items-center gap-2 bg-[#0aad0a] hover:bg-[#088f08] text-white font-black px-6 py-3 rounded-2xl text-xs shadow-md shadow-[#0aad0a]/20 transition-all"
-              >
-                <ShoppingBag size={16} />
-                <span>Explore Store Catalog</span>
-              </Link>
+              {user ? (
+                <Link
+                  href="/"
+                  className="inline-flex items-center gap-2 bg-[#0aad0a] hover:bg-[#088f08] text-white font-black px-6 py-3 rounded-2xl text-xs shadow-md shadow-[#0aad0a]/20 transition-all"
+                >
+                  <ShoppingBag size={16} />
+                  <span>Explore Store Catalog</span>
+                </Link>
+              ) : (
+                <Link
+                  href="/login"
+                  className="inline-flex items-center gap-2 bg-[#0aad0a] hover:bg-[#088f08] text-white font-black px-6 py-3 rounded-2xl text-xs shadow-md shadow-[#0aad0a]/20 transition-all"
+                >
+                  <span>Login to View Orders</span>
+                </Link>
+              )}
             </div>
           ) : (
             orders.map((order) => (
@@ -123,11 +222,7 @@ export default function OrderHistoryPage() {
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-black text-gray-900 dark:text-white">{order.id}</span>
-                      <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
-                        order.status === 'Delivered' 
-                          ? 'bg-emerald-100 dark:bg-emerald-950/60 text-[#0aad0a]' 
-                          : 'bg-amber-100 dark:bg-amber-950/60 text-amber-500 animate-pulse'
-                      }`}>
+                      <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${getStatusColor(order.status)}`}>
                         ● {order.status}
                       </span>
                     </div>
@@ -202,14 +297,17 @@ export default function OrderHistoryPage() {
               <h3 className="text-xl font-black text-gray-900 dark:text-white mt-0.5">
                 Tracking {selectedOrderForTracking.id}
               </h3>
+              <p className="text-xs text-gray-400 mt-0.5">
+                Total: <span className="font-mono font-bold text-[#0aad0a]">{formatNaira(selectedOrderForTracking.total)}</span>
+              </p>
             </div>
 
             {/* Stepper */}
             <div className="space-y-3">
               {[
-                { title: 'Order Placed & Paid (Paystack)', desc: 'Confirmed and sent to merchant', step: 1 },
+                { title: 'Order Placed & Paid', desc: 'Confirmed and sent to merchant', step: 1 },
                 { title: 'Picked & Chilled Packaging', desc: 'Fresh farm items packed in cooler box', step: 2 },
-                { title: 'Out for Doorstep Delivery', desc: 'Courier is en route to Victoria Island', step: 3 },
+                { title: 'Out for Doorstep Delivery', desc: 'Courier is en route to your address', step: 3 },
                 { title: 'Delivered', desc: 'Handed over at doorstep', step: 4 },
               ].map((s) => (
                 <div key={s.step} className="flex items-start gap-3">
