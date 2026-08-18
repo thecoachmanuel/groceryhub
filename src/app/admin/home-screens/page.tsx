@@ -1,177 +1,110 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   Smartphone, 
   Plus, 
-  Search, 
   Trash2, 
   Edit3, 
-  CheckCircle2, 
-  Sparkles, 
   X, 
-  Palette, 
   Layout, 
   MapPin,
-  Star,
-  Eye,
-  Sliders
+  Star
 } from 'lucide-react';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 
 interface HomeScreenItem {
-  id: number;
-  screen_name: string;
-  city_name: string;
-  header_type: 'gradient' | 'gif' | 'image';
-  gradient_start: string;
-  gradient_end: string;
-  header_gif?: string;
-  is_default: boolean;
-  status: 'Active' | 'Hidden';
-  active_sections: number;
+  _id?: string;
+  screenId: string;
+  title: string;
+  type: string;
+  order: number;
+  status: 'Active' | 'Inactive';
 }
 
-const INITIAL_SCREENS: HomeScreenItem[] = [
-  {
-    id: 1,
-    screen_name: 'Metro Default Home Layout',
-    city_name: 'All Cities (Global Default)',
-    header_type: 'gradient',
-    gradient_start: '#0aad0a',
-    gradient_end: '#088f08',
-    is_default: true,
-    status: 'Active',
-    active_sections: 8
-  },
-  {
-    id: 2,
-    screen_name: 'New York City Express Flash',
-    city_name: 'New York',
-    header_type: 'gradient',
-    gradient_start: '#1e3c72',
-    gradient_end: '#2a5298',
-    is_default: false,
-    status: 'Active',
-    active_sections: 6
-  },
-  {
-    id: 3,
-    screen_name: 'Summer Splash Festival Promo',
-    city_name: 'Los Angeles',
-    header_type: 'gif',
-    gradient_start: '#f857a6',
-    gradient_end: '#ff5858',
-    header_gif: 'https://images.unsplash.com/photo-1550989460-0adf9ea622e2?w=300&auto=format&fit=crop&q=60',
-    is_default: false,
-    status: 'Active',
-    active_sections: 5
-  }
-];
-
 export default function AdminHomeScreensPage() {
-  const [screens, setScreens] = useState<HomeScreenItem[]>(INITIAL_SCREENS);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [screens, setScreens] = useState<HomeScreenItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingScreen, setEditingScreen] = useState<HomeScreenItem | null>(null);
 
-  // Form
-  const [screenName, setScreenName] = useState('');
-  const [cityName, setCityName] = useState('All Cities (Global Default)');
-  const [headerType, setHeaderType] = useState<'gradient' | 'gif' | 'image'>('gradient');
-  const [gradientStart, setGradientStart] = useState('#0aad0a');
-  const [gradientEnd, setGradientEnd] = useState('#088f08');
-  const [headerGif, setHeaderGif] = useState('');
-  const [isDefault, setIsDefault] = useState(false);
-  const [status, setStatus] = useState<'Active' | 'Hidden'>('Active');
+  const [title, setTitle] = useState('');
+  const [type, setType] = useState('Custom');
+  const [order, setOrder] = useState(0);
+  const [status, setStatus] = useState<'Active' | 'Inactive'>('Active');
+
+  const fetchScreens = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/admin/home-screens');
+      const data = await res.json();
+      if (data.success) {
+        setScreens(data.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching home screens:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchScreens();
+  }, []);
 
   const openCreateModal = () => {
     setEditingScreen(null);
-    setScreenName('');
-    setCityName('All Cities (Global Default)');
-    setHeaderType('gradient');
-    setGradientStart('#0aad0a');
-    setGradientEnd('#088f08');
-    setHeaderGif('');
-    setIsDefault(screens.length === 0);
+    setTitle('');
+    setType('Custom');
+    setOrder(screens.length + 1);
     setStatus('Active');
     setIsModalOpen(true);
   };
 
   const openEditModal = (s: HomeScreenItem) => {
     setEditingScreen(s);
-    setScreenName(s.screen_name);
-    setCityName(s.city_name);
-    setHeaderType(s.header_type);
-    setGradientStart(s.gradient_start);
-    setGradientEnd(s.gradient_end);
-    setHeaderGif(s.header_gif || '');
-    setIsDefault(s.is_default);
-    setStatus(s.status);
+    setTitle(s.title);
+    setType(s.type || 'Custom');
+    setOrder(s.order || 0);
+    setStatus(s.status || 'Active');
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!screenName.trim()) return alert('Screen layout name is required');
+    if (!title.trim()) return alert('Screen title is required');
 
-    if (editingScreen) {
-      setScreens(prev => prev.map(s => {
-        if (s.id === editingScreen.id) {
-          return {
-            ...s,
-            screen_name: screenName,
-            city_name: cityName,
-            header_type: headerType,
-            gradient_start: gradientStart,
-            gradient_end: gradientEnd,
-            header_gif: headerGif.trim() || undefined,
-            is_default: isDefault,
-            status
-          };
-        }
-        if (isDefault) {
-          return { ...s, is_default: false };
-        }
-        return s;
-      }));
-    } else {
-      const newScreen: HomeScreenItem = {
-        id: Date.now(),
-        screen_name: screenName,
-        city_name: cityName,
-        header_type: headerType,
-        gradient_start: gradientStart,
-        gradient_end: gradientEnd,
-        header_gif: headerGif.trim() || undefined,
-        is_default: isDefault,
-        status,
-        active_sections: 4
-      };
-      setScreens(prev => isDefault ? [newScreen, ...prev.map(s => ({ ...s, is_default: false }))] : [...prev, newScreen]);
-    }
-    setIsModalOpen(false);
-  };
-
-  const handleMakeDefault = (id: number) => {
-    setScreens(prev => prev.map(s => ({ ...s, is_default: s.id === id })));
-  };
-
-  const handleDelete = (id: number) => {
-    if (confirm('Are you sure you want to delete this Home Screen configuration?')) {
-      setScreens(prev => prev.filter(s => s.id !== id));
+    try {
+      if (editingScreen) {
+        await fetch('/api/admin/home-screens', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: editingScreen._id, title, type, order, status }),
+        });
+      } else {
+        await fetch('/api/admin/home-screens', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ screenId: `SCR-${Date.now()}`, title, type, order, status }),
+        });
+      }
+      setIsModalOpen(false);
+      fetchScreens();
+    } catch (err) {
+      console.error('Error saving home screen:', err);
     }
   };
 
-  const handleToggleStatus = (id: number) => {
-    setScreens(prev => prev.map(s => s.id === id ? { ...s, status: s.status === 'Active' ? 'Hidden' : 'Active' } : s));
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this Home Screen configuration?')) return;
+    try {
+      await fetch(`/api/admin/home-screens?id=${id}`, { method: 'DELETE' });
+      fetchScreens();
+    } catch (err) {
+      console.error('Error deleting home screen:', err);
+    }
   };
-
-  const filtered = screens.filter(s => 
-    s.screen_name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    s.city_name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
   return (
     <div className="flex bg-[#121820] text-white min-h-screen">
@@ -206,118 +139,82 @@ export default function AdminHomeScreensPage() {
           </div>
         </div>
 
-        {/* Sub-nav */}
-        <div className="flex items-center gap-2 border-b border-gray-800 pb-2">
-          <Link href="/admin/home-screens" className="px-4 py-2 bg-[#0aad0a] text-white rounded-xl text-xs font-black flex items-center gap-1.5">
-            <Smartphone size={13} /> Home Screen Themes ({screens.length})
-          </Link>
-          <Link href="/admin/sections" className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl text-xs font-bold transition-colors">
-            Content Sections
-          </Link>
-          <Link href="/admin/home-sections" className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl text-xs font-bold transition-colors">
-            Home Section Builder
-          </Link>
-        </div>
-
         {/* Grid Preview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {screens.map(s => (
-            <div 
-              key={s.id}
-              className={`rounded-3xl border p-5 flex flex-col justify-between space-y-4 relative transition-all ${
-                s.is_default 
-                  ? 'bg-[#1e2632] border-[#0aad0a]/60 shadow-lg shadow-[#0aad0a]/10' 
-                  : 'bg-[#1e2632] border-gray-800 hover:border-gray-700'
-              }`}
-            >
-              {/* Header Visual Preview */}
+        {loading ? (
+          <div className="text-center py-12 text-gray-400 text-xs">Loading home screens...</div>
+        ) : screens.length === 0 ? (
+          <div className="text-center py-12 text-gray-400 text-xs">No home screen layouts configured. Click Create Screen Theme to start.</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {screens.map((s) => (
               <div 
-                className="h-28 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden shadow-inner"
-                style={{
-                  background: s.header_type === 'gradient' 
-                    ? `linear-gradient(135deg, ${s.gradient_start}, ${s.gradient_end})` 
-                    : undefined
-                }}
+                key={s._id}
+                className="bg-[#1e2632] border border-gray-800 rounded-3xl p-5 flex flex-col justify-between space-y-4 relative"
               >
-                {s.header_type === 'gif' && s.header_gif && (
-                  <img src={s.header_gif} alt="Header gif" className="absolute inset-0 w-full h-full object-cover" />
-                )}
-                
-                <div className="flex items-center justify-between relative z-10">
-                  <span className="text-[10px] font-black uppercase tracking-wider bg-black/40 backdrop-blur-md px-2 py-0.5 rounded-full text-white">
-                    {s.header_type}
-                  </span>
-                  {s.is_default ? (
-                    <span className="bg-amber-400 text-gray-950 font-black text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 shadow">
-                      <Star size={10} fill="currentColor" /> Default Screen
-                    </span>
-                  ) : (
-                    <button 
-                      onClick={() => handleMakeDefault(s.id)}
-                      className="bg-black/40 hover:bg-black/60 text-gray-200 text-[10px] font-bold px-2 py-0.5 rounded-full transition-colors"
-                    >
-                      Set as Default
-                    </button>
-                  )}
-                </div>
-
-                <div className="relative z-10 text-white font-bold text-xs truncate drop-shadow">
-                  {s.city_name}
-                </div>
-              </div>
-
-              {/* Info */}
-              <div className="space-y-1.5">
-                <div className="font-black text-white text-base">{s.screen_name}</div>
-                <div className="flex items-center justify-between text-xs text-gray-400">
-                  <span className="flex items-center gap-1">
-                    <MapPin size={12} className="text-[#0aad0a]" /> {s.city_name}
-                  </span>
-                  <span className="font-mono text-gray-300">
-                    {s.active_sections} Content Sections
-                  </span>
-                </div>
-              </div>
-
-              {/* Actions Footer */}
-              <div className="flex items-center justify-between pt-3 border-t border-gray-800">
-                <button
-                  onClick={() => handleToggleStatus(s.id)}
-                  className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
-                    s.status === 'Active'
-                      ? 'bg-emerald-950/40 text-[#0aad0a] border border-[#0aad0a]/30'
-                      : 'bg-gray-800 text-gray-400'
-                  }`}
+                <div 
+                  className="h-28 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden bg-gradient-to-r from-emerald-600 to-teal-700 shadow-inner"
                 >
-                  ● {s.status}
-                </button>
+                  <div className="flex items-center justify-between relative z-10">
+                    <span className="text-[10px] font-black uppercase tracking-wider bg-black/40 backdrop-blur-md px-2 py-0.5 rounded-full text-white">
+                      {s.type}
+                    </span>
+                    <span className="bg-amber-400 text-gray-950 font-black text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 shadow">
+                      <Star size={10} fill="currentColor" /> Priority #{s.order}
+                    </span>
+                  </div>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => openEditModal(s)}
-                    className="p-1.5 hover:bg-gray-700 rounded-lg text-gray-400 hover:text-white"
-                    title="Edit Theme"
+                  <div className="relative z-10 text-white font-bold text-xs truncate drop-shadow">
+                    {s.title}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="font-black text-white text-base">{s.title}</div>
+                  <div className="flex items-center justify-between text-xs text-gray-400">
+                    <span className="flex items-center gap-1">
+                      <MapPin size={12} className="text-[#0aad0a]" /> All Regions
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-3 border-t border-gray-800">
+                  <span
+                    className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
+                      s.status === 'Active'
+                        ? 'bg-emerald-950/40 text-[#0aad0a] border border-[#0aad0a]/30'
+                        : 'bg-gray-800 text-gray-400'
+                    }`}
                   >
-                    <Edit3 size={15} />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(s.id)}
-                    className="p-1.5 hover:bg-red-950/40 rounded-lg text-gray-400 hover:text-red-400"
-                    title="Delete Screen"
-                  >
-                    <Trash2 size={15} />
-                  </button>
+                    ● {s.status}
+                  </span>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => openEditModal(s)}
+                      className="p-1.5 hover:bg-gray-700 rounded-lg text-gray-400 hover:text-white"
+                      title="Edit Theme"
+                    >
+                      <Edit3 size={15} />
+                    </button>
+                    <button
+                      onClick={() => s._id && handleDelete(s._id)}
+                      className="p-1.5 hover:bg-red-950/40 rounded-lg text-gray-400 hover:text-red-400"
+                      title="Delete Screen"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </main>
 
       {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#1e2632] w-full max-w-lg rounded-3xl p-6 sm:p-8 border border-gray-800 space-y-6 relative max-h-[90vh] overflow-y-auto">
+          <div className="bg-[#1e2632] w-full max-w-lg rounded-3xl p-6 sm:p-8 border border-gray-800 space-y-6 relative">
             <button
               onClick={() => setIsModalOpen(false)}
               className="absolute right-5 top-5 p-2 rounded-full hover:bg-gray-800 text-gray-400"
@@ -329,9 +226,7 @@ export default function AdminHomeScreensPage() {
               <h3 className="text-xl font-black">
                 {editingScreen ? 'Edit Home Screen Theme' : 'Create Home Screen Theme'}
               </h3>
-              <p className="text-xs text-gray-400 mt-0.5">
-                Configure top bar palette styling, city target assignment, and default mobile layout
-              </p>
+              <p className="text-xs text-gray-400 mt-0.5">Configure screen title, layout type, and order priority</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -339,111 +234,35 @@ export default function AdminHomeScreensPage() {
                 <label className="text-xs font-bold text-gray-300">Screen Layout Name</label>
                 <input
                   type="text"
-                  value={screenName}
-                  onChange={(e) => setScreenName(e.target.value)}
-                  placeholder="e.g. Metro Holiday Festival Theme"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="e.g. Primary Storefront Theme"
                   className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
                   required
                 />
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-300">Target Region / City</label>
-                <select
-                  value={cityName}
-                  onChange={(e) => setCityName(e.target.value)}
-                  className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                >
-                  <option value="All Cities (Global Default)">All Cities (Global Default)</option>
-                  <option value="New York">New York</option>
-                  <option value="Los Angeles">Los Angeles</option>
-                  <option value="Chicago">Chicago</option>
-                  <option value="Houston">Houston</option>
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-300">Header Styling Mode</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(['gradient', 'gif', 'image'] as const).map(t => (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() => setHeaderType(t)}
-                      className={`p-2.5 rounded-xl border text-xs font-bold capitalize transition-all ${
-                        headerType === t
-                          ? 'border-[#0aad0a] bg-[#0aad0a]/10 text-[#0aad0a]'
-                          : 'border-gray-700 bg-gray-900 text-gray-400'
-                      }`}
-                    >
-                      {t}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {headerType === 'gradient' ? (
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-gray-300">Gradient Start Hex</label>
-                    <div className="flex gap-2">
-                      <input
-                        type="color"
-                        value={gradientStart}
-                        onChange={(e) => setGradientStart(e.target.value)}
-                        className="w-10 h-10 rounded-xl bg-transparent border border-gray-700 cursor-pointer"
-                      />
-                      <input
-                        type="text"
-                        value={gradientStart}
-                        onChange={(e) => setGradientStart(e.target.value)}
-                        className="flex-1 bg-gray-900 border border-gray-700 text-white rounded-xl px-3 text-xs font-mono"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-gray-300">Gradient End Hex</label>
-                    <div className="flex gap-2">
-                      <input
-                        type="color"
-                        value={gradientEnd}
-                        onChange={(e) => setGradientEnd(e.target.value)}
-                        className="w-10 h-10 rounded-xl bg-transparent border border-gray-700 cursor-pointer"
-                      />
-                      <input
-                        type="text"
-                        value={gradientEnd}
-                        onChange={(e) => setGradientEnd(e.target.value)}
-                        className="flex-1 bg-gray-900 border border-gray-700 text-white rounded-xl px-3 text-xs font-mono"
-                      />
-                    </div>
-                  </div>
-                </div>
-              ) : (
+              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">{headerType.toUpperCase()} Banner URL</label>
+                  <label className="text-xs font-bold text-gray-300">Type</label>
                   <input
-                    type="url"
-                    value={headerGif}
-                    onChange={(e) => setHeaderGif(e.target.value)}
-                    placeholder="https://..."
+                    type="text"
+                    value={type}
+                    onChange={(e) => setType(e.target.value)}
+                    placeholder="e.g. FlashSale"
                     className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
                   />
                 </div>
-              )}
 
-              <div className="flex items-center gap-3 p-3 bg-gray-900 rounded-xl border border-gray-800">
-                <input
-                  type="checkbox"
-                  id="defaultCheck"
-                  checked={isDefault}
-                  onChange={(e) => setIsDefault(e.target.checked)}
-                  className="rounded text-[#0aad0a] focus:ring-[#0aad0a] w-4 h-4"
-                />
-                <label htmlFor="defaultCheck" className="text-xs font-bold text-gray-300 cursor-pointer">
-                  Set as Global Default Screen for All Customers
-                </label>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-300">Display Order</label>
+                  <input
+                    type="number"
+                    value={order}
+                    onChange={(e) => setOrder(Number(e.target.value))}
+                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
+                  />
+                </div>
               </div>
 
               <div className="flex gap-3 pt-2">

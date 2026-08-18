@@ -1,48 +1,54 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Building, Plus, Search, Trash2, Edit3, MapPin, CheckCircle2, X, Globe } from 'lucide-react';
+import { Building, Plus, Search, Trash2, Edit3, MapPin, X } from 'lucide-react';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 
 interface CityItem {
-  id: number;
+  _id?: string;
   name: string;
   state: string;
   country: string;
-  zonesCount: number;
-  latitude: number;
-  longitude: number;
   status: 'Active' | 'Inactive';
 }
 
-const INITIAL_CITIES: CityItem[] = [
-  { id: 1, name: 'New York', state: 'New York', country: 'United States', zonesCount: 2, latitude: 40.7128, longitude: -74.0060, status: 'Active' },
-  { id: 2, name: 'Brooklyn', state: 'New York', country: 'United States', zonesCount: 1, latitude: 40.6782, longitude: -73.9442, status: 'Active' },
-  { id: 3, name: 'Queens', state: 'New York', country: 'United States', zonesCount: 1, latitude: 40.7282, longitude: -73.7949, status: 'Active' },
-  { id: 4, name: 'Jersey City', state: 'New Jersey', country: 'United States', zonesCount: 0, latitude: 40.7178, longitude: -74.0431, status: 'Inactive' },
-];
-
 export default function AdminCitiesPage() {
-  const [cities, setCities] = useState<CityItem[]>(INITIAL_CITIES);
+  const [cities, setCities] = useState<CityItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCity, setEditingCity] = useState<CityItem | null>(null);
 
   const [name, setName] = useState('');
-  const [state, setState] = useState('New York');
-  const [country, setCountry] = useState('United States');
-  const [latitude, setLatitude] = useState('40.7128');
-  const [longitude, setLongitude] = useState('-74.0060');
+  const [state, setState] = useState('Lagos');
+  const [country, setCountry] = useState('Nigeria');
   const [status, setStatus] = useState<'Active' | 'Inactive'>('Active');
   const [searchQuery, setSearchQuery] = useState('');
+
+  const fetchCities = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/admin/cities');
+      const data = await res.json();
+      if (data.success) {
+        setCities(data.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching cities:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCities();
+  }, []);
 
   const openCreateModal = () => {
     setEditingCity(null);
     setName('');
-    setState('New York');
-    setCountry('United States');
-    setLatitude('40.7128');
-    setLongitude('-74.0060');
+    setState('Lagos');
+    setCountry('Nigeria');
     setStatus('Active');
     setIsModalOpen(true);
   };
@@ -50,62 +56,45 @@ export default function AdminCitiesPage() {
   const openEditModal = (c: CityItem) => {
     setEditingCity(c);
     setName(c.name);
-    setState(c.state);
-    setCountry(c.country);
-    setLatitude(String(c.latitude));
-    setLongitude(String(c.longitude));
-    setStatus(c.status);
+    setState(c.state || 'Lagos');
+    setCountry(c.country || 'Nigeria');
+    setStatus(c.status || 'Active');
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return alert('City name is required');
 
-    if (editingCity) {
-      setCities((prev) =>
-        prev.map((c) =>
-          c.id === editingCity.id
-            ? {
-                ...c,
-                name,
-                state,
-                country,
-                latitude: parseFloat(latitude || '0'),
-                longitude: parseFloat(longitude || '0'),
-                status,
-              }
-            : c
-        )
-      );
-    } else {
-      const newCity: CityItem = {
-        id: Date.now(),
-        name,
-        state,
-        country,
-        zonesCount: 0,
-        latitude: parseFloat(latitude || '0'),
-        longitude: parseFloat(longitude || '0'),
-        status,
-      };
-      setCities([newCity, ...cities]);
-    }
-    setIsModalOpen(false);
-  };
-
-  const handleDelete = (id: number) => {
-    if (confirm('Are you sure you want to delete this city territory?')) {
-      setCities((prev) => prev.filter((c) => c.id !== id));
+    try {
+      if (editingCity) {
+        await fetch('/api/admin/cities', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: editingCity._id, name, state, country, status }),
+        });
+      } else {
+        await fetch('/api/admin/cities', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, state, country, status }),
+        });
+      }
+      setIsModalOpen(false);
+      fetchCities();
+    } catch (err) {
+      console.error('Error saving city:', err);
     }
   };
 
-  const handleToggleStatus = (id: number) => {
-    setCities((prev) =>
-      prev.map((c) =>
-        c.id === id ? { ...c, status: c.status === 'Active' ? 'Inactive' : 'Active' } : c
-      )
-    );
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this city territory?')) return;
+    try {
+      await fetch(`/api/admin/cities?id=${id}`, { method: 'DELETE' });
+      fetchCities();
+    } catch (err) {
+      console.error('Error deleting city:', err);
+    }
   };
 
   const filtered = cities.filter(
@@ -154,71 +143,63 @@ export default function AdminCitiesPage() {
 
         {/* Table */}
         <div className="bg-[#1e2632] border border-gray-800 rounded-3xl p-6 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-gray-800 text-gray-400 font-bold uppercase tracking-wider">
-                <tr>
-                  <th className="pb-3 px-3">City Region</th>
-                  <th className="pb-3 px-3">State / Province</th>
-                  <th className="pb-3 px-3">Country</th>
-                  <th className="pb-3 px-3">GPS Coordinates</th>
-                  <th className="pb-3 px-3">Deliverable Zones</th>
-                  <th className="pb-3 px-3">Status</th>
-                  <th className="pb-3 px-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-800/60 font-medium text-gray-300">
-                {filtered.map((c) => (
-                  <tr key={c.id} className="hover:bg-gray-800/40 transition-colors">
-                    <td className="py-3.5 px-3 font-bold text-white text-sm">{c.name}</td>
-                    <td className="py-3.5 px-3 text-gray-300">{c.state}</td>
-                    <td className="py-3.5 px-3 text-gray-400">{c.country}</td>
-                    <td className="py-3.5 px-3 font-mono text-[11px] text-gray-400">
-                      {c.latitude.toFixed(4)}, {c.longitude.toFixed(4)}
-                    </td>
-                    <td className="py-3.5 px-3">
-                      <Link
-                        href="/admin/areas"
-                        className="text-[#0aad0a] font-bold hover:underline flex items-center gap-1"
-                      >
-                        <MapPin size={13} /> {c.zonesCount} Geofence Zones
-                      </Link>
-                    </td>
-                    <td className="py-3.5 px-3">
-                      <button
-                        onClick={() => handleToggleStatus(c.id)}
-                        className={`text-[10px] font-bold px-2.5 py-1 rounded-full cursor-pointer transition-transform active:scale-95 ${
-                          c.status === 'Active'
-                            ? 'bg-emerald-950/40 text-[#0aad0a] border border-[#0aad0a]/30'
-                            : 'bg-gray-800 text-gray-400'
-                        }`}
-                      >
-                        ● {c.status}
-                      </button>
-                    </td>
-                    <td className="py-3.5 px-3 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => openEditModal(c)}
-                          className="p-1.5 hover:bg-gray-700 rounded-lg text-gray-400 hover:text-white"
-                          title="Edit City"
-                        >
-                          <Edit3 size={15} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(c.id)}
-                          className="p-1.5 hover:bg-red-950/40 rounded-lg text-gray-400 hover:text-red-400"
-                          title="Delete City"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    </td>
+          {loading ? (
+            <div className="text-center py-12 text-gray-400 text-xs">Loading cities...</div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-12 text-gray-400 text-xs">No city jurisdictions configured. Click Add Serviceable City to add one.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="border-b border-gray-800 text-gray-400 font-bold uppercase tracking-wider">
+                  <tr>
+                    <th className="pb-3 px-3">City Region</th>
+                    <th className="pb-3 px-3">State / Province</th>
+                    <th className="pb-3 px-3">Country</th>
+                    <th className="pb-3 px-3">Status</th>
+                    <th className="pb-3 px-3 text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-800/60 font-medium text-gray-300">
+                  {filtered.map((c) => (
+                    <tr key={c._id} className="hover:bg-gray-800/40 transition-colors">
+                      <td className="py-3.5 px-3 font-bold text-white text-sm">{c.name}</td>
+                      <td className="py-3.5 px-3 text-gray-300">{c.state}</td>
+                      <td className="py-3.5 px-3 text-gray-400">{c.country}</td>
+                      <td className="py-3.5 px-3">
+                        <span
+                          className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
+                            c.status === 'Active'
+                              ? 'bg-emerald-950/40 text-[#0aad0a] border border-[#0aad0a]/30'
+                              : 'bg-gray-800 text-gray-400'
+                          }`}
+                        >
+                          ● {c.status}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => openEditModal(c)}
+                            className="p-1.5 hover:bg-gray-700 rounded-lg text-gray-400 hover:text-white"
+                            title="Edit City"
+                          >
+                            <Edit3 size={15} />
+                          </button>
+                          <button
+                            onClick={() => c._id && handleDelete(c._id)}
+                            className="p-1.5 hover:bg-red-950/40 rounded-lg text-gray-400 hover:text-red-400"
+                            title="Delete City"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </main>
 
@@ -238,7 +219,7 @@ export default function AdminCitiesPage() {
                 {editingCity ? 'Edit City Jurisdiction' : 'Add New Serviceable City'}
               </h3>
               <p className="text-xs text-gray-400 mt-0.5">
-                Set city name, state, country, and map center coordinates
+                Set city name, state, and country
               </p>
             </div>
 
@@ -249,7 +230,7 @@ export default function AdminCitiesPage() {
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. New York"
+                  placeholder="e.g. Lagos"
                   className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
                   required
                 />
@@ -262,7 +243,7 @@ export default function AdminCitiesPage() {
                     type="text"
                     value={state}
                     onChange={(e) => setState(e.target.value)}
-                    placeholder="e.g. New York"
+                    placeholder="e.g. Lagos"
                     className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
                     required
                   />
@@ -274,35 +255,7 @@ export default function AdminCitiesPage() {
                     type="text"
                     value={country}
                     onChange={(e) => setCountry(e.target.value)}
-                    placeholder="United States"
-                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Latitude</label>
-                  <input
-                    type="number"
-                    step="0.0001"
-                    value={latitude}
-                    onChange={(e) => setLatitude(e.target.value)}
-                    placeholder="40.7128"
-                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Longitude</label>
-                  <input
-                    type="number"
-                    step="0.0001"
-                    value={longitude}
-                    onChange={(e) => setLongitude(e.target.value)}
-                    placeholder="-74.0060"
+                    placeholder="Nigeria"
                     className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
                     required
                   />

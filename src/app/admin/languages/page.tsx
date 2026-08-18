@@ -1,44 +1,53 @@
 'use client';
 
-import { useState } from 'react';
-import { Globe, Plus, Search, Trash2, Edit3, CheckCircle2, X, ArrowLeftRight } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Globe, Plus, Search, Trash2, Edit3, X } from 'lucide-react';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 
 interface LanguageItem {
-  id: number;
+  _id?: string;
   name: string;
   code: string;
-  isRtl: boolean;
-  isDefault: boolean;
+  is_rtl: boolean;
   status: 'Active' | 'Inactive';
 }
 
-const INITIAL_LANGUAGES: LanguageItem[] = [
-  { id: 1, name: 'English (US)', code: 'en', isRtl: false, isDefault: true, status: 'Active' },
-  { id: 2, name: 'Arabic (العربية)', code: 'ar', isRtl: true, isDefault: false, status: 'Active' },
-  { id: 3, name: 'Spanish (Español)', code: 'es', isRtl: false, isDefault: false, status: 'Active' },
-  { id: 4, name: 'French (Français)', code: 'fr', isRtl: false, isDefault: false, status: 'Active' },
-  { id: 5, name: 'Hindi (हिन्दी)', code: 'hi', isRtl: false, isDefault: false, status: 'Active' },
-];
-
 export default function AdminLanguagesPage() {
-  const [languages, setLanguages] = useState<LanguageItem[]>(INITIAL_LANGUAGES);
+  const [languages, setLanguages] = useState<LanguageItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingLang, setEditingLang] = useState<LanguageItem | null>(null);
 
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [isRtl, setIsRtl] = useState(false);
-  const [isDefault, setIsDefault] = useState(false);
   const [status, setStatus] = useState<'Active' | 'Inactive'>('Active');
   const [searchQuery, setSearchQuery] = useState('');
+
+  const fetchLanguages = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/admin/languages');
+      const data = await res.json();
+      if (data.success) {
+        setLanguages(data.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching languages:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLanguages();
+  }, []);
 
   const openCreateModal = () => {
     setEditingLang(null);
     setName('');
     setCode('');
     setIsRtl(false);
-    setIsDefault(false);
     setStatus('Active');
     setIsModalOpen(true);
   };
@@ -47,56 +56,44 @@ export default function AdminLanguagesPage() {
     setEditingLang(lang);
     setName(lang.name);
     setCode(lang.code);
-    setIsRtl(lang.isRtl);
-    setIsDefault(lang.isDefault);
-    setStatus(lang.status);
+    setIsRtl(lang.is_rtl);
+    setStatus(lang.status || 'Active');
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !code.trim()) return alert('Name and language code are required');
 
-    if (isDefault) {
-      // Unset other defaults
-      setLanguages((prev) => prev.map((l) => ({ ...l, isDefault: false })));
-    }
-
-    if (editingLang) {
-      setLanguages((prev) =>
-        prev.map((l) =>
-          l.id === editingLang.id ? { ...l, name, code: code.toLowerCase(), isRtl, isDefault, status } : l
-        )
-      );
-    } else {
-      const newLang: LanguageItem = {
-        id: Date.now(),
-        name,
-        code: code.toLowerCase(),
-        isRtl,
-        isDefault,
-        status,
-      };
-      setLanguages([newLang, ...languages]);
-    }
-    setIsModalOpen(false);
-  };
-
-  const handleDelete = (id: number) => {
-    const target = languages.find((l) => l.id === id);
-    if (target?.isDefault) return alert('Cannot delete default system language');
-    if (confirm('Are you sure you want to delete this language locale?')) {
-      setLanguages((prev) => prev.filter((l) => l.id !== id));
+    try {
+      if (editingLang) {
+        await fetch('/api/admin/languages', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: editingLang._id, name, code: code.toLowerCase(), is_rtl: isRtl, status }),
+        });
+      } else {
+        await fetch('/api/admin/languages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, code: code.toLowerCase(), is_rtl: isRtl, status }),
+        });
+      }
+      setIsModalOpen(false);
+      fetchLanguages();
+    } catch (err) {
+      console.error('Error saving language:', err);
     }
   };
 
-  const handleSetDefault = (id: number) => {
-    setLanguages((prev) =>
-      prev.map((l) => ({
-        ...l,
-        isDefault: l.id === id,
-      }))
-    );
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this language locale?')) return;
+    try {
+      await fetch(`/api/admin/languages?id=${id}`, { method: 'DELETE' });
+      fetchLanguages();
+    } catch (err) {
+      console.error('Error deleting language:', err);
+    }
   };
 
   const filtered = languages.filter(
@@ -113,7 +110,7 @@ export default function AdminLanguagesPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-black flex items-center gap-2">
-              <Globe size={24} className="text-[#0aad0a]" /> Multi-Language & RTL Locale Configuration
+              <Globe size={24} className="text-[#0aad0a]" /> Multi-Language &amp; RTL Locale Configuration
             </h1>
             <p className="text-xs text-gray-400 mt-0.5">
               Manage international storefront languages, ISO-639 locale codes, and Right-to-Left (RTL) text rendering
@@ -145,80 +142,69 @@ export default function AdminLanguagesPage() {
 
         {/* Table */}
         <div className="bg-[#1e2632] border border-gray-800 rounded-3xl p-6 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-gray-800 text-gray-400 font-bold uppercase tracking-wider">
-                <tr>
-                  <th className="pb-3 px-3">Language</th>
-                  <th className="pb-3 px-3">Locale Code</th>
-                  <th className="pb-3 px-3">Text Direction</th>
-                  <th className="pb-3 px-3">Default Status</th>
-                  <th className="pb-3 px-3">Active Status</th>
-                  <th className="pb-3 px-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-800/60 font-medium text-gray-300">
-                {filtered.map((l) => (
-                  <tr key={l.id} className="hover:bg-gray-800/40 transition-colors">
-                    <td className="py-3.5 px-3 font-bold text-white text-sm">{l.name}</td>
-                    <td className="py-3.5 px-3 font-mono text-xs uppercase text-gray-300 font-bold">
-                      {l.code}
-                    </td>
-                    <td className="py-3.5 px-3">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                        l.isRtl ? 'bg-amber-950/60 text-amber-300 border border-amber-800/40' : 'bg-gray-800 text-gray-300'
-                      }`}>
-                        {l.isRtl ? 'RTL (Right-to-Left)' : 'LTR (Left-to-Right)'}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-3">
-                      {l.isDefault ? (
-                        <span className="text-[10px] font-black bg-emerald-950/60 text-[#0aad0a] border border-[#0aad0a]/40 px-2.5 py-1 rounded-full">
-                          ★ Default System
+          {loading ? (
+            <div className="text-center py-12 text-gray-400 text-xs">Loading languages...</div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-12 text-gray-400 text-xs">No language locales found. Click Add New Language to create one.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="border-b border-gray-800 text-gray-400 font-bold uppercase tracking-wider">
+                  <tr>
+                    <th className="pb-3 px-3">Language</th>
+                    <th className="pb-3 px-3">Locale Code</th>
+                    <th className="pb-3 px-3">Text Direction</th>
+                    <th className="pb-3 px-3">Active Status</th>
+                    <th className="pb-3 px-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-800/60 font-medium text-gray-300">
+                  {filtered.map((l) => (
+                    <tr key={l._id} className="hover:bg-gray-800/40 transition-colors">
+                      <td className="py-3.5 px-3 font-bold text-white text-sm">{l.name}</td>
+                      <td className="py-3.5 px-3 font-mono text-xs uppercase text-gray-300 font-bold">
+                        {l.code}
+                      </td>
+                      <td className="py-3.5 px-3">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                          l.is_rtl ? 'bg-amber-950/60 text-amber-300 border border-amber-800/40' : 'bg-gray-800 text-gray-300'
+                        }`}>
+                          {l.is_rtl ? 'RTL (Right-to-Left)' : 'LTR (Left-to-Right)'}
                         </span>
-                      ) : (
-                        <button
-                          onClick={() => handleSetDefault(l.id)}
-                          className="text-[10px] text-gray-400 hover:text-white font-semibold underline"
-                        >
-                          Make Default
-                        </button>
-                      )}
-                    </td>
-                    <td className="py-3.5 px-3">
-                      <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
-                        l.status === 'Active'
-                          ? 'bg-emerald-950/40 text-[#0aad0a] border border-[#0aad0a]/30'
-                          : 'bg-gray-800 text-gray-400'
-                      }`}>
-                        ● {l.status}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-3 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => openEditModal(l)}
-                          className="p-1.5 hover:bg-gray-700 rounded-lg text-gray-400 hover:text-white"
-                          title="Edit Language"
-                        >
-                          <Edit3 size={15} />
-                        </button>
-                        {!l.isDefault && (
+                      </td>
+                      <td className="py-3.5 px-3">
+                        <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
+                          l.status === 'Active'
+                            ? 'bg-emerald-950/40 text-[#0aad0a] border border-[#0aad0a]/30'
+                            : 'bg-gray-800 text-gray-400'
+                        }`}>
+                          ● {l.status}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
                           <button
-                            onClick={() => handleDelete(l.id)}
+                            onClick={() => openEditModal(l)}
+                            className="p-1.5 hover:bg-gray-700 rounded-lg text-gray-400 hover:text-white"
+                            title="Edit Language"
+                          >
+                            <Edit3 size={15} />
+                          </button>
+                          <button
+                            onClick={() => l._id && handleDelete(l._id)}
                             className="p-1.5 hover:bg-red-950/40 rounded-lg text-gray-400 hover:text-red-400"
                             title="Delete Language"
                           >
                             <Trash2 size={15} />
                           </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </main>
 
@@ -288,16 +274,6 @@ export default function AdminLanguagesPage() {
                     className="w-4 h-4 rounded text-[#0aad0a] bg-gray-900 border-gray-700 focus:ring-0"
                   />
                   <span>Enable Right-to-Left (RTL) Layout</span>
-                </label>
-
-                <label className="flex items-center gap-2.5 cursor-pointer text-xs font-bold text-gray-300">
-                  <input
-                    type="checkbox"
-                    checked={isDefault}
-                    onChange={(e) => setIsDefault(e.target.checked)}
-                    className="w-4 h-4 rounded text-[#0aad0a] bg-gray-900 border-gray-700 focus:ring-0"
-                  />
-                  <span>Set as Default Storefront Language</span>
                 </label>
               </div>
 

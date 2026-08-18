@@ -1,37 +1,72 @@
 'use client';
 
-import { useState } from 'react';
-import { Clock, Plus, Trash2, Edit3, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Clock, Plus, Trash2, X } from 'lucide-react';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 
-const INITIAL_TIMESLOTS = [
-  { id: 1, title: 'Morning Express', startTime: '08:00 AM', endTime: '11:00 AM', maxOrders: 50, booked: 28, status: 'Active' },
-  { id: 2, title: 'Afternoon Slot', startTime: '01:00 PM', endTime: '04:00 PM', maxOrders: 40, booked: 15, status: 'Active' },
-  { id: 3, title: 'Evening Prime', startTime: '06:00 PM', endTime: '09:00 PM', maxOrders: 60, booked: 42, status: 'Active' },
-];
+interface TimeslotItem {
+  _id?: string;
+  title: string;
+  startTime: string;
+  endTime: string;
+  maxOrders: number;
+  status: 'Active' | 'Inactive';
+}
 
 export default function AdminTimeslotsPage() {
-  const [timeslots, setTimeslots] = useState(INITIAL_TIMESLOTS);
+  const [timeslots, setTimeslots] = useState<TimeslotItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [title, setTitle] = useState('');
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [maxOrders, setMaxOrders] = useState(50);
 
-  const handleCreate = (e: React.FormEvent) => {
+  const fetchTimeslots = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/admin/timeslots');
+      const data = await res.json();
+      if (data.success) {
+        setTimeslots(data.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching timeslots:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTimeslots();
+  }, []);
+
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newSlot = {
-      id: Date.now(),
-      title,
-      startTime,
-      endTime,
-      maxOrders,
-      booked: 0,
-      status: 'Active',
-    };
-    setTimeslots([...timeslots, newSlot]);
-    setShowAddModal(false);
-    setTitle('');
+    try {
+      await fetch('/api/admin/timeslots', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, startTime, endTime, maxOrders, status: 'Active' }),
+      });
+      setShowAddModal(false);
+      setTitle('');
+      setStartTime('');
+      setEndTime('');
+      fetchTimeslots();
+    } catch (err) {
+      console.error('Error creating timeslot:', err);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this timeslot?')) return;
+    try {
+      await fetch(`/api/admin/timeslots?id=${id}`, { method: 'DELETE' });
+      fetchTimeslots();
+    } catch (err) {
+      console.error('Error deleting timeslot:', err);
+    }
   };
 
   return (
@@ -44,7 +79,7 @@ export default function AdminTimeslotsPage() {
             <h1 className="text-2xl font-black flex items-center gap-2">
               <Clock size={24} className="text-[#0aad0a]" /> Delivery Timeslot Windows
             </h1>
-            <p className="text-xs text-gray-400 mt-0.5">Configure scheduled delivery delivery windows and hourly capacity quotas</p>
+            <p className="text-xs text-gray-400 mt-0.5">Configure scheduled delivery windows and hourly capacity quotas</p>
           </div>
 
           <button
@@ -57,45 +92,49 @@ export default function AdminTimeslotsPage() {
         </div>
 
         <div className="bg-[#1e2632] border border-gray-800 rounded-3xl p-6 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-gray-800 text-gray-400 font-bold uppercase tracking-wider">
-                <tr>
-                  <th className="pb-3 px-3">Slot Title</th>
-                  <th className="pb-3 px-3">Time Window</th>
-                  <th className="pb-3 px-3">Capacity Quota</th>
-                  <th className="pb-3 px-3">Booked Today</th>
-                  <th className="pb-3 px-3">Status</th>
-                  <th className="pb-3 px-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-800/60 font-medium text-gray-300">
-                {timeslots.map((slot) => (
-                  <tr key={slot.id} className="hover:bg-gray-800/40 transition-colors">
-                    <td className="py-3.5 px-3 font-bold text-white">{slot.title}</td>
-                    <td className="py-3.5 px-3 text-gray-200">{slot.startTime} - {slot.endTime}</td>
-                    <td className="py-3.5 px-3 font-bold text-white">{slot.maxOrders} orders max</td>
-                    <td className="py-3.5 px-3 text-[#0aad0a] font-bold">{slot.booked} reserved</td>
-                    <td className="py-3.5 px-3">
-                      <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-950/40 text-[#0aad0a]">
-                        ● {slot.status}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-3 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => setTimeslots(timeslots.filter((item) => item.id !== slot.id))}
-                          className="p-1.5 hover:bg-red-950/40 rounded-lg text-gray-400 hover:text-red-400"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    </td>
+          {loading ? (
+            <div className="text-center py-12 text-gray-400 text-xs">Loading timeslots...</div>
+          ) : timeslots.length === 0 ? (
+            <div className="text-center py-12 text-gray-400 text-xs">No delivery timeslots defined yet. Click Add Timeslot to create one.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="border-b border-gray-800 text-gray-400 font-bold uppercase tracking-wider">
+                  <tr>
+                    <th className="pb-3 px-3">Slot Title</th>
+                    <th className="pb-3 px-3">Time Window</th>
+                    <th className="pb-3 px-3">Capacity Quota</th>
+                    <th className="pb-3 px-3">Status</th>
+                    <th className="pb-3 px-3 text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-800/60 font-medium text-gray-300">
+                  {timeslots.map((slot) => (
+                    <tr key={slot._id} className="hover:bg-gray-800/40 transition-colors">
+                      <td className="py-3.5 px-3 font-bold text-white">{slot.title}</td>
+                      <td className="py-3.5 px-3 text-gray-200">{slot.startTime} - {slot.endTime}</td>
+                      <td className="py-3.5 px-3 font-bold text-white">{slot.maxOrders} orders max</td>
+                      <td className="py-3.5 px-3">
+                        <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-950/40 text-[#0aad0a]">
+                          ● {slot.status}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => slot._id && handleDelete(slot._id)}
+                            className="p-1.5 hover:bg-red-950/40 rounded-lg text-gray-400 hover:text-red-400"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </main>
 

@@ -1,50 +1,102 @@
 'use client';
 
-import { useState } from 'react';
-import Image from 'next/image';
+import { useState, useEffect } from 'react';
 import { LayoutGrid, Plus, Search, Trash2, Edit3, X, Filter } from 'lucide-react';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 
-const INITIAL_SUBCATEGORIES = [
-  { id: 1, name: 'Leafy Greens & Salad', parent: 'Vegetables', slug: 'leafy-greens', count: 32, status: 'Active', image: 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=300' },
-  { id: 2, name: 'Root Vegetables', parent: 'Vegetables', slug: 'root-vegetables', count: 24, status: 'Active', image: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=300' },
-  { id: 3, name: 'Citrus & Tropical Fruits', parent: 'Fruits', slug: 'citrus-fruits', count: 40, status: 'Active', image: 'https://images.unsplash.com/photo-1619566636858-adf3ef46400b?w=300' },
-  { id: 4, name: 'Apples & Pears', parent: 'Fruits', slug: 'apples-pears', count: 28, status: 'Active', image: 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=300' },
-  { id: 5, name: 'Artisan Cheeses', parent: 'Dairy & Eggs', slug: 'artisan-cheeses', count: 18, status: 'Active', image: 'https://images.unsplash.com/photo-1528750997573-59b89d56f4f7?w=300' },
-  { id: 6, name: 'Sourdough & Baguettes', parent: 'Bakery', slug: 'sourdough-breads', count: 15, status: 'Active', image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=300' },
-];
+interface SubcategoryItem {
+  _id?: string;
+  name: string;
+  slug: string;
+  parent_id?: string;
+  parent_name?: string;
+  status: 'Active' | 'Hidden';
+}
 
 export default function AdminSubcategoriesPage() {
-  const [subcategories, setSubcategories] = useState(INITIAL_SUBCATEGORIES);
+  const [subcategories, setSubcategories] = useState<SubcategoryItem[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [name, setName] = useState('');
-  const [parent, setParent] = useState('Vegetables');
+  const [parentId, setParentId] = useState('');
   const [slug, setSlug] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedParentFilter, setSelectedParentFilter] = useState('all');
 
-  const handleCreate = (e: React.FormEvent) => {
-    e.preventDefault();
-    const newSub = {
-      id: Date.now(),
-      name,
-      parent,
-      slug: slug || name.toLowerCase().replace(/\s+/g, '-'),
-      count: 0,
-      status: 'Active',
-      image: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=300',
-    };
-    setSubcategories([newSub, ...subcategories]);
-    setShowAddModal(false);
-    setName('');
-    setSlug('');
+  const fetchCategoriesData = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/admin/categories');
+      const data = await res.json();
+      if (data.success) {
+        const allCats = data.categories || [];
+        setCategories(allCats);
+        // Filter subcategories (items that have parent_id)
+        const subs = allCats.filter((c: any) => c.parent_id);
+        const mappedSubs = subs.map((s: any) => {
+          const p = allCats.find((c: any) => String(c._id) === String(s.parent_id));
+          return {
+            _id: s._id,
+            name: s.name,
+            slug: s.slug,
+            parent_id: s.parent_id,
+            parent_name: p ? p.name : 'Parent Category',
+            status: s.status || 'Active',
+          };
+        });
+        setSubcategories(mappedSubs);
+      }
+    } catch (err) {
+      console.error('Error fetching categories:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const filtered = subcategories.filter((s) => {
-    const matchesSearch = s.name.toLowerCase().includes(searchQuery.toLowerCase()) || s.slug.includes(searchQuery);
-    const matchesParent = selectedParentFilter === 'all' || s.parent.toLowerCase() === selectedParentFilter.toLowerCase();
-    return matchesSearch && matchesParent;
-  });
+  useEffect(() => {
+    fetchCategoriesData();
+  }, []);
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return alert('Subcategory name is required');
+
+    try {
+      const finalSlug = slug || name.toLowerCase().replace(/\s+/g, '-');
+      await fetch('/api/admin/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          slug: finalSlug,
+          parent_id: parentId || null,
+          status: 'Active',
+        }),
+      });
+      setShowAddModal(false);
+      setName('');
+      setSlug('');
+      fetchCategoriesData();
+    } catch (err) {
+      console.error('Error creating subcategory:', err);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this subcategory?')) return;
+    try {
+      await fetch(`/api/admin/categories?id=${id}`, { method: 'DELETE' });
+      fetchCategoriesData();
+    } catch (err) {
+      console.error('Error deleting subcategory:', err);
+    }
+  };
+
+  const filtered = subcategories.filter(
+    (s) =>
+      s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.slug.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="flex bg-[#121820] text-white min-h-screen">
@@ -69,7 +121,7 @@ export default function AdminSubcategoriesPage() {
         </div>
 
         {/* Filter Bar */}
-        <div className="bg-[#1e2632] border border-gray-800 p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4">
+        <div className="bg-[#1e2632] border border-gray-800 p-4 rounded-2xl flex items-center justify-between">
           <div className="relative flex-1 max-w-md">
             <input
               type="text"
@@ -80,78 +132,57 @@ export default function AdminSubcategoriesPage() {
             />
             <Search size={16} className="absolute left-3 top-2.5 text-gray-400" />
           </div>
-
-          <div className="flex items-center gap-2">
-            <Filter size={15} className="text-gray-400" />
-            <select
-              value={selectedParentFilter}
-              onChange={(e) => setSelectedParentFilter(e.target.value)}
-              className="bg-gray-900 border border-gray-700 text-white text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-[#0aad0a]"
-            >
-              <option value="all">All Parent Categories</option>
-              <option value="vegetables">Vegetables</option>
-              <option value="fruits">Fruits</option>
-              <option value="dairy & eggs">Dairy & Eggs</option>
-              <option value="bakery">Bakery</option>
-            </select>
-          </div>
         </div>
 
         {/* Table */}
         <div className="bg-[#1e2632] border border-gray-800 rounded-3xl p-6 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-gray-800 text-gray-400 font-bold uppercase tracking-wider">
-                <tr>
-                  <th className="pb-3 px-3">Subcategory</th>
-                  <th className="pb-3 px-3">Parent Category</th>
-                  <th className="pb-3 px-3">Slug</th>
-                  <th className="pb-3 px-3">Products</th>
-                  <th className="pb-3 px-3">Status</th>
-                  <th className="pb-3 px-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-800/60 font-medium text-gray-300">
-                {filtered.map((s) => (
-                  <tr key={s.id} className="hover:bg-gray-800/40 transition-colors">
-                    <td className="py-3 px-3">
-                      <div className="flex items-center gap-3">
-                        <div className="relative w-10 h-10 rounded-xl overflow-hidden bg-gray-800 flex-shrink-0 border border-gray-700">
-                          <Image src={s.image} alt={s.name} fill className="object-cover" />
-                        </div>
-                        <span className="font-bold text-white">{s.name}</span>
-                      </div>
-                    </td>
-                    <td className="py-3 px-3">
-                      <span className="bg-gray-800 text-gray-200 px-2.5 py-1 rounded-lg font-bold">
-                        {s.parent}
-                      </span>
-                    </td>
-                    <td className="py-3 px-3 text-gray-400">/{s.slug}</td>
-                    <td className="py-3 px-3 font-bold text-white">{s.count} items</td>
-                    <td className="py-3 px-3">
-                      <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-950/40 text-[#0aad0a]">
-                        ● {s.status}
-                      </span>
-                    </td>
-                    <td className="py-3 px-3 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button className="p-1.5 hover:bg-gray-700 rounded-lg text-gray-400 hover:text-white">
-                          <Edit3 size={15} />
-                        </button>
-                        <button
-                          onClick={() => setSubcategories(subcategories.filter((item) => item.id !== s.id))}
-                          className="p-1.5 hover:bg-red-950/40 rounded-lg text-gray-400 hover:text-red-400"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    </td>
+          {loading ? (
+            <div className="text-center py-12 text-gray-400 text-xs">Loading subcategories...</div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-12 text-gray-400 text-xs">No subcategories found. Click Add Subcategory to create one.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="border-b border-gray-800 text-gray-400 font-bold uppercase tracking-wider">
+                  <tr>
+                    <th className="pb-3 px-3">Subcategory</th>
+                    <th className="pb-3 px-3">Parent Category</th>
+                    <th className="pb-3 px-3">Slug</th>
+                    <th className="pb-3 px-3">Status</th>
+                    <th className="pb-3 px-3 text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-800/60 font-medium text-gray-300">
+                  {filtered.map((s) => (
+                    <tr key={s._id} className="hover:bg-gray-800/40 transition-colors">
+                      <td className="py-3 px-3 font-bold text-white text-sm">{s.name}</td>
+                      <td className="py-3 px-3">
+                        <span className="bg-gray-800 text-gray-200 px-2.5 py-1 rounded-lg font-bold">
+                          {s.parent_name}
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-gray-400 font-mono">/{s.slug}</td>
+                      <td className="py-3 px-3">
+                        <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-950/40 text-[#0aad0a]">
+                          ● {s.status}
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => s._id && handleDelete(s._id)}
+                            className="p-1.5 hover:bg-red-950/40 rounded-lg text-gray-400 hover:text-red-400"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </main>
 
@@ -172,17 +203,18 @@ export default function AdminSubcategoriesPage() {
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-gray-300">Parent Category</label>
                 <select
-                  value={parent}
-                  onChange={(e) => setParent(e.target.value)}
+                  value={parentId}
+                  onChange={(e) => setParentId(e.target.value)}
                   className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
                 >
-                  <option value="Vegetables">Vegetables</option>
-                  <option value="Fruits">Fruits</option>
-                  <option value="Dairy & Eggs">Dairy & Eggs</option>
-                  <option value="Bakery">Bakery</option>
-                  <option value="Beverages">Beverages</option>
-                  <option value="Snacks">Snacks</option>
-                  <option value="Pantry">Pantry</option>
+                  <option value="">Select Parent Category</option>
+                  {categories
+                    .filter((c: any) => !c.parent_id)
+                    .map((c: any) => (
+                      <option key={c._id} value={c._id}>
+                        {c.name}
+                      </option>
+                    ))}
                 </select>
               </div>
 

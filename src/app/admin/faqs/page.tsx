@@ -1,42 +1,55 @@
 'use client';
 
-import { useState } from 'react';
-import { HelpCircle, Plus, Search, Trash2, Edit3, CheckCircle2, X, Filter } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { HelpCircle, Plus, Search, Trash2, Edit3, X, Filter } from 'lucide-react';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 
 interface FaqItem {
-  id: number;
+  _id?: string;
   question: string;
   answer: string;
   category: string;
-  status: 'Published' | 'Draft';
+  status: 'Active' | 'Inactive';
 }
 
-const INITIAL_FAQS: FaqItem[] = [
-  { id: 1, question: 'How quickly will my grocery order be delivered?', answer: 'We specialize in express hyper-local grocery delivery. Orders are typically packed and delivered within 25–35 minutes of placement.', category: 'Delivery', status: 'Published' },
-  { id: 2, question: 'What payment methods do you support?', answer: 'We accept Credit/Debit Cards via Stripe, Cash on Delivery (COD), Digital Store Wallet, and PayPal.', category: 'Payments', status: 'Published' },
-  { id: 3, question: 'How do returns and refunds work?', answer: 'If an item is damaged or missing, you can submit a return request with photos directly from your Order History for an instant refund to your digital wallet.', category: 'Returns', status: 'Published' },
-  { id: 4, question: 'Are all vegetables and fruits organic and farm-fresh?', answer: 'Yes! All fresh produce is sourced directly from certified organic local farms and quality inspected before dispatch.', category: 'General', status: 'Published' },
-];
-
 export default function AdminFaqsPage() {
-  const [faqs, setFaqs] = useState<FaqItem[]>(INITIAL_FAQS);
+  const [faqs, setFaqs] = useState<FaqItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingFaq, setEditingFaq] = useState<FaqItem | null>(null);
 
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState('');
   const [category, setCategory] = useState('General');
-  const [status, setStatus] = useState<'Published' | 'Draft'>('Published');
+  const [status, setStatus] = useState<'Active' | 'Inactive'>('Active');
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
+
+  const fetchFaqs = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/admin/faqs');
+      const data = await res.json();
+      if (data.success) {
+        setFaqs(data.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching FAQs:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchFaqs();
+  }, []);
 
   const openCreateModal = () => {
     setEditingFaq(null);
     setQuestion('');
     setAnswer('');
     setCategory('General');
-    setStatus('Published');
+    setStatus('Active');
     setIsModalOpen(true);
   };
 
@@ -44,46 +57,44 @@ export default function AdminFaqsPage() {
     setEditingFaq(f);
     setQuestion(f.question);
     setAnswer(f.answer);
-    setCategory(f.category);
-    setStatus(f.status);
+    setCategory(f.category || 'General');
+    setStatus(f.status || 'Active');
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!question.trim()) return alert('Question is required');
 
-    if (editingFaq) {
-      setFaqs((prev) =>
-        prev.map((f) =>
-          f.id === editingFaq.id ? { ...f, question, answer, category, status } : f
-        )
-      );
-    } else {
-      const newFaq: FaqItem = {
-        id: Date.now(),
-        question,
-        answer,
-        category,
-        status,
-      };
-      setFaqs([newFaq, ...faqs]);
-    }
-    setIsModalOpen(false);
-  };
-
-  const handleDelete = (id: number) => {
-    if (confirm('Are you sure you want to delete this FAQ entry?')) {
-      setFaqs((prev) => prev.filter((f) => f.id !== id));
+    try {
+      if (editingFaq) {
+        await fetch('/api/admin/faqs', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: editingFaq._id, question, answer, category, status }),
+        });
+      } else {
+        await fetch('/api/admin/faqs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question, answer, category, status }),
+        });
+      }
+      setIsModalOpen(false);
+      fetchFaqs();
+    } catch (err) {
+      console.error('Error saving FAQ:', err);
     }
   };
 
-  const handleToggleStatus = (id: number) => {
-    setFaqs((prev) =>
-      prev.map((f) =>
-        f.id === id ? { ...f, status: f.status === 'Published' ? 'Draft' : 'Published' } : f
-      )
-    );
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this FAQ entry?')) return;
+    try {
+      await fetch(`/api/admin/faqs?id=${id}`, { method: 'DELETE' });
+      fetchFaqs();
+    } catch (err) {
+      console.error('Error deleting FAQ:', err);
+    }
   };
 
   const filtered = faqs.filter((f) => {
@@ -150,62 +161,67 @@ export default function AdminFaqsPage() {
 
         {/* Table */}
         <div className="bg-[#1e2632] border border-gray-800 rounded-3xl p-6 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-gray-800 text-gray-400 font-bold uppercase tracking-wider">
-                <tr>
-                  <th className="pb-3 px-3">Question</th>
-                  <th className="pb-3 px-3">Category</th>
-                  <th className="pb-3 px-3">Answer Snippet</th>
-                  <th className="pb-3 px-3">Status</th>
-                  <th className="pb-3 px-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-800/60 font-medium text-gray-300">
-                {filtered.map((f) => (
-                  <tr key={f.id} className="hover:bg-gray-800/40 transition-colors">
-                    <td className="py-3.5 px-3 font-bold text-white max-w-xs">{f.question}</td>
-                    <td className="py-3.5 px-3">
-                      <span className="bg-gray-800 text-gray-300 font-bold px-2 py-0.5 rounded-lg">
-                        {f.category}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-3 text-gray-400 max-w-sm truncate">{f.answer}</td>
-                    <td className="py-3.5 px-3">
-                      <button
-                        onClick={() => handleToggleStatus(f.id)}
-                        className={`text-[10px] font-bold px-2.5 py-1 rounded-full cursor-pointer transition-transform active:scale-95 ${
-                          f.status === 'Published'
-                            ? 'bg-emerald-950/40 text-[#0aad0a] border border-[#0aad0a]/30'
-                            : 'bg-gray-800 text-gray-400'
-                        }`}
-                      >
-                        ● {f.status}
-                      </button>
-                    </td>
-                    <td className="py-3.5 px-3 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => openEditModal(f)}
-                          className="p-1.5 hover:bg-gray-700 rounded-lg text-gray-400 hover:text-white"
-                          title="Edit FAQ"
-                        >
-                          <Edit3 size={15} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(f.id)}
-                          className="p-1.5 hover:bg-red-950/40 rounded-lg text-gray-400 hover:text-red-400"
-                          title="Delete FAQ"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    </td>
+          {loading ? (
+            <div className="text-center py-12 text-gray-400 text-xs">Loading FAQs...</div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-12 text-gray-400 text-xs">No FAQ questions found. Add one to get started.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="border-b border-gray-800 text-gray-400 font-bold uppercase tracking-wider">
+                  <tr>
+                    <th className="pb-3 px-3">Question</th>
+                    <th className="pb-3 px-3">Category</th>
+                    <th className="pb-3 px-3">Answer Snippet</th>
+                    <th className="pb-3 px-3">Status</th>
+                    <th className="pb-3 px-3 text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-800/60 font-medium text-gray-300">
+                  {filtered.map((f) => (
+                    <tr key={f._id} className="hover:bg-gray-800/40 transition-colors">
+                      <td className="py-3.5 px-3 font-bold text-white max-w-xs">{f.question}</td>
+                      <td className="py-3.5 px-3">
+                        <span className="bg-gray-800 text-gray-300 font-bold px-2 py-0.5 rounded-lg">
+                          {f.category}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-3 text-gray-400 max-w-sm truncate">{f.answer}</td>
+                      <td className="py-3.5 px-3">
+                        <span
+                          className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
+                            f.status === 'Active'
+                              ? 'bg-emerald-950/40 text-[#0aad0a] border border-[#0aad0a]/30'
+                              : 'bg-gray-800 text-gray-400'
+                          }`}
+                        >
+                          ● {f.status}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => openEditModal(f)}
+                            className="p-1.5 hover:bg-gray-700 rounded-lg text-gray-400 hover:text-white"
+                            title="Edit FAQ"
+                          >
+                            <Edit3 size={15} />
+                          </button>
+                          <button
+                            onClick={() => f._id && handleDelete(f._id)}
+                            className="p-1.5 hover:bg-red-950/40 rounded-lg text-gray-400 hover:text-red-400"
+                            title="Delete FAQ"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </main>
 
@@ -222,9 +238,7 @@ export default function AdminFaqsPage() {
 
             <div>
               <h3 className="text-xl font-black">{editingFaq ? 'Edit FAQ' : 'Add FAQ Question'}</h3>
-              <p className="text-xs text-gray-400 mt-0.5">
-                Set customer question, help category, and detailed answer
-              </p>
+              <p className="text-xs text-gray-400 mt-0.5">Set customer question, help category, and detailed answer</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -251,7 +265,7 @@ export default function AdminFaqsPage() {
                     <option value="General">General</option>
                     <option value="Delivery">Delivery</option>
                     <option value="Payments">Payments</option>
-                    <option value="Returns">Returns & Refunds</option>
+                    <option value="Returns">Returns &amp; Refunds</option>
                   </select>
                 </div>
 
@@ -262,8 +276,8 @@ export default function AdminFaqsPage() {
                     onChange={(e) => setStatus(e.target.value as any)}
                     className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
                   >
-                    <option value="Published">Published</option>
-                    <option value="Draft">Draft</option>
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
                   </select>
                 </div>
               </div>

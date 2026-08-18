@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   Layers, 
@@ -8,92 +8,55 @@ import {
   Search, 
   Trash2, 
   Edit3, 
-  Image as ImageIcon, 
   X, 
-  CheckCircle2, 
   ArrowLeft,
-  FolderPlus,
-  Upload,
-  Eye,
-  ArrowUpDown
+  FolderPlus
 } from 'lucide-react';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 
 interface GroupCategoryItem {
-  id: number;
+  _id?: string;
   name: string;
-  slug: string;
-  image: string;
-  categoriesCount: number;
-  sortOrder: number;
-  status: 'Active' | 'Hidden';
   description: string;
+  categories?: string[];
+  icon?: string;
+  status: 'Active' | 'Inactive';
 }
 
-const INITIAL_GROUPS: GroupCategoryItem[] = [
-  { 
-    id: 1, 
-    name: 'Farm Fresh Produce', 
-    slug: 'farm-fresh-produce', 
-    image: 'https://images.unsplash.com/photo-1610832958506-aa56368176cf?w=200&auto=format&fit=crop&q=60', 
-    categoriesCount: 4, 
-    sortOrder: 1, 
-    status: 'Active', 
-    description: 'Fresh fruits, organic vegetables, and leafy greens from local farms.' 
-  },
-  { 
-    id: 2, 
-    name: 'Dairy, Eggs & Cheese', 
-    slug: 'dairy-eggs-cheese', 
-    image: 'https://images.unsplash.com/photo-1528750997573-59b89d56f4f7?w=200&auto=format&fit=crop&q=60', 
-    categoriesCount: 3, 
-    sortOrder: 2, 
-    status: 'Active', 
-    description: 'Fresh milk, artisanal cheeses, butter, and pasture-raised eggs.' 
-  },
-  { 
-    id: 3, 
-    name: 'Bakery & Morning Goods', 
-    slug: 'bakery-morning-goods', 
-    image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=200&auto=format&fit=crop&q=60', 
-    categoriesCount: 2, 
-    sortOrder: 3, 
-    status: 'Active', 
-    description: 'Artisanal breads, croissants, muffins, and breakfast baked items.' 
-  },
-  { 
-    id: 4, 
-    name: 'Beverages & Cold Drinks', 
-    slug: 'beverages-cold-drinks', 
-    image: 'https://images.unsplash.com/photo-1544145945-f90425340c7e?w=200&auto=format&fit=crop&q=60', 
-    categoriesCount: 5, 
-    sortOrder: 4, 
-    status: 'Active', 
-    description: 'Organic cold juices, craft sodas, mineral waters, and energy drinks.' 
-  }
-];
-
 export default function AdminGroupCategoryPage() {
-  const [groups, setGroups] = useState<GroupCategoryItem[]>(INITIAL_GROUPS);
+  const [groups, setGroups] = useState<GroupCategoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<GroupCategoryItem | null>(null);
 
-  // Form states
   const [name, setName] = useState('');
-  const [slug, setSlug] = useState('');
-  const [image, setImage] = useState('');
   const [description, setDescription] = useState('');
-  const [sortOrder, setSortOrder] = useState(1);
-  const [status, setStatus] = useState<'Active' | 'Hidden'>('Active');
+  const [status, setStatus] = useState<'Active' | 'Inactive'>('Active');
+
+  const fetchGroups = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/admin/group-categories');
+      const data = await res.json();
+      if (data.success) {
+        setGroups(data.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching group categories:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchGroups();
+  }, []);
 
   const openCreateModal = () => {
     setEditingGroup(null);
     setName('');
-    setSlug('');
-    setImage('https://images.unsplash.com/photo-1542838132-92c53300491e?w=200&auto=format&fit=crop&q=60');
     setDescription('');
-    setSortOrder(groups.length + 1);
     setStatus('Active');
     setIsModalOpen(true);
   };
@@ -101,59 +64,48 @@ export default function AdminGroupCategoryPage() {
   const openEditModal = (g: GroupCategoryItem) => {
     setEditingGroup(g);
     setName(g.name);
-    setSlug(g.slug);
-    setImage(g.image);
-    setDescription(g.description);
-    setSortOrder(g.sortOrder);
-    setStatus(g.status);
+    setDescription(g.description || '');
+    setStatus(g.status || 'Active');
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return alert('Group name is required');
 
-    const generatedSlug = slug.trim() || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-
-    if (editingGroup) {
-      setGroups(prev => prev.map(g => g.id === editingGroup.id ? {
-        ...g,
-        name,
-        slug: generatedSlug,
-        image,
-        description,
-        sortOrder,
-        status
-      } : g));
-    } else {
-      const newGroup: GroupCategoryItem = {
-        id: Date.now(),
-        name,
-        slug: generatedSlug,
-        image,
-        categoriesCount: 0,
-        sortOrder,
-        status,
-        description
-      };
-      setGroups([...groups, newGroup]);
-    }
-    setIsModalOpen(false);
-  };
-
-  const handleDelete = (id: number) => {
-    if (confirm('Are you sure you want to delete this Category Group?')) {
-      setGroups(prev => prev.filter(g => g.id !== id));
+    try {
+      if (editingGroup) {
+        await fetch('/api/admin/group-categories', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: editingGroup._id, name, description, status }),
+        });
+      } else {
+        await fetch('/api/admin/group-categories', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, description, status }),
+        });
+      }
+      setIsModalOpen(false);
+      fetchGroups();
+    } catch (err) {
+      console.error('Error saving group category:', err);
     }
   };
 
-  const handleToggleStatus = (id: number) => {
-    setGroups(prev => prev.map(g => g.id === id ? { ...g, status: g.status === 'Active' ? 'Hidden' : 'Active' } : g));
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this Category Group?')) return;
+    try {
+      await fetch(`/api/admin/group-categories?id=${id}`, { method: 'DELETE' });
+      fetchGroups();
+    } catch (err) {
+      console.error('Error deleting group category:', err);
+    }
   };
 
-  const filtered = groups.filter(g => 
-    g.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    g.slug.toLowerCase().includes(searchQuery.toLowerCase())
+  const filtered = groups.filter((g) =>
+    g.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -194,22 +146,6 @@ export default function AdminGroupCategoryPage() {
           </div>
         </div>
 
-        {/* Sub-nav banner */}
-        <div className="flex items-center gap-2 border-b border-gray-800 pb-2">
-          <Link href="/admin/categories" className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl text-xs font-bold transition-colors">
-            Categories Directory
-          </Link>
-          <Link href="/admin/group-category" className="px-4 py-2 bg-[#0aad0a] text-white rounded-xl text-xs font-black">
-            Group Categories ({groups.length})
-          </Link>
-          <Link href="/admin/header-category" className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl text-xs font-bold transition-colors">
-            Header Categories
-          </Link>
-          <Link href="/admin/subcategories" className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl text-xs font-bold transition-colors">
-            Subcategories
-          </Link>
-        </div>
-
         {/* Search */}
         <div className="bg-[#1e2632] border border-gray-800 p-4 rounded-2xl flex items-center justify-between">
           <div className="relative flex-1 max-w-md">
@@ -217,7 +153,7 @@ export default function AdminGroupCategoryPage() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search group categories by name or slug..."
+              placeholder="Search group categories by name..."
               className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl py-2 pl-9 pr-3 text-xs focus:outline-none focus:border-[#0aad0a]"
             />
             <Search size={16} className="absolute left-3 top-2.5 text-gray-400" />
@@ -226,79 +162,63 @@ export default function AdminGroupCategoryPage() {
 
         {/* Table */}
         <div className="bg-[#1e2632] border border-gray-800 rounded-3xl p-6 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-gray-800 text-gray-400 font-bold uppercase tracking-wider">
-                <tr>
-                  <th className="pb-3 px-3">Thumbnail</th>
-                  <th className="pb-3 px-3">Group Name & Slug</th>
-                  <th className="pb-3 px-3">Description</th>
-                  <th className="pb-3 px-3">Linked Categories</th>
-                  <th className="pb-3 px-3">Sort Order</th>
-                  <th className="pb-3 px-3">Status</th>
-                  <th className="pb-3 px-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-800/60 font-medium text-gray-300">
-                {filtered.map((g) => (
-                  <tr key={g.id} className="hover:bg-gray-800/40 transition-colors">
-                    <td className="py-3.5 px-3">
-                      <img 
-                        src={g.image} 
-                        alt={g.name}
-                        className="w-12 h-12 rounded-xl object-cover border border-gray-700 bg-gray-900" 
-                      />
-                    </td>
-                    <td className="py-3.5 px-3">
-                      <div className="font-bold text-white text-sm">{g.name}</div>
-                      <span className="text-[11px] text-[#0aad0a] font-mono font-semibold">/{g.slug}</span>
-                    </td>
-                    <td className="py-3.5 px-3 text-gray-400 max-w-xs truncate">
-                      {g.description || '—'}
-                    </td>
-                    <td className="py-3.5 px-3">
-                      <span className="bg-gray-800 px-2.5 py-1 rounded-lg text-white font-bold text-[11px]">
-                        {g.categoriesCount} Categories
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-3 font-mono font-bold text-white">
-                      #{g.sortOrder}
-                    </td>
-                    <td className="py-3.5 px-3">
-                      <button
-                        onClick={() => handleToggleStatus(g.id)}
-                        className={`text-[10px] font-bold px-2.5 py-1 rounded-full cursor-pointer transition-transform active:scale-95 ${
-                          g.status === 'Active'
-                            ? 'bg-emerald-950/40 text-[#0aad0a] border border-[#0aad0a]/30'
-                            : 'bg-gray-800 text-gray-400'
-                        }`}
-                      >
-                        ● {g.status}
-                      </button>
-                    </td>
-                    <td className="py-3.5 px-3 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => openEditModal(g)}
-                          className="p-1.5 hover:bg-gray-700 rounded-lg text-gray-400 hover:text-white"
-                          title="Edit Group"
-                        >
-                          <Edit3 size={15} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(g.id)}
-                          className="p-1.5 hover:bg-red-950/40 rounded-lg text-gray-400 hover:text-red-400"
-                          title="Delete Group"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    </td>
+          {loading ? (
+            <div className="text-center py-12 text-gray-400 text-xs">Loading category groups...</div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-12 text-gray-400 text-xs">No category groups found. Click Create Group to add one.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="border-b border-gray-800 text-gray-400 font-bold uppercase tracking-wider">
+                  <tr>
+                    <th className="pb-3 px-3">Group Name</th>
+                    <th className="pb-3 px-3">Description</th>
+                    <th className="pb-3 px-3">Status</th>
+                    <th className="pb-3 px-3 text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-800/60 font-medium text-gray-300">
+                  {filtered.map((g) => (
+                    <tr key={g._id} className="hover:bg-gray-800/40 transition-colors">
+                      <td className="py-3.5 px-3 font-bold text-white text-sm">{g.name}</td>
+                      <td className="py-3.5 px-3 text-gray-400 max-w-xs truncate">
+                        {g.description || '—'}
+                      </td>
+                      <td className="py-3.5 px-3">
+                        <span
+                          className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
+                            g.status === 'Active'
+                              ? 'bg-emerald-950/40 text-[#0aad0a] border border-[#0aad0a]/30'
+                              : 'bg-gray-800 text-gray-400'
+                          }`}
+                        >
+                          ● {g.status}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => openEditModal(g)}
+                            className="p-1.5 hover:bg-gray-700 rounded-lg text-gray-400 hover:text-white"
+                            title="Edit Group"
+                          >
+                            <Edit3 size={15} />
+                          </button>
+                          <button
+                            onClick={() => g._id && handleDelete(g._id)}
+                            className="p-1.5 hover:bg-red-950/40 rounded-lg text-gray-400 hover:text-red-400"
+                            title="Delete Group"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </main>
 
@@ -328,43 +248,11 @@ export default function AdminGroupCategoryPage() {
                 <input
                   type="text"
                   value={name}
-                  onChange={(e) => {
-                    setName(e.target.value);
-                    if (!editingGroup) {
-                      setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''));
-                    }
-                  }}
+                  onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. Farm Fresh Produce"
                   className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
                   required
                 />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-300">Slug Identifier</label>
-                <input
-                  type="text"
-                  value={slug}
-                  onChange={(e) => setSlug(e.target.value)}
-                  placeholder="e.g. farm-fresh-produce"
-                  className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs font-mono focus:outline-none focus:border-[#0aad0a]"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-300">Image URL / Banner Icon</label>
-                <div className="flex gap-2">
-                  <input
-                    type="url"
-                    value={image}
-                    onChange={(e) => setImage(e.target.value)}
-                    placeholder="https://..."
-                    className="flex-1 bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                  />
-                  {image && (
-                    <img src={image} alt="Preview" className="w-11 h-11 rounded-xl object-cover border border-gray-700" />
-                  )}
-                </div>
               </div>
 
               <div className="space-y-1.5">
@@ -378,29 +266,16 @@ export default function AdminGroupCategoryPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Sort Order</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={sortOrder}
-                    onChange={(e) => setSortOrder(parseInt(e.target.value) || 1)}
-                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs font-mono focus:outline-none focus:border-[#0aad0a]"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Status</label>
-                  <select
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value as any)}
-                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                  >
-                    <option value="Active">Active</option>
-                    <option value="Hidden">Hidden</option>
-                  </select>
-                </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-300">Status</label>
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value as any)}
+                  className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
+                >
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                </select>
               </div>
 
               <div className="flex gap-3 pt-2">

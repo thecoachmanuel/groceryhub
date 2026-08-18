@@ -1,67 +1,91 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   Receipt, 
-  Truck, 
-  DollarSign, 
   Plus, 
   Search, 
-  CheckCircle2, 
-  X, 
-  ArrowDownLeft, 
-  AlertCircle
+  X 
 } from 'lucide-react';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import { formatNaira } from '@/lib/currency';
 
 interface CashCollectionRecord {
-  id: number;
+  _id?: string;
   driverName: string;
   driverPhone: string;
   collectedAmount: number;
   remittedAmount: number;
   pendingBalance: number;
-  lastRemittanceDate: string;
   status: 'Cleared' | 'Pending Deposit';
 }
 
-const INITIAL_COLLECTIONS: CashCollectionRecord[] = [
-  { id: 1, driverName: 'Marcus Vance', driverPhone: '+234 809 111 2233', collectedAmount: 103500.00, remittedAmount: 75000.00, pendingBalance: 28500.00, lastRemittanceDate: 'Aug 17, 2026', status: 'Pending Deposit' },
-  { id: 2, driverName: 'David Chen', driverPhone: '+234 802 345 6789', collectedAmount: 180000.00, remittedAmount: 180000.00, pendingBalance: 0.00, lastRemittanceDate: 'Aug 16, 2026', status: 'Cleared' },
-  { id: 3, driverName: 'James Wilson', driverPhone: '+234 803 456 7890', collectedAmount: 75000.00, remittedAmount: 0.00, pendingBalance: 75000.00, lastRemittanceDate: 'Aug 14, 2026', status: 'Pending Deposit' },
-];
-
 export default function AdminCashCollectionPage() {
-  const [records, setRecords] = useState<CashCollectionRecord[]>(INITIAL_COLLECTIONS);
+  const [records, setRecords] = useState<CashCollectionRecord[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedDriver, setSelectedDriver] = useState('Marcus Vance');
-  const [depositAmount, setDepositAmount] = useState('28500');
-  const [notes, setNotes] = useState('');
+  const [selectedDriver, setSelectedDriver] = useState('');
+  const [depositAmount, setDepositAmount] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const handleRecordDeposit = (e: React.FormEvent) => {
+  const fetchCollectionsData = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/admin/delivery-boys');
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        const mapped = data.data.map((d: any) => {
+          const collected = d.cash_collected || 0;
+          const remitted = d.cash_remitted || 0;
+          const pending = Math.max(0, collected - remitted);
+          return {
+            _id: d._id,
+            driverName: d.name || 'Courier Rider',
+            driverPhone: d.mobile || '—',
+            collectedAmount: collected,
+            remittedAmount: remitted,
+            pendingBalance: pending,
+            status: pending === 0 ? 'Cleared' : 'Pending Deposit',
+          };
+        });
+        setRecords(mapped);
+        if (mapped.length > 0) setSelectedDriver(mapped[0].driverName);
+      }
+    } catch (err) {
+      console.error('Error fetching cash collections:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCollectionsData();
+  }, []);
+
+  const handleRecordDeposit = async (e: React.FormEvent) => {
     e.preventDefault();
     const amountNum = parseFloat(depositAmount || '0');
     if (amountNum <= 0) return alert('Please enter a valid deposit amount in Naira');
 
-    setRecords((prev) =>
-      prev.map((r) =>
-        r.driverName === selectedDriver
-          ? {
-              ...r,
-              remittedAmount: r.remittedAmount + amountNum,
-              pendingBalance: Math.max(0, r.pendingBalance - amountNum),
-              lastRemittanceDate: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-              status: Math.max(0, r.pendingBalance - amountNum) === 0 ? 'Cleared' : 'Pending Deposit',
-            }
-          : r
-      )
-    );
-    setIsModalOpen(false);
-    setDepositAmount('');
-    setNotes('');
+    const target = records.find((r) => r.driverName === selectedDriver);
+    if (!target || !target._id) return;
+
+    try {
+      await fetch('/api/admin/delivery-boys', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          deliveryBoyId: target._id,
+          cash_remitted: target.remittedAmount + amountNum,
+        }),
+      });
+      setIsModalOpen(false);
+      setDepositAmount('');
+      fetchCollectionsData();
+    } catch (err) {
+      console.error('Error recording deposit:', err);
+    }
   };
 
   const filtered = records.filter(
@@ -71,6 +95,7 @@ export default function AdminCashCollectionPage() {
   );
 
   const totalPendingCOD = records.reduce((acc, curr) => acc + curr.pendingBalance, 0);
+  const totalRemitted = records.reduce((acc, curr) => acc + curr.remittedAmount, 0);
 
   return (
     <div className="flex bg-[#121820] text-white min-h-screen">
@@ -118,11 +143,11 @@ export default function AdminCashCollectionPage() {
           </div>
           <div>
             <span className="text-xs text-gray-400 font-bold">Total Remitted to Store</span>
-            <h3 className="text-2xl font-black text-[#0aad0a] font-mono">{formatNaira(255000)}</h3>
+            <h3 className="text-2xl font-black text-[#0aad0a] font-mono">{formatNaira(totalRemitted)}</h3>
           </div>
           <div>
-            <span className="text-xs text-gray-400 font-bold">Drivers with Pending Cash</span>
-            <h3 className="text-2xl font-black text-white">2 Active Couriers</h3>
+            <span className="text-xs text-gray-400 font-bold">Couriers Registered</span>
+            <h3 className="text-2xl font-black text-white">{records.length} Active Couriers</h3>
           </div>
         </div>
 
@@ -142,45 +167,49 @@ export default function AdminCashCollectionPage() {
 
         {/* Table */}
         <div className="bg-[#1e2632] border border-gray-800 rounded-3xl p-6 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-gray-800 text-gray-400 font-bold uppercase tracking-wider">
-                <tr>
-                  <th className="pb-3 px-3">Courier Driver</th>
-                  <th className="pb-3 px-3">Total COD Collected</th>
-                  <th className="pb-3 px-3">Remitted to Store</th>
-                  <th className="pb-3 px-3">Pending Cash in Hand</th>
-                  <th className="pb-3 px-3">Last Settlement</th>
-                  <th className="pb-3 px-3">Settlement Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-800/60 font-medium text-gray-300">
-                {filtered.map((r) => (
-                  <tr key={r.id} className="hover:bg-gray-800/40 transition-colors">
-                    <td className="py-3.5 px-3">
-                      <div className="font-bold text-white text-sm">{r.driverName}</div>
-                      <span className="text-[11px] text-gray-400 font-mono">{r.driverPhone}</span>
-                    </td>
-                    <td className="py-3.5 px-3 font-bold text-white font-mono">{formatNaira(r.collectedAmount)}</td>
-                    <td className="py-3.5 px-3 font-bold text-[#0aad0a] font-mono">{formatNaira(r.remittedAmount)}</td>
-                    <td className="py-3.5 px-3 font-black text-amber-400 font-mono">
-                      {formatNaira(r.pendingBalance)}
-                    </td>
-                    <td className="py-3.5 px-3 text-gray-400">{r.lastRemittanceDate}</td>
-                    <td className="py-3.5 px-3">
-                      <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
-                        r.status === 'Cleared'
-                          ? 'bg-emerald-950/40 text-[#0aad0a] border border-[#0aad0a]/30'
-                          : 'bg-amber-950/40 text-amber-400 border border-amber-900/30'
-                      }`}>
-                        ● {r.status}
-                      </span>
-                    </td>
+          {loading ? (
+            <div className="text-center py-12 text-gray-400 text-xs">Loading cash collection data...</div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-12 text-gray-400 text-xs">No delivery drivers found.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="border-b border-gray-800 text-gray-400 font-bold uppercase tracking-wider">
+                  <tr>
+                    <th className="pb-3 px-3">Courier Driver</th>
+                    <th className="pb-3 px-3">Total COD Collected</th>
+                    <th className="pb-3 px-3">Remitted to Store</th>
+                    <th className="pb-3 px-3">Pending Cash in Hand</th>
+                    <th className="pb-3 px-3">Settlement Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-800/60 font-medium text-gray-300">
+                  {filtered.map((r) => (
+                    <tr key={r._id} className="hover:bg-gray-800/40 transition-colors">
+                      <td className="py-3.5 px-3">
+                        <div className="font-bold text-white text-sm">{r.driverName}</div>
+                        <span className="text-[11px] text-gray-400 font-mono">{r.driverPhone}</span>
+                      </td>
+                      <td className="py-3.5 px-3 font-bold text-white font-mono">{formatNaira(r.collectedAmount)}</td>
+                      <td className="py-3.5 px-3 font-bold text-[#0aad0a] font-mono">{formatNaira(r.remittedAmount)}</td>
+                      <td className="py-3.5 px-3 font-black text-amber-400 font-mono">
+                        {formatNaira(r.pendingBalance)}
+                      </td>
+                      <td className="py-3.5 px-3">
+                        <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
+                          r.status === 'Cleared'
+                            ? 'bg-emerald-950/40 text-[#0aad0a] border border-[#0aad0a]/30'
+                            : 'bg-amber-950/40 text-amber-400 border border-amber-900/30'
+                        }`}>
+                          ● {r.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </main>
 
@@ -211,7 +240,7 @@ export default function AdminCashCollectionPage() {
                   className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs font-bold focus:outline-none focus:border-[#0aad0a]"
                 >
                   {records.map((r) => (
-                    <option key={r.id} value={r.driverName}>
+                    <option key={r._id} value={r.driverName}>
                       {r.driverName} (Pending: {formatNaira(r.pendingBalance)})
                     </option>
                   ))}
@@ -227,17 +256,6 @@ export default function AdminCashCollectionPage() {
                   onChange={(e) => setDepositAmount(e.target.value)}
                   className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs font-mono font-bold focus:outline-none focus:border-[#0aad0a]"
                   required
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-300">Register Memo / Notes</label>
-                <input
-                  type="text"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="e.g. Counter deposit Shift A verified"
-                  className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
                 />
               </div>
 

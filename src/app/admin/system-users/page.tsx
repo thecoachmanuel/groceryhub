@@ -1,18 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Shield, 
   Plus, 
-  Search, 
   Trash2, 
   Edit3, 
-  UserCheck, 
   X, 
-  CheckSquare, 
-  Square, 
   CheckCircle2, 
-  Layers, 
   Users, 
   Lock 
 } from 'lucide-react';
@@ -20,21 +15,13 @@ import AdminSidebar from '@/components/admin/AdminSidebar';
 import { DEFAULT_ROLES, SystemRole, PermissionCategory, PermissionAction } from '@/lib/permissions';
 
 interface StaffUser {
-  id: number;
+  _id?: string;
   name: string;
   email: string;
-  roleId: number;
-  roleName: string;
+  mobile: string;
+  role: string;
   status: 'Active' | 'Inactive';
-  lastLogin: string;
 }
-
-const INITIAL_STAFF: StaffUser[] = [
-  { id: 1, name: 'Tawaab Admin', email: 'admin@groceryhub.com', roleId: 1, roleName: 'Super Admin', status: 'Active', lastLogin: 'Today, 10:45 AM' },
-  { id: 2, name: 'Sarah Jenkins', email: 'sarah.j@groceryhub.com', roleId: 3, roleName: 'Catalog & Inventory Specialist', status: 'Active', lastLogin: 'Yesterday, 4:12 PM' },
-  { id: 3, name: 'Liam O’Connor', email: 'liam.dispatch@groceryhub.com', roleId: 2, roleName: 'Logistics & Dispatch Manager', status: 'Active', lastLogin: 'Today, 8:20 AM' },
-  { id: 4, name: 'Jessica Taylor', email: 'jessica.support@groceryhub.com', roleId: 4, roleName: 'Customer Support Representative', status: 'Active', lastLogin: 'Aug 16, 2:30 PM' },
-];
 
 const PERMISSION_CATEGORIES: { key: PermissionCategory; label: string }[] = [
   { key: 'dashboard', label: 'Dashboard & Analytics' },
@@ -55,7 +42,8 @@ const PERMISSION_CATEGORIES: { key: PermissionCategory; label: string }[] = [
 
 export default function AdminSystemUsersPage() {
   const [activeTab, setActiveTab] = useState<'staff' | 'roles'>('staff');
-  const [staff, setStaff] = useState<StaffUser[]>(INITIAL_STAFF);
+  const [staff, setStaff] = useState<StaffUser[]>([]);
+  const [loading, setLoading] = useState(true);
   const [roles, setRoles] = useState<SystemRole[]>(DEFAULT_ROLES);
 
   // Staff Modal State
@@ -63,7 +51,8 @@ export default function AdminSystemUsersPage() {
   const [editingStaff, setEditingStaff] = useState<StaffUser | null>(null);
   const [staffName, setStaffName] = useState('');
   const [staffEmail, setStaffEmail] = useState('');
-  const [staffRoleId, setStaffRoleId] = useState<number>(2);
+  const [staffMobile, setStaffMobile] = useState('');
+  const [staffRole, setStaffRole] = useState('Manager');
   const [staffStatus, setStaffStatus] = useState<'Active' | 'Inactive'>('Active');
 
   // Role Modal State
@@ -73,14 +62,32 @@ export default function AdminSystemUsersPage() {
   const [roleDesc, setRoleDesc] = useState('');
   const [rolePermissions, setRolePermissions] = useState<Record<string, { can_view: boolean; can_add: boolean; can_edit: boolean; can_delete: boolean }>>({});
 
-  const [searchQuery, setSearchQuery] = useState('');
+  const fetchStaff = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/admin/system-users');
+      const data = await res.json();
+      if (data.success) {
+        setStaff(data.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching system users:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStaff();
+  }, []);
 
   // Open Staff Modal
   const openCreateStaffModal = () => {
     setEditingStaff(null);
     setStaffName('');
     setStaffEmail('');
-    setStaffRoleId(roles[1]?.id || 2);
+    setStaffMobile('');
+    setStaffRole('Manager');
     setStaffStatus('Active');
     setIsStaffModalOpen(true);
   };
@@ -89,42 +96,43 @@ export default function AdminSystemUsersPage() {
     setEditingStaff(u);
     setStaffName(u.name);
     setStaffEmail(u.email);
-    setStaffRoleId(u.roleId);
-    setStaffStatus(u.status);
+    setStaffMobile(u.mobile || '');
+    setStaffRole(u.role || 'Manager');
+    setStaffStatus(u.status || 'Active');
     setIsStaffModalOpen(true);
   };
 
-  const handleStaffSubmit = (e: React.FormEvent) => {
+  const handleStaffSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const matchedRole = roles.find((r) => r.id === Number(staffRoleId));
-    if (editingStaff) {
-      setStaff((prev) =>
-        prev.map((s) =>
-          s.id === editingStaff.id
-            ? {
-                ...s,
-                name: staffName,
-                email: staffEmail,
-                roleId: Number(staffRoleId),
-                roleName: matchedRole?.name || 'Staff',
-                status: staffStatus,
-              }
-            : s
-        )
-      );
-    } else {
-      const newMember: StaffUser = {
-        id: Date.now(),
-        name: staffName,
-        email: staffEmail,
-        roleId: Number(staffRoleId),
-        roleName: matchedRole?.name || 'Staff',
-        status: staffStatus,
-        lastLogin: 'Never',
-      };
-      setStaff([newMember, ...staff]);
+    try {
+      if (editingStaff) {
+        await fetch('/api/admin/system-users', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: editingStaff._id, name: staffName, email: staffEmail, mobile: staffMobile, role: staffRole, status: staffStatus }),
+        });
+      } else {
+        await fetch('/api/admin/system-users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: staffName, email: staffEmail, mobile: staffMobile, role: staffRole, status: staffStatus }),
+        });
+      }
+      setIsStaffModalOpen(false);
+      fetchStaff();
+    } catch (err) {
+      console.error('Error saving staff:', err);
     }
-    setIsStaffModalOpen(false);
+  };
+
+  const handleDeleteStaff = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this staff user?')) return;
+    try {
+      await fetch(`/api/admin/system-users?id=${id}`, { method: 'DELETE' });
+      fetchStaff();
+    } catch (err) {
+      console.error('Error deleting staff:', err);
+    }
   };
 
   // Open Role Modal
@@ -216,7 +224,7 @@ export default function AdminSystemUsersPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-black flex items-center gap-2">
-              <Shield size={24} className="text-[#0aad0a]" /> System Users & Role-Based Access Control (RBAC)
+              <Shield size={24} className="text-[#0aad0a]" /> System Users &amp; Role-Based Access Control (RBAC)
             </h1>
             <p className="text-xs text-gray-400 mt-0.5">
               Manage staff sub-admins and configure granular View, Add, Edit, and Delete privileges per module
@@ -266,70 +274,72 @@ export default function AdminSystemUsersPage() {
             }`}
           >
             <Lock size={15} />
-            <span>Roles & Permissions Matrix ({roles.length})</span>
+            <span>Roles &amp; Permissions Matrix ({roles.length})</span>
           </button>
         </div>
 
         {/* Tab 1: Staff Members */}
         {activeTab === 'staff' && (
           <div className="bg-[#1e2632] border border-gray-800 rounded-3xl p-6 overflow-hidden space-y-4">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="border-b border-gray-800 text-gray-400 font-bold uppercase tracking-wider">
-                  <tr>
-                    <th className="pb-3 px-3">Staff Name</th>
-                    <th className="pb-3 px-3">Email Address</th>
-                    <th className="pb-3 px-3">Assigned Role</th>
-                    <th className="pb-3 px-3">Last Active</th>
-                    <th className="pb-3 px-3">Status</th>
-                    <th className="pb-3 px-3 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-800/60 font-medium text-gray-300">
-                  {staff.map((u) => (
-                    <tr key={u.id} className="hover:bg-gray-800/40 transition-colors">
-                      <td className="py-3.5 px-3 font-bold text-white text-sm">{u.name}</td>
-                      <td className="py-3.5 px-3 text-gray-400 font-mono">{u.email}</td>
-                      <td className="py-3.5 px-3">
-                        <span className="bg-purple-950/60 text-purple-300 border border-purple-800/40 px-2.5 py-1 rounded-lg font-bold">
-                          {u.roleName}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-3 text-gray-400 text-[11px]">{u.lastLogin}</td>
-                      <td className="py-3.5 px-3">
-                        <span
-                          className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
-                            u.status === 'Active'
-                              ? 'bg-emerald-950/40 text-[#0aad0a] border border-[#0aad0a]/30'
-                              : 'bg-gray-800 text-gray-400'
-                          }`}
-                        >
-                          ● {u.status}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-3 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => openEditStaffModal(u)}
-                            className="p-1.5 hover:bg-gray-700 rounded-lg text-gray-400 hover:text-white"
+            {loading ? (
+              <div className="text-center py-12 text-gray-400 text-xs">Loading staff users...</div>
+            ) : staff.length === 0 ? (
+              <div className="text-center py-12 text-gray-400 text-xs">No staff users found. Click Add Staff User to create one.</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="border-b border-gray-800 text-gray-400 font-bold uppercase tracking-wider">
+                    <tr>
+                      <th className="pb-3 px-3">Staff Name</th>
+                      <th className="pb-3 px-3">Email Address</th>
+                      <th className="pb-3 px-3">Assigned Role</th>
+                      <th className="pb-3 px-3">Status</th>
+                      <th className="pb-3 px-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-800/60 font-medium text-gray-300">
+                    {staff.map((u) => (
+                      <tr key={u._id} className="hover:bg-gray-800/40 transition-colors">
+                        <td className="py-3.5 px-3 font-bold text-white text-sm">{u.name}</td>
+                        <td className="py-3.5 px-3 text-gray-400 font-mono">{u.email}</td>
+                        <td className="py-3.5 px-3">
+                          <span className="bg-purple-950/60 text-purple-300 border border-purple-800/40 px-2.5 py-1 rounded-lg font-bold">
+                            {u.role}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-3">
+                          <span
+                            className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
+                              u.status === 'Active'
+                                ? 'bg-emerald-950/40 text-[#0aad0a] border border-[#0aad0a]/30'
+                                : 'bg-gray-800 text-gray-400'
+                            }`}
                           >
-                            <Edit3 size={15} />
-                          </button>
-                          {u.roleName !== 'Super Admin' && (
+                            ● {u.status}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-3 text-right">
+                          <div className="flex items-center justify-end gap-2">
                             <button
-                              onClick={() => setStaff(staff.filter((s) => s.id !== u.id))}
+                              onClick={() => openEditStaffModal(u)}
+                              className="p-1.5 hover:bg-gray-700 rounded-lg text-gray-400 hover:text-white"
+                            >
+                              <Edit3 size={15} />
+                            </button>
+                            <button
+                              onClick={() => u._id && handleDeleteStaff(u._id)}
                               className="p-1.5 hover:bg-red-950/40 rounded-lg text-gray-400 hover:text-red-400"
                             >
                               <Trash2 size={15} />
                             </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
 
@@ -447,12 +457,12 @@ export default function AdminSystemUsersPage() {
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-gray-300">Assigned Role</label>
                 <select
-                  value={staffRoleId}
-                  onChange={(e) => setStaffRoleId(Number(e.target.value))}
+                  value={staffRole}
+                  onChange={(e) => setStaffRole(e.target.value)}
                   className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
                 >
                   {roles.map((r) => (
-                    <option key={r.id} value={r.id}>
+                    <option key={r.id} value={r.name}>
                       {r.name}
                     </option>
                   ))}

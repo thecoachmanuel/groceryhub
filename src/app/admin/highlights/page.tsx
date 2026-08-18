@@ -1,36 +1,73 @@
 'use client';
 
-import { useState } from 'react';
-import Image from 'next/image';
-import { Flame, Plus, Search, Trash2, Edit3, X, Clock } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Flame, Plus, Trash2, X, Clock } from 'lucide-react';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 
-const INITIAL_HIGHLIGHTS = [
-  { id: 1, title: 'Organic Seasonal Fruits Flat 30% OFF', category: 'Fruits', discount: '30% OFF', image: 'https://images.unsplash.com/photo-1619566636858-adf3ef46400b?w=400', status: 'Active' },
-  { id: 2, title: 'Pure Dairy & Fresh Farm Eggs', category: 'Dairy & Eggs', discount: '20% OFF', image: 'https://images.unsplash.com/photo-1528750997573-59b89d56f4f7?w=400', status: 'Active' },
-  { id: 3, title: 'Artisan Bakery Sourdough Special', category: 'Bakery', discount: 'Buy 1 Get 1', image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400', status: 'Active' },
-];
+interface HighlightItem {
+  _id?: string;
+  title: string;
+  subtitle: string;
+  tag: string;
+  bgColor: string;
+  icon: string;
+  status: 'Active' | 'Inactive';
+}
 
 export default function AdminHighlightsPage() {
-  const [highlights, setHighlights] = useState(INITIAL_HIGHLIGHTS);
+  const [highlights, setHighlights] = useState<HighlightItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState('Fruits');
-  const [discount, setDiscount] = useState('25% OFF');
+  const [subtitle, setSubtitle] = useState('');
+  const [tag, setTag] = useState('25% OFF');
+  const [bgColor, setBgColor] = useState('#0aad0a');
 
-  const handleCreate = (e: React.FormEvent) => {
+  const fetchHighlights = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/admin/highlights');
+      const data = await res.json();
+      if (data.success) {
+        setHighlights(data.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching highlights:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchHighlights();
+  }, []);
+
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newH = {
-      id: Date.now(),
-      title,
-      category,
-      discount,
-      image: 'https://images.unsplash.com/photo-1619566636858-adf3ef46400b?w=400',
-      status: 'Active',
-    };
-    setHighlights([newH, ...highlights]);
-    setShowAddModal(false);
-    setTitle('');
+    try {
+      await fetch('/api/admin/highlights', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, subtitle, tag, bgColor, status: 'Active' }),
+      });
+      setShowAddModal(false);
+      setTitle('');
+      setSubtitle('');
+      setTag('25% OFF');
+      fetchHighlights();
+    } catch (err) {
+      console.error('Error creating highlight:', err);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this deal highlight?')) return;
+    try {
+      await fetch(`/api/admin/highlights?id=${id}`, { method: 'DELETE' });
+      fetchHighlights();
+    } catch (err) {
+      console.error('Error deleting highlight:', err);
+    }
   };
 
   return (
@@ -41,7 +78,7 @@ export default function AdminHighlightsPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-black flex items-center gap-2">
-              <Flame size={24} className="text-orange-500" /> Deal of the Day & Highlights
+              <Flame size={24} className="text-orange-500" /> Deal of the Day &amp; Highlights
             </h1>
             <p className="text-xs text-gray-400 mt-0.5">Manage curated flash deals, special promos, and featured hero badges</p>
           </div>
@@ -56,43 +93,47 @@ export default function AdminHighlightsPage() {
         </div>
 
         {/* Highlights Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {highlights.map((h) => (
-            <div
-              key={h.id}
-              className="bg-[#1e2632] border border-gray-800 rounded-3xl p-5 space-y-4 hover:border-orange-500/40 transition-all group"
-            >
-              <div className="relative w-full h-40 rounded-2xl overflow-hidden bg-gray-900 border border-gray-700">
-                <Image src={h.image} alt={h.title} fill className="object-cover group-hover:scale-105 transition-transform" />
-                <span className="absolute top-3 left-3 bg-red-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider shadow-md">
-                  {h.discount}
-                </span>
-                <span className="absolute top-3 right-3 bg-emerald-950/80 backdrop-blur-md text-[10px] font-black px-2.5 py-1 rounded-full text-[#0aad0a]">
-                  ● {h.status}
-                </span>
-              </div>
-
-              <div className="space-y-1">
-                <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">{h.category}</span>
-                <h3 className="font-black text-sm text-white">{h.title}</h3>
-              </div>
-
-              <div className="pt-2 border-t border-gray-800 flex items-center justify-between">
-                <div className="flex items-center gap-1 text-[11px] text-gray-400">
-                  <Clock size={13} className="text-orange-400" />
-                  <span>24h Flash Window</span>
+        {loading ? (
+          <div className="text-center py-12 text-gray-400 text-xs">Loading deal highlights...</div>
+        ) : highlights.length === 0 ? (
+          <div className="text-center py-12 text-gray-400 text-xs">No deal highlights published. Click Add Deal Highlight to create one.</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {highlights.map((h) => (
+              <div
+                key={h._id}
+                className="bg-[#1e2632] border border-gray-800 rounded-3xl p-5 space-y-4 hover:border-orange-500/40 transition-all group"
+              >
+                <div
+                  className="w-full h-32 rounded-2xl flex flex-col justify-between p-4 relative overflow-hidden"
+                  style={{ backgroundColor: h.bgColor || '#0aad0a' }}
+                >
+                  <span className="bg-black/40 text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider w-fit">
+                    {h.tag || 'Promo'}
+                  </span>
+                  <div className="text-white">
+                    <div className="text-xs font-bold text-white/80">{h.subtitle}</div>
+                    <div className="font-black text-lg text-white leading-tight">{h.title}</div>
+                  </div>
                 </div>
 
-                <button
-                  onClick={() => setHighlights(highlights.filter((item) => item.id !== h.id))}
-                  className="p-1.5 rounded-lg bg-red-950/40 text-red-400 hover:bg-red-900/60"
-                >
-                  <Trash2 size={15} />
-                </button>
+                <div className="pt-2 border-t border-gray-800 flex items-center justify-between">
+                  <div className="flex items-center gap-1 text-[11px] text-gray-400">
+                    <Clock size={13} className="text-orange-400" />
+                    <span>24h Flash Window</span>
+                  </div>
+
+                  <button
+                    onClick={() => h._id && handleDelete(h._id)}
+                    className="p-1.5 rounded-lg bg-red-950/40 text-red-400 hover:bg-red-900/60"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </main>
 
       {/* Add Modal */}
@@ -121,30 +162,37 @@ export default function AdminHighlightsPage() {
                 />
               </div>
 
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-300">Subtitle / Category</label>
+                <input
+                  type="text"
+                  value={subtitle}
+                  onChange={(e) => setSubtitle(e.target.value)}
+                  placeholder="e.g. Organic Fruits"
+                  className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Category</label>
-                  <select
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                  >
-                    <option value="Vegetables">Vegetables</option>
-                    <option value="Fruits">Fruits</option>
-                    <option value="Dairy & Eggs">Dairy & Eggs</option>
-                    <option value="Bakery">Bakery</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Discount Badge Text</label>
+                  <label className="text-xs font-bold text-gray-300">Tag Text</label>
                   <input
                     type="text"
-                    value={discount}
-                    onChange={(e) => setDiscount(e.target.value)}
+                    value={tag}
+                    onChange={(e) => setTag(e.target.value)}
                     placeholder="e.g. 30% OFF"
                     className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
                     required
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-300">Card Color</label>
+                  <input
+                    type="color"
+                    value={bgColor}
+                    onChange={(e) => setBgColor(e.target.value)}
+                    className="w-full h-10 bg-transparent border border-gray-700 rounded-xl cursor-pointer"
                   />
                 </div>
               </div>

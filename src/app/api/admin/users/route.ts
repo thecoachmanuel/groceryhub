@@ -56,3 +56,30 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ success: false, message: 'Failed to update user' }, { status: 500 });
   }
 }
+
+export async function PATCH(req: NextRequest) {
+  try {
+    await connectToDatabase();
+    const body = await req.json();
+    const { userId, action, amount } = body;
+
+    if (!userId) {
+      return NextResponse.json({ success: false, message: 'userId is required' }, { status: 400 });
+    }
+
+    if (action === 'fund_wallet') {
+      const numAmount = Number(amount) || 0;
+      const updated = await User.findByIdAndUpdate(
+        userId,
+        { $inc: { wallet_balance: numAmount } },
+        { new: true }
+      ).select('-password -otp');
+      return NextResponse.json({ success: true, data: updated });
+    }
+
+    return NextResponse.json({ success: false, message: 'Invalid action' }, { status: 400 });
+  } catch (err: any) {
+    return NextResponse.json({ success: false, message: err.message }, { status: 500 });
+  }
+}
+

@@ -1,33 +1,67 @@
 'use client';
 
-import { useState } from 'react';
-import { Receipt, Plus, Trash2, Edit3, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Receipt, Plus, Trash2, X } from 'lucide-react';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 
-const INITIAL_TAXES = [
-  { id: 1, title: 'Standard Grocery VAT', percentage: 5.0, status: 'Active' },
-  { id: 2, title: 'Organic Essentials Tax Exempt', percentage: 0.0, status: 'Active' },
-  { id: 3, title: 'Imported Gourmet GST', percentage: 8.5, status: 'Active' },
-];
+interface TaxItem {
+  _id?: string;
+  title: string;
+  percentage: number;
+  status: 'Active' | 'Inactive';
+}
 
 export default function AdminTaxesPage() {
-  const [taxes, setTaxes] = useState(INITIAL_TAXES);
+  const [taxes, setTaxes] = useState<TaxItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [title, setTitle] = useState('');
   const [percentage, setPercentage] = useState('');
 
-  const handleCreate = (e: React.FormEvent) => {
+  const fetchTaxes = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/admin/taxes');
+      const data = await res.json();
+      if (data.success) {
+        setTaxes(data.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching taxes:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTaxes();
+  }, []);
+
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newTax = {
-      id: Date.now(),
-      title,
-      percentage: parseFloat(percentage || '0'),
-      status: 'Active',
-    };
-    setTaxes([...taxes, newTax]);
-    setShowAddModal(false);
-    setTitle('');
-    setPercentage('');
+    try {
+      await fetch('/api/admin/taxes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, percentage: parseFloat(percentage || '0'), status: 'Active' }),
+      });
+      setShowAddModal(false);
+      setTitle('');
+      setPercentage('');
+      fetchTaxes();
+    } catch (err) {
+      console.error('Error creating tax:', err);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this tax rule?')) return;
+    try {
+      await fetch(`/api/admin/taxes?id=${id}`, { method: 'DELETE' });
+      fetchTaxes();
+    } catch (err) {
+      console.error('Error deleting tax:', err);
+    }
   };
 
   return (
@@ -38,7 +72,7 @@ export default function AdminTaxesPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-black flex items-center gap-2">
-              <Receipt size={24} className="text-[#0aad0a]" /> Tax & VAT Rates Configuration
+              <Receipt size={24} className="text-[#0aad0a]" /> Tax &amp; VAT Rates Configuration
             </h1>
             <p className="text-xs text-gray-400 mt-0.5">Define sales tax, GST, and VAT brackets applied automatically during checkout</p>
           </div>
@@ -53,41 +87,47 @@ export default function AdminTaxesPage() {
         </div>
 
         <div className="bg-[#1e2632] border border-gray-800 rounded-3xl p-6 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-gray-800 text-gray-400 font-bold uppercase tracking-wider">
-                <tr>
-                  <th className="pb-3 px-3">Tax Title / Rule</th>
-                  <th className="pb-3 px-3">Percentage (%)</th>
-                  <th className="pb-3 px-3">Status</th>
-                  <th className="pb-3 px-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-800/60 font-medium text-gray-300">
-                {taxes.map((t) => (
-                  <tr key={t.id} className="hover:bg-gray-800/40 transition-colors">
-                    <td className="py-3.5 px-3 font-bold text-white">{t.title}</td>
-                    <td className="py-3.5 px-3 font-bold text-[#0aad0a]">{t.percentage.toFixed(1)}%</td>
-                    <td className="py-3.5 px-3">
-                      <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-950/40 text-[#0aad0a]">
-                        ● {t.status}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-3 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => setTaxes(taxes.filter((item) => item.id !== t.id))}
-                          className="p-1.5 hover:bg-red-950/40 rounded-lg text-gray-400 hover:text-red-400"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    </td>
+          {loading ? (
+            <div className="text-center py-12 text-gray-400 text-xs">Loading tax rules...</div>
+          ) : taxes.length === 0 ? (
+            <div className="text-center py-12 text-gray-400 text-xs">No tax rules configured. Click Add Tax Rate to create one.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="border-b border-gray-800 text-gray-400 font-bold uppercase tracking-wider">
+                  <tr>
+                    <th className="pb-3 px-3">Tax Title / Rule</th>
+                    <th className="pb-3 px-3">Percentage (%)</th>
+                    <th className="pb-3 px-3">Status</th>
+                    <th className="pb-3 px-3 text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-800/60 font-medium text-gray-300">
+                  {taxes.map((t) => (
+                    <tr key={t._id} className="hover:bg-gray-800/40 transition-colors">
+                      <td className="py-3.5 px-3 font-bold text-white">{t.title}</td>
+                      <td className="py-3.5 px-3 font-bold text-[#0aad0a]">{Number(t.percentage || 0).toFixed(1)}%</td>
+                      <td className="py-3.5 px-3">
+                        <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-950/40 text-[#0aad0a]">
+                          ● {t.status}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => t._id && handleDelete(t._id)}
+                            className="p-1.5 hover:bg-red-950/40 rounded-lg text-gray-400 hover:text-red-400"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </main>
 

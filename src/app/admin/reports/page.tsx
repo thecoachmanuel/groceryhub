@@ -1,32 +1,57 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { BarChart3, Download, Calendar, DollarSign, ShoppingBag, Store, Truck, ArrowUpRight, Sparkles } from 'lucide-react';
+import { BarChart3, Download, Sparkles, ArrowUpRight } from 'lucide-react';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import { formatNaira } from '@/lib/currency';
 
-const SALES_DATA = [
-  { id: 'ORD-98241', date: 'Aug 17, 2026', customer: 'Alice Johnson', vendor: 'Green Valley Organic Farms', gross: 45000.00, commission: 2250.00, tax: 3375.00, netVendor: 39375.00, status: 'Completed' },
-  { id: 'ORD-98240', date: 'Aug 17, 2026', customer: 'Michael Scott', vendor: 'Daily Dairy & Poultry Fresh', gross: 28500.00, commission: 1425.00, tax: 2137.50, netVendor: 24937.50, status: 'Completed' },
-  { id: 'ORD-98239', date: 'Aug 16, 2026', customer: 'Eleanor Shellstrop', vendor: 'The Artisanal Bakery Co.', gross: 19500.00, commission: 975.00, tax: 1462.50, netVendor: 17062.50, status: 'Completed' },
-  { id: 'ORD-98238', date: 'Aug 16, 2026', customer: 'Chidi Anagonye', vendor: 'Green Valley Organic Farms', gross: 64200.00, commission: 3210.00, tax: 4815.00, netVendor: 56175.00, status: 'Completed' },
-  { id: 'ORD-98237', date: 'Aug 15, 2026', customer: 'Tahani Al-Jamil', vendor: 'Daily Dairy & Poultry Fresh', gross: 112000.00, commission: 5600.00, tax: 8400.00, netVendor: 98000.00, status: 'Completed' },
-];
+interface ReportRow {
+  id: string;
+  date: string;
+  customer: string;
+  vendor: string;
+  gross: number;
+  commission: number;
+  tax: number;
+  netVendor: number;
+  status: string;
+}
 
 export default function AdminReportsPage() {
-  const [reportType, setReportType] = useState('sales');
+  const [reportData, setReportData] = useState<ReportRow[]>([]);
+  const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState('month');
 
-  const totalGross = SALES_DATA.reduce((s, i) => s + i.gross, 0);
-  const totalCommission = SALES_DATA.reduce((s, i) => s + i.commission, 0);
-  const totalTax = SALES_DATA.reduce((s, i) => s + i.tax, 0);
-  const totalNetVendor = SALES_DATA.reduce((s, i) => s + i.netVendor, 0);
+  const fetchFinancialReport = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`/api/admin/reports/financial?range=${dateRange}`);
+      const data = await res.json();
+      if (data.success) {
+        setReportData(data.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching financial report:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchFinancialReport();
+  }, [dateRange]);
+
+  const totalGross = reportData.reduce((s, i) => s + (i.gross || 0), 0);
+  const totalCommission = reportData.reduce((s, i) => s + (i.commission || 0), 0);
+  const totalTax = reportData.reduce((s, i) => s + (i.tax || 0), 0);
+  const totalNetVendor = reportData.reduce((s, i) => s + (i.netVendor || 0), 0);
 
   const handleExportCsv = () => {
+    if (reportData.length === 0) return alert('No report data to export.');
     const csvContent =
       'Order ID,Date,Customer,Vendor,Gross Total,Platform Commission,Tax (7.5%),Net Vendor Payout\n' +
-      SALES_DATA.map((r) => `${r.id},${r.date},"${r.customer}","${r.vendor}",${r.gross},${r.commission},${r.tax},${r.netVendor}`).join('\n');
+      reportData.map((r) => `${r.id},${r.date},"${r.customer}","${r.vendor}",${r.gross},${r.commission},${r.tax},${r.netVendor}`).join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -56,8 +81,8 @@ export default function AdminReportsPage() {
             >
               <option value="today">Today</option>
               <option value="week">Last 7 Days</option>
-              <option value="month">This Month (August 2026)</option>
-              <option value="year">Year to Date (2026)</option>
+              <option value="month">This Month</option>
+              <option value="year">Year to Date</option>
             </select>
 
             <button
@@ -89,7 +114,7 @@ export default function AdminReportsPage() {
             <span className="text-xs font-bold text-gray-400">Gross Merchandise Value (GMV)</span>
             <div className="text-2xl font-black text-white font-mono">{formatNaira(totalGross)}</div>
             <span className="text-[11px] text-[#0aad0a] flex items-center gap-1">
-              <ArrowUpRight size={13} /> +18.4% vs last period
+              <ArrowUpRight size={13} /> Live MongoDB Aggregation
             </span>
           </div>
 
@@ -115,42 +140,48 @@ export default function AdminReportsPage() {
         {/* Report Table */}
         <div className="bg-[#1e2632] border border-gray-800 rounded-3xl p-6 overflow-hidden space-y-4">
           <h3 className="text-sm font-black text-white">Detailed Ledger Breakdown</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-gray-800 text-gray-400 font-bold uppercase tracking-wider">
-                <tr>
-                  <th className="pb-3 px-3">Order ID</th>
-                  <th className="pb-3 px-3">Date</th>
-                  <th className="pb-3 px-3">Customer</th>
-                  <th className="pb-3 px-3">Vendor / Store</th>
-                  <th className="pb-3 px-3">Gross Total (₦)</th>
-                  <th className="pb-3 px-3">Platform Fee (5%)</th>
-                  <th className="pb-3 px-3">Tax (7.5%)</th>
-                  <th className="pb-3 px-3">Net Vendor (₦)</th>
-                  <th className="pb-3 px-3">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-800/60 font-medium text-gray-300">
-                {SALES_DATA.map((row) => (
-                  <tr key={row.id} className="hover:bg-gray-800/40 transition-colors">
-                    <td className="py-3 px-3 font-bold text-white font-mono">{row.id}</td>
-                    <td className="py-3 px-3 text-gray-400">{row.date}</td>
-                    <td className="py-3 px-3 text-white">{row.customer}</td>
-                    <td className="py-3 px-3 text-gray-300">{row.vendor}</td>
-                    <td className="py-3 px-3 font-bold text-white font-mono">{formatNaira(row.gross)}</td>
-                    <td className="py-3 px-3 text-[#0aad0a] font-bold font-mono">+{formatNaira(row.commission)}</td>
-                    <td className="py-3 px-3 text-amber-400 font-mono">{formatNaira(row.tax)}</td>
-                    <td className="py-3 px-3 text-blue-400 font-bold font-mono">{formatNaira(row.netVendor)}</td>
-                    <td className="py-3 px-3">
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-950/40 text-[#0aad0a]">
-                        ● {row.status}
-                      </span>
-                    </td>
+          {loading ? (
+            <div className="text-center py-12 text-gray-400 text-xs">Computing financial ledger from orders...</div>
+          ) : reportData.length === 0 ? (
+            <div className="text-center py-12 text-gray-400 text-xs">No orders recorded in selected date range.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="border-b border-gray-800 text-gray-400 font-bold uppercase tracking-wider">
+                  <tr>
+                    <th className="pb-3 px-3">Order ID</th>
+                    <th className="pb-3 px-3">Date</th>
+                    <th className="pb-3 px-3">Customer</th>
+                    <th className="pb-3 px-3">Vendor / Store</th>
+                    <th className="pb-3 px-3">Gross Total (₦)</th>
+                    <th className="pb-3 px-3">Platform Fee (5%)</th>
+                    <th className="pb-3 px-3">Tax (7.5%)</th>
+                    <th className="pb-3 px-3">Net Vendor (₦)</th>
+                    <th className="pb-3 px-3">Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-800/60 font-medium text-gray-300">
+                  {reportData.map((row) => (
+                    <tr key={row.id} className="hover:bg-gray-800/40 transition-colors">
+                      <td className="py-3 px-3 font-bold text-white font-mono">{row.id}</td>
+                      <td className="py-3 px-3 text-gray-400">{row.date}</td>
+                      <td className="py-3 px-3 text-white">{row.customer}</td>
+                      <td className="py-3 px-3 text-gray-300">{row.vendor}</td>
+                      <td className="py-3 px-3 font-bold text-white font-mono">{formatNaira(row.gross)}</td>
+                      <td className="py-3 px-3 text-[#0aad0a] font-bold font-mono">+{formatNaira(row.commission)}</td>
+                      <td className="py-3 px-3 text-amber-400 font-mono">{formatNaira(row.tax)}</td>
+                      <td className="py-3 px-3 text-blue-400 font-bold font-mono">{formatNaira(row.netVendor)}</td>
+                      <td className="py-3 px-3">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-950/40 text-[#0aad0a]">
+                          ● {row.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </main>
     </div>

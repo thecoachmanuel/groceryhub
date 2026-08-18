@@ -1,43 +1,46 @@
 'use client';
 
-import { useState } from 'react';
-import { LayoutGrid, Plus, ArrowUp, ArrowDown, Trash2, Edit3, CheckCircle2, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { LayoutGrid, Plus, ArrowUp, ArrowDown, Trash2, X } from 'lucide-react';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 
 interface HomeSectionItem {
-  id: number;
+  _id?: string;
   title: string;
-  shortTitle: string;
-  style: 'product_list' | 'category_list' | 'best_seller' | 'deal_of_the_day' | 'shop_by_brand' | 'shop_by_seller' | 'highlight';
-  rows: number;
-  itemLimit: number;
-  loadMore: boolean;
-  viewAll: boolean;
-  bgColor: string;
+  type: string;
+  categoryRef?: string;
+  order: number;
   status: 'Active' | 'Inactive';
 }
 
-const INITIAL_SECTIONS: HomeSectionItem[] = [
-  { id: 1, title: 'Shop by Category', shortTitle: 'Handpicked departments', style: 'category_list', rows: 1, itemLimit: 8, loadMore: false, viewAll: true, bgColor: '#FFFFFF', status: 'Active' },
-  { id: 2, title: 'Deal of the Day', shortTitle: 'Up to 30% discount on fresh organics', style: 'deal_of_the_day', rows: 1, itemLimit: 2, loadMore: false, viewAll: false, bgColor: '#FFF8E7', status: 'Active' },
-  { id: 3, title: 'Popular Daily Essentials', shortTitle: 'Top-selling grocery staples', style: 'product_list', rows: 2, itemLimit: 12, loadMore: true, viewAll: true, bgColor: '#FFFFFF', status: 'Active' },
-  { id: 4, title: 'Certified Local Vendors', shortTitle: 'Delivering within 30 mins', style: 'shop_by_seller', rows: 1, itemLimit: 6, loadMore: false, viewAll: true, bgColor: '#FFFFFF', status: 'Active' },
-  { id: 5, title: 'Shop by Trusted Brands', shortTitle: 'Top certified manufacturers', style: 'shop_by_brand', rows: 1, itemLimit: 8, loadMore: false, viewAll: true, bgColor: '#F4FBF7', status: 'Active' },
-];
-
 export default function AdminHomeSectionsPage() {
-  const [sections, setSections] = useState<HomeSectionItem[]>(INITIAL_SECTIONS);
+  const [sections, setSections] = useState<HomeSectionItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [title, setTitle] = useState('');
-  const [shortTitle, setShortTitle] = useState('');
-  const [style, setStyle] = useState<HomeSectionItem['style']>('product_list');
-  const [rows, setRows] = useState(1);
-  const [itemLimit, setItemLimit] = useState(10);
-  const [loadMore, setLoadMore] = useState(true);
-  const [viewAll, setViewAll] = useState(true);
-  const [bgColor, setBgColor] = useState('#FFFFFF');
+  const [type, setType] = useState('ProductGrid');
+  const [categoryRef, setCategoryRef] = useState('');
 
-  const handleMove = (index: number, direction: 'up' | 'down') => {
+  const fetchSections = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/admin/home-sections');
+      const data = await res.json();
+      if (data.success) {
+        setSections(data.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching home sections:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSections();
+  }, []);
+
+  const handleMove = async (index: number, direction: 'up' | 'down') => {
     if ((direction === 'up' && index === 0) || (direction === 'down' && index === sections.length - 1)) return;
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
     const updated = [...sections];
@@ -45,26 +48,50 @@ export default function AdminHomeSectionsPage() {
     updated[index] = updated[targetIndex];
     updated[targetIndex] = temp;
     setSections(updated);
+
+    // Save reorder
+    for (let i = 0; i < updated.length; i++) {
+      if (updated[i]._id) {
+        await fetch('/api/admin/home-sections', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: updated[i]._id, order: i + 1 }),
+        }).catch(() => null);
+      }
+    }
   };
 
-  const handleCreate = (e: React.FormEvent) => {
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newSection: HomeSectionItem = {
-      id: Date.now(),
-      title,
-      shortTitle,
-      style,
-      rows,
-      itemLimit,
-      loadMore,
-      viewAll,
-      bgColor,
-      status: 'Active',
-    };
-    setSections([...sections, newSection]);
-    setShowAddModal(false);
-    setTitle('');
-    setShortTitle('');
+    try {
+      await fetch('/api/admin/home-sections', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title,
+          type,
+          categoryRef,
+          order: sections.length + 1,
+          status: 'Active',
+        }),
+      });
+      setShowAddModal(false);
+      setTitle('');
+      setCategoryRef('');
+      fetchSections();
+    } catch (err) {
+      console.error('Error creating home section:', err);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this home section?')) return;
+    try {
+      await fetch(`/api/admin/home-sections?id=${id}`, { method: 'DELETE' });
+      fetchSections();
+    } catch (err) {
+      console.error('Error deleting home section:', err);
+    }
   };
 
   return (
@@ -77,7 +104,7 @@ export default function AdminHomeSectionsPage() {
             <h1 className="text-2xl font-black flex items-center gap-2">
               <LayoutGrid size={24} className="text-[#0aad0a]" /> Home Screen Section Builder
             </h1>
-            <p className="text-xs text-gray-400 mt-0.5">Visually reorder, configure, and customize dynamic mobile & web homepage layout sections</p>
+            <p className="text-xs text-gray-400 mt-0.5">Visually reorder, configure, and customize dynamic mobile &amp; web homepage layout sections</p>
           </div>
 
           <button
@@ -90,35 +117,32 @@ export default function AdminHomeSectionsPage() {
         </div>
 
         {/* Sections Sequence List */}
-        <div className="space-y-4">
-          {sections.map((section, idx) => (
-            <div
-              key={section.id}
-              className="bg-[#1e2632] border border-gray-800 rounded-3xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:border-[#0aad0a]/40 transition-all"
-            >
-              {/* Order index & details */}
-              <div className="flex items-center gap-4">
-                <div className="w-9 h-9 rounded-xl bg-gray-900 border border-gray-700 flex items-center justify-center font-black text-sm text-[#0aad0a]">
-                  #{idx + 1}
-                </div>
-
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-sm text-white">{section.title}</h3>
-                    <span className="text-[10px] font-bold bg-[#0aad0a]/10 text-[#0aad0a] px-2 py-0.5 rounded-full uppercase">
-                      {section.style.replace(/_/g, ' ')}
-                    </span>
+        {loading ? (
+          <div className="text-center py-12 text-gray-400 text-xs">Loading home layout sections...</div>
+        ) : sections.length === 0 ? (
+          <div className="text-center py-12 text-gray-400 text-xs">No home sections configured yet. Click Add Layout Section to build your homepage layout.</div>
+        ) : (
+          <div className="space-y-4">
+            {sections.map((section, idx) => (
+              <div
+                key={section._id}
+                className="bg-[#1e2632] border border-gray-800 rounded-3xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:border-[#0aad0a]/40 transition-all"
+              >
+                {/* Order index & details */}
+                <div className="flex items-center gap-4">
+                  <div className="w-9 h-9 rounded-xl bg-gray-900 border border-gray-700 flex items-center justify-center font-black text-sm text-[#0aad0a]">
+                    #{idx + 1}
                   </div>
-                  <p className="text-xs text-gray-400">{section.shortTitle || 'No short description'}</p>
-                </div>
-              </div>
 
-              {/* Badges & Meta */}
-              <div className="flex items-center gap-6 text-xs text-gray-400">
-                <div className="hidden lg:flex items-center gap-4">
-                  <span>{section.rows} Row(s)</span>
-                  <span>Limit: {section.itemLimit} items</span>
-                  {section.loadMore && <span className="text-[#0aad0a]">● Load More</span>}
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-bold text-sm text-white">{section.title}</h3>
+                      <span className="text-[10px] font-bold bg-[#0aad0a]/10 text-[#0aad0a] px-2 py-0.5 rounded-full uppercase">
+                        {section.type}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-400">{section.categoryRef ? `Category: ${section.categoryRef}` : 'All Products'}</p>
+                  </div>
                 </div>
 
                 {/* Reorder Buttons & Actions */}
@@ -140,16 +164,16 @@ export default function AdminHomeSectionsPage() {
                     <ArrowDown size={14} />
                   </button>
                   <button
-                    onClick={() => setSections(sections.filter((s) => s.id !== section.id))}
+                    onClick={() => section._id && handleDelete(section._id)}
                     className="p-2 rounded-xl bg-red-950/40 text-red-400 hover:bg-red-900/60 transition-colors ml-2"
                   >
                     <Trash2 size={15} />
                   </button>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </main>
 
       {/* Add Modal */}
@@ -179,79 +203,29 @@ export default function AdminHomeSectionsPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-300">Short Subtitle</label>
-                <input
-                  type="text"
-                  value={shortTitle}
-                  onChange={(e) => setShortTitle(e.target.value)}
-                  placeholder="e.g. Direct farm produce delivered fast"
-                  className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-300">Section Display Style</label>
+                <label className="text-xs font-bold text-gray-300">Section Display Type</label>
                 <select
-                  value={style}
-                  onChange={(e) => setStyle(e.target.value as any)}
+                  value={type}
+                  onChange={(e) => setType(e.target.value)}
                   className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
                 >
-                  <option value="product_list">Product List (Horizontal / Grid)</option>
-                  <option value="category_list">Category List (Icon Tiles)</option>
-                  <option value="best_seller">Best Seller Category (Compact Cards)</option>
-                  <option value="deal_of_the_day">Deal of the Day Banner Duo</option>
-                  <option value="shop_by_brand">Shop by Brand</option>
-                  <option value="shop_by_seller">Shop by Seller / Store</option>
-                  <option value="highlight">Highlight Cards Section</option>
+                  <option value="ProductGrid">Product Grid</option>
+                  <option value="CategoryIcons">Category Icons Tile</option>
+                  <option value="BestSellers">Best Sellers Carousel</option>
+                  <option value="DealOfDay">Deal of the Day</option>
+                  <option value="ShopByBrand">Shop by Brand</option>
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Number of Rows</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="4"
-                    value={rows}
-                    onChange={(e) => setRows(Number(e.target.value))}
-                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Max Items</label>
-                  <input
-                    type="number"
-                    min="2"
-                    max="50"
-                    value={itemLimit}
-                    onChange={(e) => setItemLimit(Number(e.target.value))}
-                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center gap-6 pt-2 text-xs font-bold">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={loadMore}
-                    onChange={(e) => setLoadMore(e.target.checked)}
-                    className="accent-[#0aad0a] w-4 h-4 rounded"
-                  />
-                  <span>Enable &quot;Load More&quot; Button</span>
-                </label>
-
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={viewAll}
-                    onChange={(e) => setViewAll(e.target.checked)}
-                    className="accent-[#0aad0a] w-4 h-4 rounded"
-                  />
-                  <span>Enable &quot;View All&quot; Link</span>
-                </label>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-300">Category Filter (Optional)</label>
+                <input
+                  type="text"
+                  value={categoryRef}
+                  onChange={(e) => setCategoryRef(e.target.value)}
+                  placeholder="e.g. vegetables"
+                  className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
+                />
               </div>
 
               <div className="flex gap-3 pt-3">
