@@ -70,3 +70,19 @@ body {
     width: 80mm;
   }
 }
+
+/* Prevent iOS Safari input auto-zoom on mobile */
+@media screen and (max-width: 768px) {
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="tel"],
+  input[type="password"],
+  input[type="search"],
+  input[type="url"],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+

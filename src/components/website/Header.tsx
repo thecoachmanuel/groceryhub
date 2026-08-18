@@ -35,7 +35,7 @@ export default function Header({ cartCount = 0, onOpenCart }: HeaderProps) {
   const { user, isAuthenticated, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
-  const [selectedCity, setSelectedCity] = useState('New York');
+  const [selectedCity, setSelectedCity] = useState('Lagos');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentLang, setCurrentLang] = useState('en');
 
@@ -128,9 +128,10 @@ export default function Header({ cartCount = 0, onOpenCart }: HeaderProps) {
                 onChange={(e) => setSelectedCity(e.target.value)}
                 className="bg-transparent focus:outline-none cursor-pointer pr-1"
               >
-                <option value="New York">New York (Downtown Zone)</option>
-                <option value="Brooklyn">Brooklyn (Heights Zone)</option>
-                <option value="Queens">Queens (Long Island City)</option>
+                <option value="Lagos">Lagos (Ikeja & Island)</option>
+                <option value="Abuja">Abuja (FCT Zone)</option>
+                <option value="Port Harcourt">Port Harcourt (GRA)</option>
+                <option value="Ibadan">Ibadan (Bodija)</option>
               </select>
             </div>
           </div>

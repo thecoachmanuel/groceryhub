@@ -13,6 +13,7 @@ import {
 import Header from '@/components/website/Header';
 import Footer from '@/components/website/Footer';
 import CartDrawer, { CartItem } from '@/components/website/CartDrawer';
+import { PRODUCTS_CATALOG } from '@/lib/catalog';
 
 const CATEGORIES_DATA = [
   {
@@ -130,34 +131,36 @@ export default function AllCategoriesPage() {
 
         {/* Categories Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {CATEGORIES_DATA.map((cat) => (
-            <div
-              key={cat.id}
-              className="bg-white dark:bg-[#1e2632] rounded-3xl p-6 border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-xl hover:border-[#0aad0a]/40 transition-all duration-300 flex flex-col justify-between group"
-            >
-              <div>
-                {/* Top Image + Icon */}
-                <div className="flex items-start justify-between gap-4 mb-4">
-                  <div className="relative w-20 h-20 rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-800 flex-shrink-0">
-                    <Image
-                      src={cat.image}
-                      alt={cat.name}
-                      fill
-                      className="object-cover group-hover:scale-110 transition-transform duration-300"
-                    />
+          {CATEGORIES_DATA.map((cat) => {
+            const count = PRODUCTS_CATALOG.filter((p) => p.category === cat.slug).length;
+            return (
+              <div
+                key={cat.id}
+                className="bg-white dark:bg-[#1e2632] rounded-3xl p-6 border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-xl hover:border-[#0aad0a]/40 transition-all duration-300 flex flex-col justify-between group"
+              >
+                <div>
+                  {/* Top Image + Icon */}
+                  <div className="flex items-start justify-between gap-4 mb-4">
+                    <div className="relative w-20 h-20 rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-800 flex-shrink-0">
+                      <Image
+                        src={cat.image}
+                        alt={cat.name}
+                        fill
+                        className="object-cover group-hover:scale-110 transition-transform duration-300"
+                      />
+                    </div>
+                    <div className={`w-12 h-12 rounded-2xl ${cat.color} flex items-center justify-center text-2xl shadow-inner`}>
+                      {cat.icon}
+                    </div>
                   </div>
-                  <div className={`w-12 h-12 rounded-2xl ${cat.color} flex items-center justify-center text-2xl shadow-inner`}>
-                    {cat.icon}
-                  </div>
-                </div>
 
-                {/* Details */}
-                <h3 className="text-lg font-black text-gray-900 dark:text-white group-hover:text-[#0aad0a] transition-colors">
-                  {cat.name}
-                </h3>
-                <span className="inline-block text-xs font-bold text-[#0aad0a] mt-0.5 mb-2">
-                  {cat.itemCount}
-                </span>
+                  {/* Details */}
+                  <h3 className="text-lg font-black text-gray-900 dark:text-white group-hover:text-[#0aad0a] transition-colors">
+                    {cat.name}
+                  </h3>
+                  <span className="inline-block text-xs font-bold text-[#0aad0a] mt-0.5 mb-2">
+                    {count} {count === 1 ? 'Product Available' : 'Products Available'}
+                  </span>
                 <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed mb-4">
                   {cat.description}
                 </p>
@@ -184,7 +187,8 @@ export default function AllCategoriesPage() {
                 <ChevronRight size={16} />
               </Link>
             </div>
-          ))}
+          );
+        })}
         </div>
       </main>
 

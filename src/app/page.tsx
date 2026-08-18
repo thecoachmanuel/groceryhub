@@ -165,21 +165,24 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4">
-            {CATEGORIES.map((cat) => (
-              <Link
-                key={cat.id}
-                href={`/category/${cat.slug}`}
-                className="group flex flex-col items-center justify-center p-4 rounded-2xl bg-white dark:bg-[#1e2632] border border-gray-100 dark:border-gray-800 hover:border-[#0aad0a]/40 hover:shadow-lg transition-all duration-300 text-center"
-              >
-                <div className={`w-16 h-16 rounded-2xl ${cat.color} flex items-center justify-center text-3xl mb-3 group-hover:scale-110 transition-transform shadow-inner`}>
-                  {cat.icon}
-                </div>
-                <h3 className="text-xs sm:text-sm font-bold text-gray-800 dark:text-gray-200 group-hover:text-[#0aad0a] transition-colors">
-                  {cat.name}
-                </h3>
-                <span className="text-[11px] text-gray-400 mt-0.5">{cat.count}</span>
-              </Link>
-            ))}
+            {CATEGORIES.map((cat) => {
+              const catCount = PRODUCTS_CATALOG.filter((p) => p.category === cat.slug).length;
+              return (
+                <Link
+                  key={cat.id}
+                  href={`/category/${cat.slug}`}
+                  className="group flex flex-col items-center justify-center p-4 rounded-2xl bg-white dark:bg-[#1e2632] border border-gray-100 dark:border-gray-800 hover:border-[#0aad0a]/40 hover:shadow-lg transition-all duration-300 text-center"
+                >
+                  <div className={`w-16 h-16 rounded-2xl ${cat.color} flex items-center justify-center text-3xl mb-3 group-hover:scale-110 transition-transform shadow-inner`}>
+                    {cat.icon}
+                  </div>
+                  <h3 className="text-xs sm:text-sm font-bold text-gray-800 dark:text-gray-200 group-hover:text-[#0aad0a] transition-colors">
+                    {cat.name}
+                  </h3>
+                  <span className="text-[11px] text-gray-400 mt-0.5">{catCount} {catCount === 1 ? 'Item' : 'Items'}</span>
+                </Link>
+              );
+            })}
           </div>
         </section>
 

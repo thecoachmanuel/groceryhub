@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import NutriGuideWidget from '@/components/website/NutriGuideWidget';
 import { AuthProvider } from '@/context/AuthContext';
@@ -6,6 +6,13 @@ import { AuthProvider } from '@/context/AuthContext';
 export const metadata: Metadata = {
   title: 'GroceryHub - Online Multi-Vendor Grocery Store & Delivery',
   description: 'Order fresh groceries, organic vegetables, fruits, and daily essentials from trusted local vendors.',
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({
