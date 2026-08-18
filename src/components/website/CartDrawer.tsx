@@ -6,13 +6,15 @@ import Image from 'next/image';
 import { X, Trash2, Plus, Minus, ArrowRight, ShoppingBag, ShieldCheck } from 'lucide-react';
 import { formatNaira } from '@/lib/currency';
 
+import { useCart } from '@/context/CartContext';
+
 export interface CartItem {
-  id: number;
-  product_id: number;
-  variant_id: number;
+  id: number | string;
+  product_id?: number | string;
+  variant_id?: number;
   name: string;
-  variant_title: string;
-  image: string;
+  variant_title?: string;
+  image?: string;
   price: number;
   quantity: number;
 }
@@ -21,17 +23,21 @@ interface CartDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   items?: CartItem[];
-  onUpdateQty?: (id: number, qty: number) => void;
-  onRemoveItem?: (id: number) => void;
+  onUpdateQty?: (id: number | string, qty: number) => void;
+  onRemoveItem?: (id: number | string) => void;
 }
 
 export default function CartDrawer({
   isOpen,
   onClose,
-  items = [],
-  onUpdateQty,
-  onRemoveItem,
+  items: propsItems,
+  onUpdateQty: propsUpdateQty,
+  onRemoveItem: propsRemoveItem,
 }: CartDrawerProps) {
+  const { cartItems: contextItems, updateQuantity, removeFromCart } = useCart();
+  const items = propsItems !== undefined ? propsItems : (contextItems as CartItem[]);
+  const handleUpdateQty = propsUpdateQty || updateQuantity;
+  const handleRemoveItem = propsRemoveItem || removeFromCart;
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -121,7 +127,7 @@ export default function CartDrawer({
                   {/* Quantity Stepper */}
                   <div className="flex items-center gap-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-1">
                     <button
-                      onClick={() => onUpdateQty?.(item.id, item.quantity - 1)}
+                      onClick={() => handleUpdateQty(item.id, item.quantity - 1)}
                       className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-600 dark:text-gray-300"
                     >
                       {item.quantity === 1 ? <Trash2 size={12} className="text-red-500" /> : <Minus size={12} />}
@@ -130,7 +136,7 @@ export default function CartDrawer({
                       {item.quantity}
                     </span>
                     <button
-                      onClick={() => onUpdateQty?.(item.id, item.quantity + 1)}
+                      onClick={() => handleUpdateQty(item.id, item.quantity + 1)}
                       className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-600 dark:text-gray-300"
                     >
                       <Plus size={12} />

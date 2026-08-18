@@ -85,42 +85,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
   const router = useRouter();
 
-  // Restore all sessions from localStorage on mount
+  // Restore all sessions from localStorage & cookies on mount seamlessly
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     // Customer
     try {
       const savedUser = localStorage.getItem('groceryhub_user');
-      const savedToken = localStorage.getItem('groceryhub_token');
-      if (savedUser && savedToken) {
+      if (savedUser) {
         const parsed = JSON.parse(savedUser);
-        setUser({ ...parsed, role: 'user' });
+        if (parsed && typeof parsed === 'object') {
+          setUser({ ...parsed, role: 'user' });
+        }
       }
-    } catch { localStorage.removeItem('groceryhub_user'); localStorage.removeItem('groceryhub_token'); }
+    } catch (e) {
+      console.warn('Error restoring customer session:', e);
+    }
 
     // Seller
     try {
       const savedSeller = localStorage.getItem('groceryhub_seller');
-      const savedSellerToken = localStorage.getItem('groceryhub_seller_token');
-      if (savedSeller && savedSellerToken) {
+      if (savedSeller) {
         const parsed = JSON.parse(savedSeller);
-        setSeller({ ...parsed, role: 'seller' });
+        if (parsed && typeof parsed === 'object') {
+          setSeller({ ...parsed, role: 'seller' });
+        }
       }
-    } catch { localStorage.removeItem('groceryhub_seller'); localStorage.removeItem('groceryhub_seller_token'); }
+    } catch (e) {
+      console.warn('Error restoring seller session:', e);
+    }
 
     // Rider
     try {
       const savedRider = localStorage.getItem('groceryhub_rider');
-      const savedRiderToken = localStorage.getItem('groceryhub_rider_token');
-      if (savedRider && savedRiderToken) {
+      if (savedRider) {
         const parsed = JSON.parse(savedRider);
-        setRider({ ...parsed, role: 'delivery' });
+        if (parsed && typeof parsed === 'object') {
+          setRider({ ...parsed, role: 'delivery' });
+        }
       }
-    } catch { localStorage.removeItem('groceryhub_rider'); localStorage.removeItem('groceryhub_rider_token'); }
+    } catch (e) {
+      console.warn('Error restoring rider session:', e);
+    }
 
     // Admin
-    const adminToken = localStorage.getItem('groceryhub_admin_token');
+    const adminToken = localStorage.getItem('groceryhub_admin_token') || document.cookie.includes('user_role=admin');
     if (adminToken) setIsAdminAuthenticated(true);
 
     setIsInitialized(true);

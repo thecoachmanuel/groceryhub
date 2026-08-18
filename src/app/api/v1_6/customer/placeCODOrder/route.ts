@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import Order from '@/models/Order';
+import Product from '@/models/Product';
 import { apiSuccess, apiError } from '@/lib/api-response';
 
 export const dynamic = 'force-dynamic';
@@ -53,6 +54,27 @@ export async function POST(req: NextRequest) {
         },
         delivery_pin: `${Math.floor(1000 + Math.random() * 9000)}`,
       });
+
+      // Decrement product stock in MongoDB
+      if (Array.isArray(items)) {
+        for (const item of items) {
+          const pId = item.product_id || item.id;
+          const qty = item.quantity || item.qty || 1;
+          if (pId) {
+            const prod = await Product.findOne({
+              $or: [{ product_id: pId }, { _id: pId }, { 'variants.variant_id': pId }],
+            });
+            if (prod && prod.variants && prod.variants.length > 0) {
+              const currentStock = prod.variants[0].stock || 0;
+              prod.variants[0].stock = Math.max(0, currentStock - qty);
+              if (prod.variants[0].stock === 0) {
+                prod.status = 'out_of_stock';
+              }
+              await prod.save();
+            }
+          }
+        }
+      }
     } catch (dbErr) {
       console.warn('MongoDB order creation warning:', dbErr);
     }

@@ -23,6 +23,7 @@ import Header from '@/components/website/Header';
 import Footer from '@/components/website/Footer';
 import { formatNaira } from '@/lib/currency';
 import { useAuth } from '@/context/AuthContext';
+import { useCart } from '@/context/CartContext';
 
 interface SavedAddress {
   id: number;
@@ -51,9 +52,7 @@ const DEFAULT_CHECKOUT_ITEMS: CheckoutCartItem[] = [];
 export default function CheckoutPage() {
   const router = useRouter();
   const { user } = useAuth();
-
-  const [cartItems, setCartItems] = useState<CheckoutCartItem[]>([]);
-  const [cartLoaded, setCartLoaded] = useState(false);
+  const { cartItems, clearCart, isLoaded: cartLoaded } = useCart();
 
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
@@ -75,22 +74,6 @@ export default function CheckoutPage() {
   const [couponApplied, setCouponApplied] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderPlacedSuccess, setOrderPlacedSuccess] = useState(false);
-
-  // Load cart from localStorage after mount to get accurate live data
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const raw = localStorage.getItem('groceryhub_cart_items');
-      if (raw !== null) {
-        try {
-          const parsed = JSON.parse(raw);
-          setCartItems(Array.isArray(parsed) ? parsed : []);
-        } catch {
-          setCartItems([]);
-        }
-      }
-      setCartLoaded(true);
-    }
-  }, []);
 
   // Load user saved addresses from localStorage
   useEffect(() => {
@@ -267,9 +250,9 @@ export default function CheckoutPage() {
           items: orderItemSummary,
         };
         localStorage.setItem(userOrdersKey, JSON.stringify([newOrderObj, ...existingOrders]));
-        localStorage.removeItem('groceryhub_cart_items');
       }
 
+      clearCart();
       setIsSubmitting(false);
       setOrderPlacedSuccess(true);
       setTimeout(() => {

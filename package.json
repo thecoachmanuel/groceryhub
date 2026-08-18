@@ -6,9 +6,7 @@
     "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "prisma:generate": "prisma generate",
-    "prisma:db-pull": "prisma db pull"
+    "lint": "next lint"
   },
   "dependencies": {
     "@prisma/client": "^5.21.0",

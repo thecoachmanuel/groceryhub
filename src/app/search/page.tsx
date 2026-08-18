@@ -13,6 +13,7 @@ import Header from '@/components/website/Header';
 import Footer from '@/components/website/Footer';
 import ProductCard from '@/components/website/ProductCard';
 import CartDrawer, { CartItem } from '@/components/website/CartDrawer';
+import { useCart } from '@/context/CartContext';
 
 function SearchContent() {
   const searchParams = useSearchParams();
@@ -22,7 +23,7 @@ function SearchContent() {
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState('popular');
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const { cartItems, addToCart, updateQuantity, removeFromCart } = useCart();
 
   const formatProduct = (p: any) => {
     const pId = p.product_id || p.id || Math.floor(Math.random() * 10000);
@@ -103,45 +104,26 @@ function SearchContent() {
 
     if (!matchedProduct || !matchedVariant) return;
 
-    setCartItems((prev) => {
-      const existingIndex = prev.findIndex((item) => item.variant_id === variantId);
-      if (qty === 0) {
-        return prev.filter((item) => item.variant_id !== variantId);
-      }
-      if (existingIndex > -1) {
-        const updated = [...prev];
-        updated[existingIndex].quantity = qty;
-        return updated;
-      } else {
-        return [
-          ...prev,
-          {
-            id: Date.now(),
-            product_id: matchedProduct.id,
-            variant_id: matchedVariant.id,
-            name: matchedProduct.name,
-            variant_title: matchedVariant.title,
-            image: matchedProduct.image,
-            price: matchedVariant.discounted_price || matchedVariant.price,
-            quantity: qty,
-          },
-        ];
-      }
-    });
+    if (qty <= 0) {
+      removeFromCart(matchedVariant.id);
+    } else {
+      addToCart({
+        id: matchedVariant.id,
+        product_id: matchedProduct.id,
+        name: `${matchedProduct.name} (${matchedVariant.title})`,
+        price: matchedVariant.discounted_price || matchedVariant.price,
+        image: matchedProduct.image,
+        unit: matchedVariant.title,
+      }, qty - (cartItems.find((i: any) => String(i.id) === String(matchedVariant.id))?.quantity || 0));
+    }
 
     if (qty > 0 && !isCartOpen) {
       setIsCartOpen(true);
     }
   };
 
-  const handleUpdateQty = (itemId: number, newQty: number) => {
-    if (newQty <= 0) {
-      setCartItems((prev) => prev.filter((item) => item.id !== itemId));
-    } else {
-      setCartItems((prev) =>
-        prev.map((item) => (item.id === itemId ? { ...item, quantity: newQty } : item))
-      );
-    }
+  const handleUpdateQty = (itemId: number | string, newQty: number) => {
+    updateQuantity(itemId, newQty);
   };
 
   const matched = products.filter((p) => {
@@ -265,8 +247,8 @@ function SearchContent() {
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
         items={cartItems}
-        onUpdateQty={handleUpdateQty}
-        onRemoveItem={(id) => setCartItems((prev) => prev.filter((item) => item.id !== id))}
+        onUpdateQty={(id, qty) => updateQuantity(id, qty)}
+        onRemoveItem={(id) => removeFromCart(id)}
       />
     </div>
   );

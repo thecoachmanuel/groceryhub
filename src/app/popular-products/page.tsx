@@ -23,13 +23,15 @@ const CATEGORIES = [
   { id: 'pantry', label: 'Pantry Staples' },
 ];
 
+import { useCart } from '@/context/CartContext';
+
 export default function PopularProductsPage() {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [sortBy, setSortBy] = useState('popular');
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const { cartItems, addToCart, updateQuantity, removeFromCart } = useCart();
 
   const formatProduct = (p: any) => {
     const pId = p.product_id || p.id || Math.floor(Math.random() * 10000);
@@ -110,30 +112,18 @@ export default function PopularProductsPage() {
 
     if (!matchedProduct || !matchedVariant) return;
 
-    setCartItems((prev) => {
-      const existing = prev.find((item) => item.variant_id === variantId);
-      if (qty === 0) {
-        return prev.filter((item) => item.variant_id !== variantId);
-      }
-      if (existing) {
-        return prev.map((item) =>
-          item.variant_id === variantId ? { ...item, quantity: qty } : item
-        );
-      }
-      return [
-        ...prev,
-        {
-          id: Date.now(),
-          product_id: matchedProduct.id,
-          variant_id: matchedVariant.id,
-          name: matchedProduct.name,
-          variant_title: matchedVariant.title,
-          image: matchedProduct.image,
-          price: matchedVariant.discounted_price,
-          quantity: qty,
-        },
-      ];
-    });
+    if (qty <= 0) {
+      removeFromCart(matchedVariant.id);
+    } else {
+      addToCart({
+        id: matchedVariant.id,
+        product_id: matchedProduct.id,
+        name: `${matchedProduct.name} (${matchedVariant.title})`,
+        price: matchedVariant.discounted_price || matchedVariant.price,
+        image: matchedProduct.image,
+        unit: matchedVariant.title,
+      }, qty - (cartItems.find(i => String(i.id) === String(matchedVariant.id))?.quantity || 0));
+    }
 
     setIsCartOpen(true);
   };
@@ -156,14 +146,6 @@ export default function PopularProductsPage() {
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full space-y-8">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-xs font-bold text-gray-500">
-          <Link href="/" className="hover:text-[#0aad0a] flex items-center gap-1">
-            <ArrowLeft size={14} /> Back to Store
-          </Link>
-          <span>/</span>
-          <span className="text-gray-900 dark:text-white">Popular &amp; Best Sellers</span>
-        </div>
 
         {/* Hero Header */}
         <div className="bg-gradient-to-r from-[#0aad0a] to-emerald-800 rounded-3xl p-8 text-white shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-6 relative overflow-hidden">
@@ -259,12 +241,8 @@ export default function PopularProductsPage() {
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
         items={cartItems}
-        onUpdateQty={(id, q) =>
-          setCartItems((prev) =>
-            q > 0 ? prev.map((item) => (item.id === id ? { ...item, quantity: q } : item)) : prev.filter((i) => i.id !== id)
-          )
-        }
-        onRemoveItem={(id) => setCartItems((prev) => prev.filter((i) => i.id !== id))}
+        onUpdateQty={(id, q) => updateQuantity(id, q)}
+        onRemoveItem={(id) => removeFromCart(id)}
       />
     </div>
   );

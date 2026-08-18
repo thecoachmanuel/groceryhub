@@ -20,6 +20,7 @@ import Header from '@/components/website/Header';
 import Footer from '@/components/website/Footer';
 import { formatNaira } from '@/lib/currency';
 import { useAuth } from '@/context/AuthContext';
+import { useCart } from '@/context/CartContext';
 
 interface CartItem {
   id: number;
@@ -88,69 +89,30 @@ const INITIAL_CART_ITEMS: CartItem[] = [
 export default function CartPage() {
   const router = useRouter();
   const { isAuthenticated } = useAuth();
-  const [items, setItems] = useState<CartItem[]>([]);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const { cartItems: items, updateQuantity: contextUpdateQuantity, removeFromCart, clearCart: contextClearCart, isLoaded } = useCart();
 
   const [couponCode, setCouponCode] = useState('');
   const [couponDiscount, setCouponDiscount] = useState(0);
   const [couponApplied, setCouponApplied] = useState(false);
   const [couponError, setCouponError] = useState('');
 
-  // Load cart from localStorage on mount — never fall back to hardcoded data
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const raw = localStorage.getItem('groceryhub_cart_items');
-      if (raw !== null) {
-        // Key exists — use exactly what's stored (even if empty [])
-        try {
-          const parsed = JSON.parse(raw);
-          setItems(Array.isArray(parsed) ? parsed : []);
-        } catch {
-          setItems([]);
-        }
-      } else {
-        // True first visit — seed with demo items so cart isn't blank
-        setItems(INITIAL_CART_ITEMS);
-        localStorage.setItem('groceryhub_cart_items', JSON.stringify(INITIAL_CART_ITEMS));
-      }
-      setIsLoaded(true);
-    }
-  }, []);
-
-  // Persist cart changes to localStorage once loaded
-  useEffect(() => {
-    if (isLoaded && typeof window !== 'undefined') {
-      localStorage.setItem('groceryhub_cart_items', JSON.stringify(items));
-    }
-  }, [items, isLoaded]);
-
   const freeDeliveryThreshold = 15000.00; // ₦15,000
   const platformServiceFee = 500.00; // ₦500
   const taxRate = 0.05; // 5%
 
-  const updateQuantity = (id: number, delta: number) => {
-    setItems((prev) =>
-      prev.map((item) => {
-        if (item.id === id) {
-          const newQty = item.quantity + delta;
-          return newQty > 0 ? { ...item, quantity: newQty } : item;
-        }
-        return item;
-      })
-    );
+  const updateQuantity = (id: number | string, delta: number) => {
+    const current = items.find(i => String(i.id) === String(id));
+    if (current) {
+      contextUpdateQuantity(id, current.quantity + delta);
+    }
   };
 
-  const removeItem = (id: number) => {
-    setItems((prev) => prev.filter((item) => item.id !== id));
+  const removeItem = (id: number | string) => {
+    removeFromCart(id);
   };
 
   const clearCart = () => {
-    if (confirm('Are you sure you want to empty your cart?')) {
-      setItems([]);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('groceryhub_cart_items', JSON.stringify([]));
-      }
-    }
+    contextClearCart();
   };
 
   const handleApplyCoupon = (e: React.FormEvent) => {
@@ -269,14 +231,14 @@ export default function CartPage() {
                         </Link>
                         <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                           <span className="flex items-center gap-1 text-[11px] text-gray-400">
-                            <Store size={12} className="text-[#0aad0a]" /> {item.seller_name}
+                            <Store size={12} className="text-[#0aad0a]" /> {item.seller_name || 'Partner Vendor'}
                           </span>
                           <span>•</span>
-                          <span className="font-mono text-[11px]">{item.unit}</span>
+                          <span className="font-mono text-[11px]">{item.unit || '1 pack'}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="font-black text-[#0aad0a] font-mono text-sm">{formatNaira(item.price)}</span>
-                          {item.original_price > item.price && (
+                          {!!item.original_price && item.original_price > item.price && (
                             <span className="text-xs text-gray-400 line-through font-mono">{formatNaira(item.original_price)}</span>
                           )}
                         </div>

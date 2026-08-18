@@ -25,14 +25,17 @@ import {
 import ThemeToggle from './ThemeToggle';
 import { formatNaira } from '@/lib/currency';
 import { useAuth } from '@/context/AuthContext';
+import { useCart } from '@/context/CartContext';
 
 interface HeaderProps {
   cartCount?: number;
   onOpenCart?: () => void;
 }
 
-export default function Header({ cartCount = 0, onOpenCart }: HeaderProps) {
+export default function Header({ cartCount, onOpenCart }: HeaderProps) {
   const { user, isAuthenticated, logout } = useAuth();
+  const { cartCount: globalCartCount } = useCart();
+  const effectiveCartCount = cartCount !== undefined ? cartCount : globalCartCount;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [selectedCity, setSelectedCity] = useState('Lagos');
@@ -245,9 +248,9 @@ export default function Header({ cartCount = 0, onOpenCart }: HeaderProps) {
             >
               <div className="relative">
                 <ShoppingBag size={18} />
-                {cartCount > 0 && (
+                {effectiveCartCount > 0 && (
                   <span className="absolute -top-2 -right-2 bg-amber-400 text-gray-900 text-[10px] font-black w-4 h-4 rounded-full flex items-center justify-center">
-                    {cartCount}
+                    {effectiveCartCount}
                   </span>
                 )}
               </div>

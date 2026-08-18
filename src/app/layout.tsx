@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import NutriGuideWidget from '@/components/website/NutriGuideWidget';
 import { AuthProvider } from '@/context/AuthContext';
+import { CartProvider } from '@/context/CartContext';
 
 export const metadata: Metadata = {
   title: 'GroceryHub - Online Multi-Vendor Grocery Store & Delivery',
@@ -32,8 +33,10 @@ export default function RootLayout({
       </head>
       <body className="bg-[#f8f9fa] dark:bg-[#121820] text-gray-800 dark:text-gray-100 min-h-screen antialiased">
         <AuthProvider>
-          {children}
-          <NutriGuideWidget />
+          <CartProvider>
+            {children}
+            <NutriGuideWidget />
+          </CartProvider>
         </AuthProvider>
       </body>
     </html>

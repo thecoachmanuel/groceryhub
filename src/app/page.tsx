@@ -17,6 +17,7 @@ import Header from '@/components/website/Header';
 import Footer from '@/components/website/Footer';
 import ProductCard from '@/components/website/ProductCard';
 import CartDrawer, { CartItem } from '@/components/website/CartDrawer';
+import { useCart } from '@/context/CartContext';
 const TOP_SELLERS = [
   {
     id: 1,
@@ -49,7 +50,7 @@ const TOP_SELLERS = [
 
 export default function HomePage() {
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const { cartItems, addToCart, updateQuantity, removeFromCart } = useCart();
   const [catalogProducts, setCatalogProducts] = useState<any[]>([]);
 
   const formatProductForStore = (p: any) => {
@@ -143,15 +144,14 @@ export default function HomePage() {
     { id: 7, name: 'Pantry Staples', slug: 'pantry', icon: '🍚', count: getCategoryCount('pantry'), color: 'bg-teal-50 dark:bg-teal-950/40 text-teal-600' },
   ];
 
-  const POPULAR_PRODUCTS = catalogProducts.slice(0, 8);
+  const POPULAR_PRODUCTS = catalogProducts;
 
-  const handleAddToCart = (variantId: number, qty: number) => {
-    // Find the product & variant
+  const handleVariantQtyChange = (variantId: number, qty: number) => {
     let matchedProduct: any = null;
     let matchedVariant: any = null;
 
     for (const p of POPULAR_PRODUCTS) {
-      const v = p.variants?.find((item: any) => item.id === variantId);
+      const v = p.variants.find((varItem: any) => varItem.id === variantId);
       if (v) {
         matchedProduct = p;
         matchedVariant = v;
@@ -161,48 +161,28 @@ export default function HomePage() {
 
     if (!matchedProduct || !matchedVariant) return;
 
-    setCartItems((prev) => {
-      const existingIndex = prev.findIndex((item) => item.variant_id === variantId);
-      if (qty === 0) {
-        return prev.filter((item) => item.variant_id !== variantId);
-      }
-      if (existingIndex > -1) {
-        const updated = [...prev];
-        updated[existingIndex].quantity = qty;
-        return updated;
-      } else {
-        return [
-          ...prev,
-          {
-            id: Date.now(),
-            product_id: matchedProduct.id,
-            variant_id: matchedVariant.id,
-            name: matchedProduct.name,
-            variant_title: matchedVariant.title,
-            image: matchedProduct.image,
-            price: matchedVariant.discounted_price || matchedVariant.price,
-            quantity: qty,
-          },
-        ];
-      }
-    });
+    if (qty <= 0) {
+      removeFromCart(matchedVariant.id);
+    } else {
+      addToCart({
+        id: matchedVariant.id,
+        product_id: matchedProduct.id,
+        name: `${matchedProduct.name} (${matchedVariant.title})`,
+        price: matchedVariant.discounted_price || matchedVariant.price,
+        image: matchedProduct.image,
+        unit: matchedVariant.title,
+      }, qty - (cartItems.find((i: any) => String(i.id) === String(matchedVariant.id))?.quantity || 0));
+    }
 
     if (qty > 0 && !isCartOpen) {
       setIsCartOpen(true);
     }
   };
 
-  const handleUpdateQty = (itemId: number, newQty: number) => {
-    if (newQty <= 0) {
-      setCartItems((prev) => prev.filter((item) => item.id !== itemId));
-    } else {
-      setCartItems((prev) =>
-        prev.map((item) => (item.id === itemId ? { ...item, quantity: newQty } : item))
-      );
-    }
-  };
+  const handleAddToCart = handleVariantQtyChange;
+  const handleUpdateQty = (itemId: any, newQty: number) => updateQuantity(itemId, newQty);
 
-  const totalCartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+  const totalCartCount = cartItems.reduce((sum: number, item: any) => sum + item.quantity, 0);
 
   return (
     <div className="min-h-screen flex flex-col justify-between">
@@ -463,8 +443,8 @@ export default function HomePage() {
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
         items={cartItems}
-        onUpdateQty={handleUpdateQty}
-        onRemoveItem={(id) => setCartItems((prev) => prev.filter((item) => item.id !== id))}
+        onUpdateQty={(id, q) => updateQuantity(id, q)}
+        onRemoveItem={(id) => removeFromCart(id)}
       />
     </div>
   );
