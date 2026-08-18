@@ -1,0 +1,301 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Admin {
+  id                  Int       @id @default(autoincrement())
+  role_id             Int
+  fname               String?   @db.Text
+  lname               String?   @db.Text
+  username            String    @db.Text
+  mobile              String    @db.Text
+  password            String    @db.Text
+  token               String?   @db.Text
+  reset_link_token    String?   @db.Text
+  reset_token_exp_date DateTime?
+
+  @@map("admin")
+}
+
+model User {
+  id             Int       @id @default(autoincrement())
+  name           String    @db.VarChar(255)
+  email          String    @db.VarChar(255)
+  mobile         String    @db.VarChar(20)
+  password       String    @db.Text
+  profile_pic    String?   @db.Text
+  status         Int       @default(1)
+  fcm_token      String?   @db.Text
+  wallet_balance Float     @default(0)
+  created_at     DateTime  @default(now())
+  updated_at     DateTime? @updatedAt
+
+  @@map("users")
+}
+
+model Seller {
+  id             Int       @id @default(autoincrement())
+  name           String    @db.VarChar(255)
+  store_name     String    @db.VarChar(255)
+  email          String    @db.VarChar(255)
+  mobile         String    @db.VarChar(20)
+  password       String    @db.Text
+  logo           String?   @db.Text
+  banner         String?   @db.Text
+  address        String?   @db.Text
+  city_id        Int       @default(0)
+  latitude       String?   @db.VarChar(50)
+  longitude      String?   @db.VarChar(50)
+  commission     Float     @default(0)
+  status         Int       @default(1)
+  fcm_token      String?   @db.Text
+  balance        Float     @default(0)
+  created_at     DateTime  @default(now())
+
+  @@map("seller")
+}
+
+model DeliveryBoy {
+  id             Int       @id @default(autoincrement())
+  name           String    @db.VarChar(255)
+  mobile         String    @db.VarChar(20)
+  password       String    @db.Text
+  address        String?   @db.Text
+  city_id        Int       @default(0)
+  latitude       String?   @db.VarChar(50)
+  longitude      String?   @db.VarChar(50)
+  status         Int       @default(1)
+  is_available   Int       @default(1)
+  balance        Float     @default(0)
+  fcm_token      String?   @db.Text
+  created_at     DateTime  @default(now())
+
+  @@map("delivery_boy")
+}
+
+model Category {
+  id             Int       @id @default(autoincrement())
+  name           String    @db.VarChar(255)
+  slug           String    @db.VarChar(255)
+  image          String    @db.Text
+  banner         String?   @db.Text
+  row_order      Int       @default(0)
+  status         Int       @default(1)
+
+  @@map("category")
+}
+
+model Subcategory {
+  id             Int       @id @default(autoincrement())
+  category_id    Int
+  name           String    @db.VarChar(255)
+  slug           String    @db.VarChar(255)
+  image          String    @db.Text
+  banner         String?   @db.Text
+  row_order      Int       @default(0)
+  status         Int       @default(1)
+
+  @@map("subcategory")
+}
+
+model Brand {
+  id             Int       @id @default(autoincrement())
+  brand          String    @db.Text
+  slug           String    @db.VarChar(200)
+  image          String    @db.Text
+  row_order      Int       @default(0)
+
+  @@map("brand")
+}
+
+model Product {
+  id             Int       @id @default(autoincrement())
+  seller_id      Int       @default(0)
+  name           String    @db.VarChar(255)
+  slug           String    @db.VarChar(255)
+  description    String?   @db.LongText
+  image          String    @db.Text
+  tax_id         Int       @default(0)
+  status         Int       @default(1)
+  is_approved    Int       @default(1)
+  is_returnable  Int       @default(0)
+  is_cancelable  Int       @default(0)
+  indicator      Int       @default(0)
+  rating         Float     @default(0)
+  rating_count   Int       @default(0)
+  created_at     DateTime  @default(now())
+
+  @@map("products")
+}
+
+model ProductVariant {
+  id             Int       @id @default(autoincrement())
+  product_id     Int
+  title          String    @db.VarChar(255)
+  price          Float
+  discounted_price Float   @default(0)
+  stock          Int       @default(0)
+  unit           String    @db.VarChar(50)
+  barcode        String?   @db.VarChar(100)
+  sku            String?   @db.VarChar(100)
+  status         Int       @default(1)
+
+  @@map("product_variants")
+}
+
+model ProductImage {
+  id                 Int     @id @default(autoincrement())
+  product_id         Int
+  product_variant_id Int?    @default(0)
+  image              String  @db.Text
+
+  @@map("product_images")
+}
+
+model Order {
+  id                 Int       @id @default(autoincrement())
+  order_id           String    @db.VarChar(50)
+  user_id            Int
+  seller_id          Int       @default(0)
+  delivery_boy_id    Int       @default(0)
+  address_id         Int
+  total_amount       Float
+  discount_amount    Float     @default(0)
+  delivery_charge    Float     @default(0)
+  tax_amount         Float     @default(0)
+  wallet_balance_used Float    @default(0)
+  final_amount       Float
+  payment_method     String    @db.VarChar(50)
+  payment_status     String    @default("pending") @db.VarChar(50)
+  order_status       Int       @default(1)
+  delivery_date      String?   @db.VarChar(50)
+  delivery_time      String?   @db.VarChar(50)
+  order_note         String?   @db.Text
+  latitude           String?   @db.VarChar(50)
+  longitude          String?   @db.VarChar(50)
+  created_at         DateTime  @default(now())
+
+  @@map("orders")
+}
+
+model OrderProduct {
+  id                 Int     @id @default(autoincrement())
+  order_id           Int
+  product_id         Int
+  product_variant_id Int
+  product_name       String  @db.VarChar(255)
+  variant_name       String  @db.VarChar(255)
+  quantity           Int
+  price              Float
+  discounted_price   Float   @default(0)
+  tax_amount         Float   @default(0)
+  total_amount       Float
+  seller_id          Int     @default(0)
+
+  @@map("order_products")
+}
+
+model Cart {
+  id                 Int      @id @default(autoincrement())
+  user_id            Int
+  product_id         Int
+  product_variant_id Int
+  quantity           Int      @default(1)
+  created_at         DateTime @default(now())
+
+  @@map("cart")
+}
+
+model Address {
+  id                 Int      @id @default(autoincrement())
+  user_id            Int
+  city_id            Int      @default(0)
+  deliverable_area_id Int     @default(0)
+  flat               String?  @db.VarChar(150)
+  floor              String?  @db.VarChar(150)
+  address            String?  @db.Text
+  area               String?  @db.Text
+  city               String   @db.Text
+  state              String?  @db.Text
+  pincode            String?  @db.Text
+  user_name          String?  @db.VarChar(100)
+  user_mobile        String?  @db.VarChar(20)
+  status             Int      @default(1)
+  latitude           String?  @db.Text
+  longitude          String?  @db.Text
+  map_address        String?  @db.Text
+  is_delete          Int      @default(0)
+  address_type       String   @default("Home") @db.VarChar(20)
+  landmark           String?  @db.VarChar(200)
+
+  @@map("address")
+}
+
+model City {
+  id        Int     @id @default(autoincrement())
+  name      String  @db.VarChar(255)
+  state     String? @db.VarChar(255)
+  latitude  String? @db.VarChar(50)
+  longitude String? @db.VarChar(50)
+  status    Int     @default(1)
+
+  @@map("city")
+}
+
+model DeliverableArea {
+  id         Int     @id @default(autoincrement())
+  city_id    Int
+  name       String  @db.VarChar(255)
+  bounds     String? @db.LongText
+  status     Int     @default(1)
+
+  @@map("deliverable_area")
+}
+
+model Coupon {
+  id             Int       @id @default(autoincrement())
+  code           String    @db.VarChar(50)
+  description    String?   @db.Text
+  discount_type  String    @db.VarChar(20)
+  discount       Float
+  min_order_amount Float   @default(0)
+  max_discount_amount Float @default(0)
+  start_date     DateTime
+  end_date       DateTime
+  status         Int       @default(1)
+
+  @@map("coupon")
+}
+
+model Banner {
+  id             Int     @id @default(autoincrement())
+  banner_img     String  @db.Text
+  category_id    Int     @default(0)
+  status         Int     @default(0)
+
+  @@map("banner")
+}
+
+model Setting {
+  id             Int     @id @default(autoincrement())
+  variable       String  @db.VarChar(255)
+  value          String? @db.LongText
+
+  @@map("settings")
+}
+
+model PosCartSession {
+  id             Int      @id @default(autoincrement())
+  seller_id      Int
+  cart_name      String   @db.VarChar(100)
+  cart_data      String   @db.LongText
+  customer_mobile String? @db.VarChar(20)
+  created_at     DateTime @default(now())
+
+  @@map("pos_cart_sessions")
+}
