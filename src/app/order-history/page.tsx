@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import Header from '@/components/website/Header';
 import Footer from '@/components/website/Footer';
+import { formatNaira } from '@/lib/currency';
 
 const SAMPLE_ORDERS = [
   {
@@ -24,19 +25,19 @@ const SAMPLE_ORDERS = [
     date: 'Aug 17, 2026 at 08:30 PM',
     status: 'Out for Delivery',
     statusStep: 3, // 1: Placed, 2: Packed, 3: Out for Delivery, 4: Delivered
-    total: 45.00,
+    total: 19500.00, // ₦19,500
     itemsCount: 4,
     deliverySlot: '08:00 PM - 10:00 PM',
-    deliveryAddress: 'Apt 4B, 742 Evergreen Terrace, Brooklyn, NY 11201',
+    deliveryAddress: 'Plot 14, Adeola Odeku Street, Victoria Island, Lagos',
     driver: {
       name: 'Marcus Vance',
-      phone: '+1 (555) 789-0123',
-      vehicle: 'White Honda Scooter (NY-8429)',
+      phone: '+234 809 111 2233',
+      vehicle: 'Honda Super Cub 125cc (LAG-8492)',
     },
     items: [
-      { name: 'Fresh Organic Farm Broccoli (500g)', qty: 2, price: 3.49 },
-      { name: 'Red Sweet Crisp Apples (1kg)', qty: 1, price: 4.29 },
-      { name: 'Farm Fresh Pure Whole Milk (1 Gallon)', qty: 2, price: 3.89 },
+      { name: 'Fresh Organic Farm Broccoli (500g)', qty: 2, price: 3500 },
+      { name: 'Red Sweet Crisp Apples (1kg Pack)', qty: 1, price: 4500 },
+      { name: 'Farm Fresh Pure Whole Milk (1L)', qty: 2, price: 3800 },
     ],
   },
   {
@@ -44,18 +45,18 @@ const SAMPLE_ORDERS = [
     date: 'Aug 14, 2026 at 02:15 PM',
     status: 'Delivered',
     statusStep: 4,
-    total: 32.40,
+    total: 14500.00, // ₦14,500
     itemsCount: 2,
     deliverySlot: '02:00 PM - 04:00 PM',
-    deliveryAddress: 'Apt 4B, 742 Evergreen Terrace, Brooklyn, NY 11201',
+    deliveryAddress: 'Plot 14, Adeola Odeku Street, Victoria Island, Lagos',
     driver: {
       name: 'David Chen',
-      phone: '+1 (555) 345-6789',
+      phone: '+234 802 345 6789',
       vehicle: 'Electric Bike (EB-102)',
     },
     items: [
-      { name: 'Artisan Sourdough Bakery Bread (400g)', qty: 2, price: 2.99 },
-      { name: 'Pure Cold Pressed Extra Virgin Olive Oil', qty: 1, price: 11.49 },
+      { name: 'Artisan Sourdough Country Loaf (750g)', qty: 2, price: 3200 },
+      { name: 'Pure Cold Pressed Extra Virgin Olive Oil (500ml)', qty: 1, price: 8100 },
     ],
   },
 ];
@@ -71,10 +72,10 @@ export default function OrderHistoryPage() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white">
-              My Orders & Live Tracking
+              My Orders &amp; Live Tracking
             </h1>
             <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
-              View your order history, live delivery status, and invoices
+              View your grocery order history, Paystack receipts, and live courier tracking
             </p>
           </div>
           <Link
@@ -98,9 +99,9 @@ export default function OrderHistoryPage() {
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-black text-gray-900 dark:text-white">{order.id}</span>
                     <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
-                      order.status === 'Delivered'
-                        ? 'bg-emerald-50 dark:bg-emerald-950/40 text-[#0aad0a]'
-                        : 'bg-amber-50 dark:bg-amber-950/40 text-amber-600'
+                      order.status === 'Delivered' 
+                        ? 'bg-emerald-100 dark:bg-emerald-950/60 text-[#0aad0a]' 
+                        : 'bg-amber-100 dark:bg-amber-950/60 text-amber-500 animate-pulse'
                     }`}>
                       ● {order.status}
                     </span>
@@ -108,44 +109,50 @@ export default function OrderHistoryPage() {
                   <p className="text-xs text-gray-400">{order.date}</p>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4">
+                  <div className="text-right">
+                    <span className="text-xs text-gray-400 block">Total Amount (Naira)</span>
+                    <span className="text-base font-black text-gray-900 dark:text-white font-mono">
+                      {formatNaira(order.total)}
+                    </span>
+                  </div>
+
                   <button
                     onClick={() => setSelectedOrderForTracking(order)}
-                    className="flex items-center gap-1.5 bg-[#0aad0a]/10 hover:bg-[#0aad0a] text-[#0aad0a] hover:text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-sm"
+                    className="bg-[#0aad0a]/10 hover:bg-[#0aad0a] text-[#0aad0a] hover:text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all flex items-center gap-1"
                   >
-                    <Truck size={15} />
-                    <span>Track Live</span>
-                  </button>
-
-                  <button
-                    onClick={() => alert(`Downloading Invoice for ${order.id}...`)}
-                    className="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-bold px-3.5 py-2 rounded-xl transition-all"
-                  >
-                    <FileText size={15} />
-                    <span className="hidden sm:inline">Invoice</span>
+                    <span>Track Order</span>
+                    <ChevronRight size={14} />
                   </button>
                 </div>
               </div>
 
-              {/* Order Items Summary */}
-              <div className="space-y-2 py-1">
-                {order.items.map((item, idx) => (
-                  <div key={idx} className="flex justify-between text-xs text-gray-600 dark:text-gray-400">
-                    <span>{item.qty}x {item.name}</span>
-                    <span className="font-semibold text-gray-900 dark:text-white">${(item.price * item.qty).toFixed(2)}</span>
+              {/* Order Items Summary in Naira */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                <div className="space-y-2">
+                  <span className="font-bold text-gray-400 uppercase tracking-wider text-[10px]">Items in Order ({order.itemsCount})</span>
+                  <div className="space-y-1">
+                    {order.items.map((item, idx) => (
+                      <div key={idx} className="flex justify-between text-gray-700 dark:text-gray-300">
+                        <span>{item.name} x{item.qty}</span>
+                        <span className="font-mono font-bold text-gray-900 dark:text-white">{formatNaira(item.price * item.qty)}</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-
-              {/* Order Footer */}
-              <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-gray-100 dark:border-gray-800 text-xs">
-                <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-                  <MapPin size={14} className="text-[#0aad0a]" />
-                  <span className="truncate max-w-xs">{order.deliveryAddress}</span>
                 </div>
-                <div className="flex items-center gap-1 text-sm font-black text-gray-900 dark:text-white">
-                  <span>Total Paid:</span>
-                  <span className="text-[#0aad0a]">${order.total.toFixed(2)}</span>
+
+                <div className="space-y-2 border-t md:border-t-0 md:border-l border-gray-100 dark:border-gray-800 pt-3 md:pt-0 md:pl-4">
+                  <span className="font-bold text-gray-400 uppercase tracking-wider text-[10px]">Delivery Information</span>
+                  <div className="space-y-1 text-gray-600 dark:text-gray-400">
+                    <div className="flex items-center gap-1.5">
+                      <Clock size={14} className="text-[#0aad0a]" />
+                      <span>{order.deliverySlot}</span>
+                    </div>
+                    <div className="flex items-start gap-1.5">
+                      <MapPin size={14} className="text-[#0aad0a] shrink-0 mt-0.5" />
+                      <span className="truncate">{order.deliveryAddress}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -153,81 +160,74 @@ export default function OrderHistoryPage() {
         </div>
       </main>
 
-      {/* Live Tracking Modal */}
+      {/* Live Courier Tracking Modal */}
       {selectedOrderForTracking && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#1e2632] w-full max-w-lg rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 relative animate-fade-in">
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#1e2632] w-full max-w-lg rounded-3xl p-6 sm:p-8 border border-gray-100 dark:border-gray-800 space-y-6 relative shadow-2xl">
             <button
               onClick={() => setSelectedOrderForTracking(null)}
-              className="absolute right-5 top-5 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400"
+              className="absolute right-5 top-5 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors"
             >
               <X size={20} />
             </button>
 
-            <div className="space-y-1">
-              <div className="inline-flex items-center gap-1.5 bg-[#0aad0a]/10 text-[#0aad0a] text-xs font-bold px-3 py-1 rounded-full">
-                <Truck size={14} /> Live Telemetry
-              </div>
-              <h3 className="text-xl font-black text-gray-900 dark:text-white">
+            <div>
+              <span className="text-xs font-bold text-[#0aad0a] uppercase tracking-wider">Live Telemetry</span>
+              <h3 className="text-xl font-black text-gray-900 dark:text-white mt-0.5">
                 Tracking {selectedOrderForTracking.id}
               </h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Estimated Delivery: <strong className="text-gray-900 dark:text-white">In 18 Minutes</strong>
-              </p>
             </div>
 
-            {/* Stepper Progress */}
-            <div className="space-y-4 py-2">
+            {/* Stepper */}
+            <div className="space-y-3">
               {[
-                { title: 'Order Placed & Confirmed', desc: 'Received by Store', done: true },
-                { title: 'Packed & Dispatched', desc: 'Quality checked by vendor', done: true },
-                { title: 'Out for Delivery', desc: 'Driver is on the way', done: selectedOrderForTracking.statusStep >= 3, active: selectedOrderForTracking.statusStep === 3 },
-                { title: 'Delivered', desc: 'Handed over at doorstep', done: selectedOrderForTracking.statusStep >= 4 },
-              ].map((step, idx) => (
-                <div key={idx} className="flex items-start gap-4 relative">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black z-10 ${
-                    step.done
-                      ? 'bg-[#0aad0a] text-white shadow-md shadow-[#0aad0a]/30'
-                      : step.active
-                      ? 'bg-amber-500 text-white animate-pulse'
-                      : 'bg-gray-100 dark:bg-gray-800 text-gray-400'
+                { title: 'Order Placed & Paid (Paystack)', desc: 'Confirmed and sent to merchant', step: 1 },
+                { title: 'Picked & Chilled Packaging', desc: 'Fresh farm items packed in cooler box', step: 2 },
+                { title: 'Out for Doorstep Delivery', desc: 'Courier is en route to Victoria Island', step: 3 },
+                { title: 'Delivered', desc: 'Handed over at doorstep', step: 4 },
+              ].map((s) => (
+                <div key={s.step} className="flex items-start gap-3">
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                    selectedOrderForTracking.statusStep >= s.step
+                      ? 'bg-[#0aad0a] text-white'
+                      : 'bg-gray-200 dark:bg-gray-800 text-gray-400'
                   }`}>
-                    {step.done ? <CheckCircle2 size={16} /> : idx + 1}
+                    {selectedOrderForTracking.statusStep >= s.step ? '✓' : s.step}
                   </div>
                   <div>
-                    <h4 className={`text-xs font-bold ${step.done || step.active ? 'text-gray-900 dark:text-white' : 'text-gray-400'}`}>
-                      {step.title}
-                    </h4>
-                    <p className="text-[11px] text-gray-500 dark:text-gray-400">{step.desc}</p>
+                    <h5 className="font-bold text-xs text-gray-900 dark:text-white">{s.title}</h5>
+                    <p className="text-[11px] text-gray-400">{s.desc}</p>
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* Delivery Boy Contact Card */}
-            {selectedOrderForTracking.driver && (
-              <div className="bg-gray-50 dark:bg-gray-800/60 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-full bg-[#0aad0a]/10 text-[#0aad0a] flex items-center justify-center font-bold">
-                    <User size={20} />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-gray-900 dark:text-white">
-                      {selectedOrderForTracking.driver.name}
-                    </h4>
-                    <p className="text-[11px] text-gray-400">{selectedOrderForTracking.driver.vehicle}</p>
-                  </div>
+            {/* Driver Profile */}
+            <div className="bg-gray-50 dark:bg-gray-800/60 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-amber-500 text-gray-950 flex items-center justify-center font-bold">
+                  <Truck size={20} />
                 </div>
-
-                <a
-                  href={`tel:${selectedOrderForTracking.driver.phone}`}
-                  className="flex items-center gap-1 bg-[#0aad0a] text-white text-xs font-bold px-3.5 py-2 rounded-xl shadow-md shadow-[#0aad0a]/20 hover:bg-[#088f08]"
-                >
-                  <Phone size={14} />
-                  <span>Call</span>
-                </a>
+                <div>
+                  <h4 className="text-xs font-bold text-gray-900 dark:text-white">{selectedOrderForTracking.driver.name}</h4>
+                  <p className="text-[11px] text-gray-400">{selectedOrderForTracking.driver.vehicle}</p>
+                </div>
               </div>
-            )}
+              <a
+                href={`tel:${selectedOrderForTracking.driver.phone}`}
+                className="bg-[#0aad0a] text-white p-2.5 rounded-xl shadow-md flex items-center gap-1 text-xs font-bold"
+              >
+                <Phone size={14} />
+                <span className="hidden sm:inline">Call Courier</span>
+              </a>
+            </div>
+
+            <button
+              onClick={() => setSelectedOrderForTracking(null)}
+              className="w-full bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 font-bold py-3 rounded-xl text-xs hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+            >
+              Close Live Tracker
+            </button>
           </div>
         </div>
       )}

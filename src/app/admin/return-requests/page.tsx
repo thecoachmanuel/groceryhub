@@ -2,13 +2,14 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { RotateCcw, CheckCircle2, XCircle, Search, Eye, Filter, DollarSign } from 'lucide-react';
+import { RotateCcw, CheckCircle2, XCircle, Search, Eye, Filter } from 'lucide-react';
 import AdminSidebar from '@/components/admin/AdminSidebar';
+import { formatNaira } from '@/lib/currency';
 
 const INITIAL_REQUESTS = [
-  { id: 'RET-1042', orderId: 'ORD-98241', customer: 'Alice Johnson', item: 'Fresh Organic Farm Broccoli (500g)', refundAmount: 3.49, reason: 'Bruised during transit', proofImage: 'https://images.unsplash.com/photo-1459411621453-7b03977f4bfc?w=300', date: 'Aug 17, 2026', status: 'Pending' },
-  { id: 'RET-1041', orderId: 'ORD-98235', customer: 'Michael Scott', item: 'Farm Fresh Pure Whole Milk (1 Gallon)', refundAmount: 3.89, reason: 'Packaging seal broken', proofImage: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=300', date: 'Aug 16, 2026', status: 'Approved' },
-  { id: 'RET-1040', orderId: 'ORD-98220', customer: 'Eleanor Shellstrop', item: 'Artisan Sourdough Bakery Bread', refundAmount: 2.99, reason: 'Ordered wrong variant', proofImage: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=300', date: 'Aug 14, 2026', status: 'Rejected' },
+  { id: 'RET-1042', orderId: 'ORD-98241', customer: 'Alice Johnson', item: 'Fresh Organic Farm Broccoli (500g)', refundAmount: 3500, reason: 'Bruised during transit', proofImage: 'https://images.unsplash.com/photo-1459411621453-7b03977f4bfc?w=300', date: 'Aug 17, 2026', status: 'Pending' },
+  { id: 'RET-1041', orderId: 'ORD-98235', customer: 'Michael Scott', item: 'Farm Fresh Pure Whole Milk (1L)', refundAmount: 3800, reason: 'Packaging seal broken', proofImage: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=300', date: 'Aug 16, 2026', status: 'Approved' },
+  { id: 'RET-1040', orderId: 'ORD-98220', customer: 'Eleanor Shellstrop', item: 'Artisan Sourdough Bakery Bread (750g)', refundAmount: 3200, reason: 'Ordered wrong variant', proofImage: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=300', date: 'Aug 14, 2026', status: 'Rejected' },
 ];
 
 export default function AdminReturnRequestsPage() {
@@ -21,7 +22,8 @@ export default function AdminReturnRequestsPage() {
       prev.map((r) => (r.id === id ? { ...r, status: newStatus } : r))
     );
     if (newStatus === 'Approved') {
-      alert(`Return ${id} approved! $${requests.find(r => r.id === id)?.refundAmount.toFixed(2)} credited to customer's wallet.`);
+      const match = requests.find(r => r.id === id);
+      alert(`Return ${id} approved! ${formatNaira(match?.refundAmount || 0)} credited to customer's wallet.`);
     }
   };
 
@@ -42,9 +44,9 @@ export default function AdminReturnRequestsPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-black flex items-center gap-2">
-              <RotateCcw size={24} className="text-[#0aad0a]" /> Customer Return & Refund Requests
+              <RotateCcw size={24} className="text-[#0aad0a]" /> Customer Return &amp; Refund Requests
             </h1>
-            <p className="text-xs text-gray-400 mt-0.5">Inspect item condition, reason tickets, and process direct digital wallet credits</p>
+            <p className="text-xs text-gray-400 mt-0.5">Inspect item condition, reason tickets, and process direct digital wallet credits in Naira (₦)</p>
           </div>
         </div>
 
@@ -70,7 +72,7 @@ export default function AdminReturnRequestsPage() {
             >
               <option value="all">All Request Statuses</option>
               <option value="pending">Pending Review</option>
-              <option value="approved">Approved & Refunded</option>
+              <option value="approved">Approved &amp; Refunded</option>
               <option value="rejected">Rejected</option>
             </select>
           </div>
@@ -85,7 +87,7 @@ export default function AdminReturnRequestsPage() {
                   <th className="pb-3 px-3">Ticket / Order</th>
                   <th className="pb-3 px-3">Customer</th>
                   <th className="pb-3 px-3">Item Details</th>
-                  <th className="pb-3 px-3">Refund Amount</th>
+                  <th className="pb-3 px-3">Refund Amount (₦)</th>
                   <th className="pb-3 px-3">Reason</th>
                   <th className="pb-3 px-3">Status</th>
                   <th className="pb-3 px-3 text-right">Actions</th>
@@ -96,8 +98,8 @@ export default function AdminReturnRequestsPage() {
                   <tr key={r.id} className="hover:bg-gray-800/40 transition-colors">
                     <td className="py-3.5 px-3">
                       <div>
-                        <span className="font-bold text-white block">{r.id}</span>
-                        <span className="text-[11px] text-gray-500">{r.orderId}</span>
+                        <span className="font-bold text-white block font-mono">{r.id}</span>
+                        <span className="text-[11px] text-gray-500 font-mono">{r.orderId}</span>
                       </div>
                     </td>
                     <td className="py-3.5 px-3 text-white font-medium">{r.customer}</td>
@@ -109,7 +111,7 @@ export default function AdminReturnRequestsPage() {
                         <span className="truncate max-w-xs">{r.item}</span>
                       </div>
                     </td>
-                    <td className="py-3.5 px-3 font-bold text-[#0aad0a]">${r.refundAmount.toFixed(2)}</td>
+                    <td className="py-3.5 px-3 font-bold text-[#0aad0a] font-mono">{formatNaira(r.refundAmount)}</td>
                     <td className="py-3.5 px-3 text-gray-400">{r.reason}</td>
                     <td className="py-3.5 px-3">
                       <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
@@ -130,18 +132,18 @@ export default function AdminReturnRequestsPage() {
                             className="bg-[#0aad0a] hover:bg-[#088f08] text-white font-bold px-3 py-1.5 rounded-xl text-[11px] transition-all flex items-center gap-1 shadow-sm"
                           >
                             <CheckCircle2 size={13} />
-                            <span>Approve & Refund</span>
+                            <span>Approve</span>
                           </button>
                           <button
                             onClick={() => handleAction(r.id, 'Rejected')}
-                            className="bg-red-950/40 text-red-400 hover:bg-red-900/60 font-bold px-3 py-1.5 rounded-xl text-[11px] transition-all flex items-center gap-1"
+                            className="bg-red-950/60 hover:bg-red-900 border border-red-800 text-red-400 hover:text-white font-bold px-3 py-1.5 rounded-xl text-[11px] transition-all flex items-center gap-1"
                           >
                             <XCircle size={13} />
                             <span>Reject</span>
                           </button>
                         </div>
                       ) : (
-                        <span className="text-[11px] text-gray-500 font-bold">Processed</span>
+                        <span className="text-[11px] text-gray-500 font-semibold">Resolved</span>
                       )}
                     </td>
                   </tr>

@@ -3,12 +3,13 @@
 import { useState } from 'react';
 import { ShoppingBag, Search, CheckCircle2, Truck, Printer, Eye, Filter } from 'lucide-react';
 import SellerNav from '@/components/seller/SellerNav';
+import { formatNaira } from '@/lib/currency';
 
 const INITIAL_STORE_ORDERS = [
-  { id: 'ORD-98241', date: 'Aug 17, 2026 at 08:30 PM', customer: 'Alex Johnson', itemsCount: 4, total: 45.00, status: 'Out for Delivery', driver: 'Marcus Vance (+1 555-789-0123)' },
-  { id: 'ORD-98240', date: 'Aug 17, 2026 at 07:15 PM', customer: 'Michael Scott', itemsCount: 2, total: 28.50, status: 'Packed', driver: 'Awaiting Driver Assignment' },
-  { id: 'ORD-98239', date: 'Aug 17, 2026 at 06:40 PM', customer: 'Sarah Miller', itemsCount: 3, total: 19.99, status: 'Received', driver: 'None' },
-  { id: 'ORD-98238', date: 'Aug 16, 2026 at 02:10 PM', customer: 'Emma Davis', itemsCount: 6, total: 62.10, status: 'Delivered', driver: 'David Chen' },
+  { id: 'ORD-98241', date: 'Aug 17, 2026 at 08:30 PM', customer: 'Alex Johnson', itemsCount: 4, total: 45000.00, status: 'Out for Delivery', driver: 'Marcus Vance (+234 809 111 2233)' },
+  { id: 'ORD-98240', date: 'Aug 17, 2026 at 07:15 PM', customer: 'Michael Scott', itemsCount: 2, total: 28500.00, status: 'Packed', driver: 'Awaiting Driver Assignment' },
+  { id: 'ORD-98239', date: 'Aug 17, 2026 at 06:40 PM', customer: 'Sarah Miller', itemsCount: 3, total: 19500.00, status: 'Received', driver: 'None' },
+  { id: 'ORD-98238', date: 'Aug 16, 2026 at 02:10 PM', customer: 'Chinedu Okafor', itemsCount: 6, total: 62100.00, status: 'Delivered', driver: 'David Chen' },
 ];
 
 export default function SellerOrdersPage() {
@@ -36,7 +37,7 @@ export default function SellerOrdersPage() {
               <h1 className="text-2xl font-black flex items-center gap-2">
                 <ShoppingBag size={24} className="text-[#0aad0a]" /> Store Orders Pipeline
               </h1>
-              <p className="text-xs text-gray-400 mt-0.5">Fulfill incoming online customer grocery orders and dispatch couriers</p>
+              <p className="text-xs text-gray-400 mt-0.5">Fulfill incoming online customer grocery orders and dispatch couriers in Nigeria</p>
             </div>
 
             <div className="flex items-center gap-2">
@@ -64,7 +65,7 @@ export default function SellerOrdersPage() {
                     <th className="pb-3 px-3">Order ID</th>
                     <th className="pb-3 px-3">Customer</th>
                     <th className="pb-3 px-3">Items</th>
-                    <th className="pb-3 px-3">Order Total</th>
+                    <th className="pb-3 px-3">Order Total (₦)</th>
                     <th className="pb-3 px-3">Assigned Courier</th>
                     <th className="pb-3 px-3">Status</th>
                     <th className="pb-3 px-3 text-right">Fulfillment Actions</th>
@@ -81,7 +82,7 @@ export default function SellerOrdersPage() {
                       </td>
                       <td className="py-3.5 px-3 text-white font-bold">{order.customer}</td>
                       <td className="py-3.5 px-3">{order.itemsCount} products</td>
-                      <td className="py-3.5 px-3 font-bold text-white">${order.total.toFixed(2)}</td>
+                      <td className="py-3.5 px-3 font-mono font-bold text-white">{formatNaira(order.total)}</td>
                       <td className="py-3.5 px-3 text-gray-400">{order.driver}</td>
                       <td className="py-3.5 px-3">
                         <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
@@ -99,7 +100,7 @@ export default function SellerOrdersPage() {
                           {order.status === 'Received' && (
                             <button
                               onClick={() => handleUpdateStatus(order.id, 'Packed')}
-                              className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 py-1 rounded-xl text-[11px]"
+                              className="px-3 py-1.5 bg-[#0aad0a] hover:bg-[#088f08] text-white font-bold rounded-lg transition-colors text-[11px]"
                             >
                               Mark Packed
                             </button>
@@ -107,22 +108,22 @@ export default function SellerOrdersPage() {
                           {order.status === 'Packed' && (
                             <button
                               onClick={() => handleUpdateStatus(order.id, 'Out for Delivery')}
-                              className="bg-amber-600 hover:bg-amber-500 text-white font-bold px-3 py-1 rounded-xl text-[11px]"
+                              className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-gray-950 font-bold rounded-lg transition-colors text-[11px]"
                             >
-                              Dispatch Driver
+                              Handover to Courier
                             </button>
                           )}
                           {order.status === 'Out for Delivery' && (
-                            <button
-                              onClick={() => handleUpdateStatus(order.id, 'Delivered')}
-                              className="bg-[#0aad0a] hover:bg-[#088f08] text-white font-bold px-3 py-1 rounded-xl text-[11px]"
-                            >
-                              Confirm Delivery
-                            </button>
+                            <span className="text-[11px] text-amber-400 font-bold">In Transit</span>
+                          )}
+                          {order.status === 'Delivered' && (
+                            <span className="text-[11px] text-[#0aad0a] font-bold flex items-center gap-1">
+                              <CheckCircle2 size={13} /> Completed
+                            </span>
                           )}
                           <button
                             onClick={() => alert(`Printing packing slip for ${order.id}`)}
-                            className="p-1.5 rounded-lg bg-gray-800 text-gray-400 hover:text-white"
+                            className="p-1.5 hover:bg-gray-700 rounded-lg text-gray-400 hover:text-white ml-1"
                             title="Print Packing Slip"
                           >
                             <Printer size={15} />

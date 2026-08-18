@@ -7,7 +7,7 @@ import AdminSidebar from '@/components/admin/AdminSidebar';
 const PAST_NOTIFICATIONS = [
   { id: 1, title: 'Mega Savings Weekend: 30% OFF Organic Fruits!', message: 'Use code FRESH30 during checkout. Limited time 30-min express delivery!', target: 'All Customers', date: 'Aug 17, 2026 at 06:00 PM', reach: '4,280 Sent' },
   { id: 2, title: 'Vendor Payouts for August Cycle Processed', message: 'Check your store wallet for the latest withdrawal credits and settlement statements.', target: 'Vendors Only', date: 'Aug 15, 2026 at 11:30 AM', reach: '48 Stores' },
-  { id: 3, title: 'Peak Hours Surge Bonus: +$2.50 per delivery', message: 'High order volume in Downtown Zone. Turn on duty to claim peak incentives!', target: 'Delivery Drivers', date: 'Aug 14, 2026 at 07:15 PM', reach: '120 Couriers' },
+  { id: 3, title: 'Peak Hours Surge Bonus: +₦1,500 per delivery', message: 'High order volume in Victoria Island & Lekki zones. Turn on duty to claim peak incentives!', target: 'Delivery Drivers', date: 'Aug 14, 2026 at 07:15 PM', reach: '120 Couriers' },
 ];
 
 export default function AdminNotificationsPage() {

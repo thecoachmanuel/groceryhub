@@ -3,21 +3,46 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Truck, Lock, Phone, ArrowRight, UserPlus } from 'lucide-react';
+import { Truck, Lock, Phone, ArrowRight, UserPlus, AlertCircle } from 'lucide-react';
 
 export default function DeliveryRiderLoginPage() {
   const router = useRouter();
-  const [mobile, setMobile] = useState('+1 (555) 789-0123');
-  const [password, setPassword] = useState('password123');
+  const [mobile, setMobile] = useState('+234 809 111 2233');
+  const [password, setPassword] = useState('RiderPassword2026!');
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMsg('');
     setLoading(true);
-    setTimeout(() => {
+
+    try {
+      const res = await fetch('/api/auth/delivery/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mobile,
+          password,
+        }),
+      });
+
+      const data = await res.json();
       setLoading(false);
+
+      if (!res.ok || !data.success) {
+        return setErrorMsg(data.message || 'Courier login failed. Invalid credentials.');
+      }
+
+      localStorage.setItem('groceryhub_rider_token', data.data.token);
+      localStorage.setItem('groceryhub_rider', JSON.stringify(data.data.delivery_boy));
+      document.cookie = `auth_token=${data.data.token}; path=/; max-age=604800; SameSite=Lax`;
+
       router.push('/delivery/dashboard');
-    }, 600);
+    } catch (err) {
+      setLoading(false);
+      setErrorMsg('Network error occurred. Please try again.');
+    }
   };
 
   return (
@@ -32,15 +57,22 @@ export default function DeliveryRiderLoginPage() {
           <p className="text-xs text-gray-400">Sign in to start your delivery shift and view active runs</p>
         </div>
 
+        {errorMsg && (
+          <div className="bg-red-950/40 border border-red-800 text-red-400 p-3.5 rounded-2xl text-xs font-bold flex items-center gap-2">
+            <AlertCircle size={16} />
+            <span>{errorMsg}</span>
+          </div>
+        )}
+
         <form onSubmit={handleLogin} className="space-y-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-gray-300">Mobile Phone</label>
+            <label className="text-xs font-bold text-gray-300">Registered Courier Mobile</label>
             <div className="relative">
               <input
                 type="text"
                 value={mobile}
                 onChange={(e) => setMobile(e.target.value)}
-                placeholder="+1 (555) 000-0000"
+                placeholder="+234 809 111 2233"
                 className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3.5 pl-10 text-xs focus:outline-none focus:border-amber-400"
                 required
               />
@@ -66,26 +98,17 @@ export default function DeliveryRiderLoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-gray-900 font-black py-3.5 rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition-all active:scale-95"
+            className="w-full bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-gray-950 font-black py-3.5 rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition-all active:scale-[0.98]"
           >
-            <span>{loading ? 'Starting Shift...' : 'Sign In to Courier Terminal'}</span>
-            <ArrowRight size={15} />
+            <span>{loading ? 'Authenticating...' : 'Sign In to Courier Shift'}</span>
+            <ArrowRight size={16} />
           </button>
         </form>
 
-        <div className="text-center text-xs text-gray-400">
-          Want to become a driver?{' '}
+        <div className="pt-2 text-center text-xs text-gray-400">
+          Want to become an electric fleet courier?{' '}
           <Link href="/delivery/register" className="text-amber-400 font-bold hover:underline">
-            Register as Courier Partner
-          </Link>
-        </div>
-
-        <div className="pt-4 border-t border-gray-800 text-center space-y-2 text-xs text-gray-400">
-          <Link href="/delivery-policy" className="hover:text-white underline block">
-            Courier Delivery Terms & Safety Guidelines
-          </Link>
-          <Link href="/" className="hover:text-amber-400 font-bold block pt-1">
-            ← Back to Storefront
+            Register as a Delivery Partner
           </Link>
         </div>
       </div>

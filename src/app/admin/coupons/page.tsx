@@ -8,7 +8,6 @@ import {
   Trash2, 
   Edit3, 
   Calendar, 
-  DollarSign, 
   CheckCircle2, 
   X, 
   Filter,
@@ -16,6 +15,7 @@ import {
   Tag
 } from 'lucide-react';
 import AdminSidebar from '@/components/admin/AdminSidebar';
+import { formatNaira } from '@/lib/currency';
 
 interface CouponItem {
   id: number;
@@ -35,12 +35,12 @@ interface CouponItem {
 const INITIAL_COUPONS: CouponItem[] = [
   {
     id: 1,
-    code: 'WELCOME10',
-    description: 'Flat $10 discount for newly registered users on first order',
+    code: 'WELCOME5000',
+    description: 'Flat ₦5,000 discount for newly registered users on first order',
     discountType: 'flat',
-    discountValue: 10,
-    minSpend: 30,
-    maxDiscount: 10,
+    discountValue: 5000,
+    minSpend: 15000,
+    maxDiscount: 5000,
     startDate: '2026-01-01',
     endDate: '2026-12-31',
     usageLimit: 1000,
@@ -53,8 +53,8 @@ const INITIAL_COUPONS: CouponItem[] = [
     description: '30% OFF on all fresh seasonal fruits and organic greens',
     discountType: 'percentage',
     discountValue: 30,
-    minSpend: 25,
-    maxDiscount: 15,
+    minSpend: 8000,
+    maxDiscount: 4500,
     startDate: '2026-08-01',
     endDate: '2026-08-31',
     usageLimit: 500,
@@ -64,11 +64,11 @@ const INITIAL_COUPONS: CouponItem[] = [
   {
     id: 3,
     code: 'FREESHIP',
-    description: '100% Free Express Delivery waiver on orders over $20',
+    description: '100% Free Express Delivery waiver on orders over ₦15,000',
     discountType: 'flat',
-    discountValue: 4.99,
-    minSpend: 20,
-    maxDiscount: 4.99,
+    discountValue: 1500,
+    minSpend: 15000,
+    maxDiscount: 1500,
     startDate: '2026-01-01',
     endDate: '2026-12-31',
     usageLimit: 5000,
@@ -81,8 +81,8 @@ const INITIAL_COUPONS: CouponItem[] = [
     description: 'Summer season 50% flash clearance promotion',
     discountType: 'percentage',
     discountValue: 50,
-    minSpend: 40,
-    maxDiscount: 25,
+    minSpend: 20000,
+    maxDiscount: 10000,
     startDate: '2026-07-01',
     endDate: '2026-07-31',
     usageLimit: 300,
@@ -99,111 +99,126 @@ export default function AdminCouponsPage() {
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCoupon, setEditingCoupon] = useState<CouponItem | null>(null);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   // Form fields
   const [code, setCode] = useState('');
   const [description, setDescription] = useState('');
   const [discountType, setDiscountType] = useState<'percentage' | 'flat'>('percentage');
-  const [discountValue, setDiscountValue] = useState('20');
-  const [minSpend, setMinSpend] = useState('25');
-  const [maxDiscount, setMaxDiscount] = useState('15');
-  const [startDate, setStartDate] = useState('2026-08-01');
-  const [endDate, setEndDate] = useState('2026-12-31');
-  const [usageLimit, setUsageLimit] = useState('500');
+  const [discountValue, setDiscountValue] = useState('');
+  const [minSpend, setMinSpend] = useState('');
+  const [maxDiscount, setMaxDiscount] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [usageLimit, setUsageLimit] = useState('');
   const [status, setStatus] = useState<'Active' | 'Inactive' | 'Expired'>('Active');
+
+  const handleCopyCode = (promoCode: string) => {
+    navigator.clipboard.writeText(promoCode);
+    setCopiedCode(promoCode);
+    setTimeout(() => setCopiedCode(null), 2000);
+  };
 
   const openCreateModal = () => {
     setEditingCoupon(null);
     setCode('');
     setDescription('');
     setDiscountType('percentage');
-    setDiscountValue('20');
-    setMinSpend('25');
-    setMaxDiscount('15');
-    setStartDate('2026-08-01');
-    setEndDate('2026-12-31');
+    setDiscountValue('10');
+    setMinSpend('5000');
+    setMaxDiscount('2000');
+    setStartDate('2026-08-18');
+    setEndDate('2026-09-18');
     setUsageLimit('500');
     setStatus('Active');
     setIsModalOpen(true);
   };
 
-  const openEditModal = (coupon: CouponItem) => {
-    setEditingCoupon(coupon);
-    setCode(coupon.code);
-    setDescription(coupon.description);
-    setDiscountType(coupon.discountType);
-    setDiscountValue(String(coupon.discountValue));
-    setMinSpend(String(coupon.minSpend));
-    setMaxDiscount(String(coupon.maxDiscount));
-    setStartDate(coupon.startDate);
-    setEndDate(coupon.endDate);
-    setUsageLimit(String(coupon.usageLimit));
-    setStatus(coupon.status);
+  const openEditModal = (c: CouponItem) => {
+    setEditingCoupon(c);
+    setCode(c.code);
+    setDescription(c.description);
+    setDiscountType(c.discountType);
+    setDiscountValue(String(c.discountValue));
+    setMinSpend(String(c.minSpend));
+    setMaxDiscount(String(c.maxDiscount));
+    setStartDate(c.startDate);
+    setEndDate(c.endDate);
+    setUsageLimit(String(c.usageLimit));
+    setStatus(c.status);
     setIsModalOpen(true);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!code.trim()) return alert('Coupon code is required');
+    if (!code.trim()) return alert('Promo code is required');
+    if (!description.trim()) return alert('Description is required');
+
+    const val = parseFloat(discountValue || '0');
+    const minS = parseFloat(minSpend || '0');
+    const maxD = parseFloat(maxDiscount || '0');
+    const limit = parseInt(usageLimit || '0', 10);
 
     if (editingCoupon) {
-      // Update
       setCoupons((prev) =>
         prev.map((c) =>
           c.id === editingCoupon.id
             ? {
                 ...c,
-                code: code.toUpperCase().trim(),
-                description,
+                code: code.trim().toUpperCase(),
+                description: description.trim(),
                 discountType,
-                discountValue: parseFloat(discountValue || '0'),
-                minSpend: parseFloat(minSpend || '0'),
-                maxDiscount: parseFloat(maxDiscount || '0'),
+                discountValue: val,
+                minSpend: minS,
+                maxDiscount: maxD,
                 startDate,
                 endDate,
-                usageLimit: parseInt(usageLimit || '100', 10),
+                usageLimit: limit,
                 status,
               }
             : c
         )
       );
     } else {
-      // Create
       const newCoupon: CouponItem = {
         id: Date.now(),
-        code: code.toUpperCase().trim(),
-        description,
+        code: code.trim().toUpperCase(),
+        description: description.trim(),
         discountType,
-        discountValue: parseFloat(discountValue || '0'),
-        minSpend: parseFloat(minSpend || '0'),
-        maxDiscount: parseFloat(maxDiscount || '0'),
+        discountValue: val,
+        minSpend: minS,
+        maxDiscount: maxD,
         startDate,
         endDate,
-        usageLimit: parseInt(usageLimit || '100', 10),
+        usageLimit: limit,
         usedCount: 0,
         status,
       };
       setCoupons([newCoupon, ...coupons]);
     }
+
     setIsModalOpen(false);
   };
 
   const handleDelete = (id: number) => {
-    if (confirm('Are you sure you want to delete this promotional coupon?')) {
-      setCoupons((prev) => prev.filter((c) => c.id !== id));
+    if (confirm('Are you sure you want to delete this coupon campaign?')) {
+      setCoupons(coupons.filter((c) => c.id !== id));
     }
   };
 
   const handleToggleStatus = (id: number) => {
     setCoupons((prev) =>
-      prev.map((c) =>
-        c.id === id
-          ? {
-              ...c,
-              status: c.status === 'Active' ? 'Inactive' : 'Active',
-            }
-          : c
-      )
+      prev.map((c) => {
+        if (c.id === id) {
+          const nextStatusMap: Record<CouponItem['status'], CouponItem['status']> = {
+            Active: 'Inactive',
+            Inactive: 'Active',
+            Expired: 'Active',
+          };
+          return { ...c, status: nextStatusMap[c.status] };
+        }
+        return c;
+      })
     );
   };
 
@@ -212,9 +227,11 @@ export default function AdminCouponsPage() {
       c.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.description.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus =
-      statusFilter === 'all' || c.status.toLowerCase() === statusFilter.toLowerCase();
+      statusFilter === 'all' ? true : c.status.toLowerCase() === statusFilter.toLowerCase();
     return matchesSearch && matchesStatus;
   });
+
+  const pendingCount = coupons.filter((c) => c.status === 'Active').length;
 
   return (
     <div className="flex bg-[#121820] text-white min-h-screen">
@@ -225,10 +242,10 @@ export default function AdminCouponsPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-black flex items-center gap-2">
-              <Percent size={24} className="text-[#0aad0a]" /> Coupons & Promotional Campaigns
+              <Tag size={24} className="text-[#0aad0a]" /> Discount Coupons &amp; Promotions
             </h1>
             <p className="text-xs text-gray-400 mt-0.5">
-              Create, configure, and manage store discount vouchers, percentage promos, and campaign budgets
+              Create, configure, and manage store discount vouchers, percentage promos, and campaign budgets in Naira (₦)
             </p>
           </div>
 
@@ -277,7 +294,7 @@ export default function AdminCouponsPage() {
                 <tr>
                   <th className="pb-3 px-3">Promo Code</th>
                   <th className="pb-3 px-3">Discount Rule</th>
-                  <th className="pb-3 px-3">Spend & Cap</th>
+                  <th className="pb-3 px-3">Spend &amp; Cap (₦)</th>
                   <th className="pb-3 px-3">Validity Window</th>
                   <th className="pb-3 px-3">Usage Redemptions</th>
                   <th className="pb-3 px-3">Status</th>
@@ -290,31 +307,43 @@ export default function AdminCouponsPage() {
                     {/* Code */}
                     <td className="py-3.5 px-3">
                       <div className="space-y-1">
-                        <span className="font-black bg-[#0aad0a]/10 text-[#0aad0a] px-2.5 py-1 rounded-lg border border-[#0aad0a]/20 inline-block font-mono text-xs">
-                          {c.code}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-black bg-[#0aad0a]/10 text-[#0aad0a] px-2.5 py-1 rounded-lg border border-[#0aad0a]/20 inline-block font-mono text-xs">
+                            {c.code}
+                          </span>
+                          <button
+                            onClick={() => handleCopyCode(c.code)}
+                            className="p-1 hover:bg-gray-800 rounded text-gray-400 hover:text-white"
+                            title="Copy Code"
+                          >
+                            <Copy size={12} />
+                          </button>
+                          {copiedCode === c.code && (
+                            <span className="text-[9px] text-[#0aad0a] font-bold">Copied!</span>
+                          )}
+                        </div>
                         <p className="text-[11px] text-gray-400 max-w-xs truncate">{c.description}</p>
                       </div>
                     </td>
 
                     {/* Discount Value */}
                     <td className="py-3.5 px-3">
-                      <div className="font-bold text-white">
+                      <div className="font-bold text-white font-mono">
                         {c.discountType === 'percentage'
                           ? `${c.discountValue}% OFF`
-                          : `$${c.discountValue.toFixed(2)} Flat OFF`}
+                          : `${formatNaira(c.discountValue)} Flat OFF`}
                       </div>
-                      <span className="text-[10px] text-gray-400 capitalize">
+                      <span className="text-[10px] text-gray-400 capitalize font-mono">
                         {c.discountType} discount
                       </span>
                     </td>
 
                     {/* Min Spend / Max Discount */}
-                    <td className="py-3.5 px-3">
-                      <div>Min: <strong className="text-white">${c.minSpend.toFixed(2)}</strong></div>
+                    <td className="py-3.5 px-3 font-mono">
+                      <div>Min: <strong className="text-white">{formatNaira(c.minSpend)}</strong></div>
                       {c.maxDiscount > 0 && (
                         <div className="text-[11px] text-gray-400">
-                          Max Cap: ${c.maxDiscount.toFixed(2)}
+                          Max Cap: {formatNaira(c.maxDiscount)}
                         </div>
                       )}
                     </td>
@@ -398,7 +427,7 @@ export default function AdminCouponsPage() {
                 {editingCoupon ? 'Edit Promotional Coupon' : 'Create New Promotional Coupon'}
               </h3>
               <p className="text-xs text-gray-400 mt-0.5">
-                Define voucher codes, discount formulas, minimum spend requirements, and usage caps
+                Define voucher codes, discount formulas, minimum spend requirements, and usage caps in Naira
               </p>
             </div>
 
@@ -424,7 +453,7 @@ export default function AdminCouponsPage() {
                     className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
                   >
                     <option value="percentage">Percentage Discount (%)</option>
-                    <option value="flat">Flat Dollar Amount ($)</option>
+                    <option value="flat">Flat Naira Amount (₦)</option>
                   </select>
                 </div>
               </div>
@@ -444,11 +473,11 @@ export default function AdminCouponsPage() {
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-gray-300">
-                    {discountType === 'percentage' ? 'Discount %' : 'Discount $'}
+                    {discountType === 'percentage' ? 'Discount %' : 'Discount ₦'}
                   </label>
                   <input
                     type="number"
-                    step="0.01"
+                    step="50"
                     value={discountValue}
                     onChange={(e) => setDiscountValue(e.target.value)}
                     placeholder="20"
@@ -458,10 +487,10 @@ export default function AdminCouponsPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Min Order Spend ($)</label>
+                  <label className="text-xs font-bold text-gray-300">Min Order Spend (₦)</label>
                   <input
                     type="number"
-                    step="0.01"
+                    step="100"
                     value={minSpend}
                     onChange={(e) => setMinSpend(e.target.value)}
                     placeholder="25"
@@ -471,10 +500,10 @@ export default function AdminCouponsPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Max Discount ($)</label>
+                  <label className="text-xs font-bold text-gray-300">Max Discount (₦)</label>
                   <input
                     type="number"
-                    step="0.01"
+                    step="100"
                     value={maxDiscount}
                     onChange={(e) => setMaxDiscount(e.target.value)}
                     placeholder="15"

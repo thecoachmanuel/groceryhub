@@ -2,14 +2,15 @@
 
 import Link from 'next/link';
 import { 
-  DollarSign, 
   ShoppingBag, 
   Package, 
   Barcode, 
   ArrowUpRight, 
-  Truck
+  Truck,
+  Wallet
 } from 'lucide-react';
 import SellerNav from '@/components/seller/SellerNav';
+import { formatNaira } from '@/lib/currency';
 
 export default function SellerDashboardPage() {
   return (
@@ -22,7 +23,7 @@ export default function SellerDashboardPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             <div className="bg-[#1e2632] border border-gray-800 p-5 rounded-2xl space-y-2">
               <span className="text-xs text-gray-400 font-bold">Today&apos;s Revenue</span>
-              <h3 className="text-2xl font-black text-white">$1,420.50</h3>
+              <h3 className="text-2xl font-black text-white font-mono">{formatNaira(142050)}</h3>
               <p className="text-[11px] text-[#0aad0a] font-semibold flex items-center gap-1">
                 <ArrowUpRight size={14} /> +22.4% from yesterday
               </p>
@@ -42,9 +43,9 @@ export default function SellerDashboardPage() {
 
             <div className="bg-[#1e2632] border border-gray-800 p-5 rounded-2xl space-y-2">
               <span className="text-xs text-gray-400 font-bold">Wallet Balance</span>
-              <h3 className="text-2xl font-black text-[#0aad0a]">$4,850.00</h3>
+              <h3 className="text-2xl font-black text-[#0aad0a] font-mono">{formatNaira(485000)}</h3>
               <Link href="/seller/earnings" className="text-[11px] text-amber-400 font-bold hover:underline block">
-                Request Payout Withdrawal →
+                Request Payout Withdrawal &rarr;
               </Link>
             </div>
           </div>
@@ -54,13 +55,13 @@ export default function SellerDashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-base font-black">Incoming Store Orders</h3>
-                <p className="text-xs text-gray-400">Online deliveries and POS counter transactions</p>
+                <p className="text-xs text-gray-400">Online deliveries and POS counter transactions in Nigeria</p>
               </div>
               <Link
                 href="/seller/orders"
                 className="text-xs font-bold text-[#0aad0a] hover:underline"
               >
-                View All Orders →
+                View All Orders &rarr;
               </Link>
             </div>
 
@@ -72,22 +73,22 @@ export default function SellerDashboardPage() {
                     <th className="pb-3 px-3">Type</th>
                     <th className="pb-3 px-3">Customer</th>
                     <th className="pb-3 px-3">Items</th>
-                    <th className="pb-3 px-3">Total</th>
+                    <th className="pb-3 px-3">Total (₦)</th>
                     <th className="pb-3 px-3">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-800/60 font-medium text-gray-300">
                   {[
-                    { id: 'ORD-98241', type: 'Online Delivery', user: 'Alex Johnson', items: '4 items', total: '$45.00', status: 'Out for Delivery', color: 'text-amber-400 bg-amber-950/30' },
-                    { id: 'POS-84291', type: 'POS In-Store', user: 'Walk-in Customer', items: '2 items', total: '$14.20', status: 'Completed', color: 'text-[#0aad0a] bg-emerald-950/30' },
-                    { id: 'ORD-98238', type: 'Online Delivery', user: 'Emma Davis', items: '6 items', total: '$62.10', status: 'Packed', color: 'text-blue-400 bg-blue-950/30' },
+                    { id: 'ORD-98241', type: 'Online Delivery', user: 'Alex Johnson', items: '4 items', total: formatNaira(45000), status: 'Out for Delivery', color: 'text-amber-400 bg-amber-950/30' },
+                    { id: 'POS-84291', type: 'POS In-Store', user: 'Walk-in Customer', items: '2 items', total: formatNaira(14200), status: 'Completed', color: 'text-[#0aad0a] bg-emerald-950/30' },
+                    { id: 'ORD-98238', type: 'Online Delivery', user: 'Chinedu Okafor', items: '6 items', total: formatNaira(62100), status: 'Packed', color: 'text-blue-400 bg-blue-950/30' },
                   ].map((r) => (
                     <tr key={r.id} className="hover:bg-gray-800/40">
                       <td className="py-3 px-3 font-bold text-white">{r.id}</td>
                       <td className="py-3 px-3">{r.type}</td>
                       <td className="py-3 px-3">{r.user}</td>
                       <td className="py-3 px-3">{r.items}</td>
-                      <td className="py-3 px-3 font-bold text-white">{r.total}</td>
+                      <td className="py-3 px-3 font-bold text-white font-mono">{r.total}</td>
                       <td className="py-3 px-3">
                         <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${r.color}`}>
                           ● {r.status}

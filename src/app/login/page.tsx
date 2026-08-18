@@ -3,59 +3,99 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ShoppingBag, Phone, Lock, ArrowRight, ShieldCheck, Mail } from 'lucide-react';
+import { ShoppingBag, Phone, Lock, ArrowRight, ShieldCheck, Mail, AlertCircle, CheckCircle2 } from 'lucide-react';
 import Header from '@/components/website/Header';
 import Footer from '@/components/website/Footer';
 import { useAuth } from '@/context/AuthContext';
 
 export default function CustomerLoginPage() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { loginSession } = useAuth();
 
-  const [authMode, setAuthMode] = useState<'otp' | 'password'>('otp');
-  const [mobile, setMobile] = useState('');
-  const [emailOrPhone, setEmailOrPhone] = useState('');
-  const [password, setPassword] = useState('');
+  const [authMode, setAuthMode] = useState<'password' | 'otp'>('password');
+  const [identifier, setIdentifier] = useState('customer@groceryhub.ng');
+  const [password, setPassword] = useState('CustomerPassword2026!');
   const [otp, setOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+
+  const handlePasswordLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg('');
+    if (!identifier || !password) {
+      return setErrorMsg('Please enter your email/mobile and password.');
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/user/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: identifier.includes('@') ? identifier : undefined,
+          mobile: !identifier.includes('@') ? identifier : undefined,
+          password,
+          auth_mode: 'password',
+        }),
+      });
+
+      const data = await res.json();
+      setLoading(false);
+
+      if (!res.ok || !data.success) {
+        return setErrorMsg(data.message || 'Login failed. Please check your credentials.');
+      }
+
+      loginSession(data.data.token, data.data.user);
+      router.push('/');
+    } catch (err: any) {
+      setLoading(false);
+      setErrorMsg('Network or server error. Please try again.');
+    }
+  };
 
   const handleSendOtp = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!mobile) return alert('Please enter your mobile number');
+    if (!identifier) return setErrorMsg('Please enter your mobile phone number.');
+    setErrorMsg('');
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
       setOtpSent(true);
-    }, 700);
+    }, 600);
   };
 
-  const handleVerifyOtp = (e: React.FormEvent) => {
+  const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setTimeout(() => {
-      login({
-        mobile,
-        name: 'Emma Davis',
-        email: 'emma.davis@example.com',
-      });
-      setLoading(false);
-      router.push('/');
-    }, 800);
-  };
+    setErrorMsg('');
+    if (!otp) return setErrorMsg('Please enter the 4-digit OTP code.');
 
-  const handlePasswordLogin = (e: React.FormEvent) => {
-    e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      login({
-        email: emailOrPhone.includes('@') ? emailOrPhone : 'customer@groceryhub.com',
-        mobile: !emailOrPhone.includes('@') ? emailOrPhone : '+1 (555) 234-5678',
-        name: emailOrPhone.split('@')[0] || 'Emma Davis',
+    try {
+      const res = await fetch('/api/auth/user/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mobile: identifier,
+          auth_mode: 'otp',
+          otp,
+        }),
       });
+
+      const data = await res.json();
       setLoading(false);
+
+      if (!res.ok || !data.success) {
+        return setErrorMsg(data.message || 'Invalid OTP code.');
+      }
+
+      loginSession(data.data.token, data.data.user);
       router.push('/');
-    }, 800);
+    } catch (err: any) {
+      setLoading(false);
+      setErrorMsg('Verification failed. Please try again.');
+    }
   };
 
   return (
@@ -68,9 +108,9 @@ export default function CustomerLoginPage() {
             <div className="w-12 h-12 rounded-2xl bg-[#0aad0a] text-white flex items-center justify-center mx-auto shadow-md shadow-[#0aad0a]/30">
               <ShoppingBag size={24} />
             </div>
-            <h1 className="text-2xl font-black text-gray-900 dark:text-white">Welcome Back</h1>
+            <h1 className="text-2xl font-black text-gray-900 dark:text-white">Customer Sign In</h1>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              Sign in to access your digital wallet, order tracking, and express checkout
+              Sign in with your registered GroceryHub account
             </p>
           </div>
 
@@ -78,19 +118,9 @@ export default function CustomerLoginPage() {
           <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-2xl text-xs font-bold">
             <button
               onClick={() => {
-                setAuthMode('otp');
-                setOtpSent(false);
+                setAuthMode('password');
+                setErrorMsg('');
               }}
-              className={`flex-1 py-2 rounded-xl transition-all ${
-                authMode === 'otp'
-                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                  : 'text-gray-500'
-              }`}
-            >
-              Instant Mobile OTP
-            </button>
-            <button
-              onClick={() => setAuthMode('password')}
               className={`flex-1 py-2 rounded-xl transition-all ${
                 authMode === 'password'
                   ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
@@ -99,80 +129,41 @@ export default function CustomerLoginPage() {
             >
               Password Login
             </button>
+            <button
+              onClick={() => {
+                setAuthMode('otp');
+                setOtpSent(false);
+                setErrorMsg('');
+              }}
+              className={`flex-1 py-2 rounded-xl transition-all ${
+                authMode === 'otp'
+                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-500'
+              }`}
+            >
+              Instant OTP Login
+            </button>
           </div>
 
-          {/* Form */}
-          {authMode === 'otp' ? (
-            !otpSent ? (
-              <form onSubmit={handleSendOtp} className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-700 dark:text-gray-300">Mobile Phone Number</label>
-                  <div className="relative">
-                    <input
-                      type="tel"
-                      value={mobile}
-                      onChange={(e) => setMobile(e.target.value)}
-                      placeholder="+1 (555) 000-0000"
-                      className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl py-3 pl-11 pr-4 text-xs font-bold focus:outline-none focus:border-[#0aad0a] dark:text-white"
-                      required
-                    />
-                    <Phone size={18} className="absolute left-4 top-3 text-gray-400" />
-                  </div>
-                </div>
+          {errorMsg && (
+            <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 p-3.5 rounded-2xl text-xs font-bold flex items-center gap-2">
+              <AlertCircle size={16} />
+              <span>{errorMsg}</span>
+            </div>
+          )}
 
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-[#0aad0a] hover:bg-[#088f08] disabled:opacity-50 text-white font-bold py-3.5 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-[#0aad0a]/30 transition-all active:scale-[0.98]"
-                >
-                  <span>{loading ? 'Sending OTP Code...' : 'Send Login OTP'}</span>
-                  <ArrowRight size={16} />
-                </button>
-              </form>
-            ) : (
-              <form onSubmit={handleVerifyOtp} className="space-y-4">
-                <div className="space-y-1.5">
-                  <div className="flex justify-between items-center text-xs">
-                    <label className="font-bold text-gray-700 dark:text-gray-300">Enter 4-Digit OTP</label>
-                    <button
-                      type="button"
-                      onClick={() => setOtpSent(false)}
-                      className="text-[#0aad0a] font-bold hover:underline"
-                    >
-                      Change Number
-                    </button>
-                  </div>
-                  <input
-                    type="text"
-                    maxLength={6}
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
-                    placeholder="• • • •"
-                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl py-3 px-4 text-center text-2xl tracking-widest font-black focus:outline-none focus:border-[#0aad0a] dark:text-white"
-                    required
-                  />
-                  <p className="text-[11px] text-gray-400 text-center mt-1">Sent code to {mobile}</p>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-[#0aad0a] hover:bg-[#088f08] disabled:opacity-50 text-white font-bold py-3.5 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-[#0aad0a]/30 transition-all active:scale-[0.98]"
-                >
-                  <span>{loading ? 'Verifying...' : 'Verify OTP & Sign In'}</span>
-                </button>
-              </form>
-            )
-          ) : (
+          {authMode === 'password' ? (
             <form onSubmit={handlePasswordLogin} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-700 dark:text-gray-300">Email or Mobile</label>
+                <label className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                  Email Address or Mobile Number
+                </label>
                 <div className="relative">
                   <input
                     type="text"
-                    value={emailOrPhone}
-                    onChange={(e) => setEmailOrPhone(e.target.value)}
-                    placeholder="emma.davis@example.com"
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
+                    placeholder="e.g. customer@groceryhub.ng"
                     className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl py-3 pl-11 pr-4 text-xs font-semibold focus:outline-none focus:border-[#0aad0a] dark:text-white"
                     required
                   />
@@ -181,10 +172,10 @@ export default function CustomerLoginPage() {
               </div>
 
               <div className="space-y-1.5">
-                <div className="flex justify-between items-center">
+                <div className="flex items-center justify-between">
                   <label className="text-xs font-bold text-gray-700 dark:text-gray-300">Password</label>
-                  <Link href="/forgot-password" className="text-[11px] text-[#0aad0a] font-bold hover:underline">
-                    Forgot Password?
+                  <Link href="/forgot-password" className="text-[11px] font-bold text-[#0aad0a] hover:underline">
+                    Forgot password?
                   </Link>
                 </div>
                 <div className="relative">
@@ -193,7 +184,7 @@ export default function CustomerLoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl py-3 pl-11 pr-4 text-xs focus:outline-none focus:border-[#0aad0a] dark:text-white"
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl py-3 pl-11 pr-4 text-xs font-semibold focus:outline-none focus:border-[#0aad0a] dark:text-white"
                     required
                   />
                   <Lock size={18} className="absolute left-4 top-3 text-gray-400" />
@@ -203,16 +194,79 @@ export default function CustomerLoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-[#0aad0a] hover:bg-[#088f08] disabled:opacity-50 text-white font-bold py-3.5 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-[#0aad0a]/30 transition-all active:scale-[0.98]"
+                className="w-full bg-[#0aad0a] hover:bg-[#088f08] disabled:opacity-50 text-white font-black py-3.5 px-6 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-[#0aad0a]/30 transition-all active:scale-[0.98] text-xs"
               >
-                <span>{loading ? 'Signing In...' : 'Sign In'}</span>
+                <span>{loading ? 'Authenticating...' : 'Sign In'}</span>
+                <ArrowRight size={16} />
               </button>
             </form>
+          ) : (
+            <div className="space-y-4">
+              {!otpSent ? (
+                <form onSubmit={handleSendOtp} className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                      Mobile Phone Number (+234)
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="tel"
+                        value={identifier}
+                        onChange={(e) => setIdentifier(e.target.value)}
+                        placeholder="+234 802 345 6789"
+                        className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl py-3 pl-11 pr-4 text-xs font-semibold focus:outline-none focus:border-[#0aad0a] dark:text-white"
+                        required
+                      />
+                      <Phone size={18} className="absolute left-4 top-3 text-gray-400" />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-[#0aad0a] hover:bg-[#088f08] disabled:opacity-50 text-white font-black py-3.5 px-6 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-[#0aad0a]/30 transition-all active:scale-[0.98] text-xs"
+                  >
+                    <span>{loading ? 'Sending OTP...' : 'Send Verification OTP'}</span>
+                    <ArrowRight size={16} />
+                  </button>
+                </form>
+              ) : (
+                <form onSubmit={handleVerifyOtp} className="space-y-4">
+                  <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-[#0aad0a]/40 rounded-2xl text-xs text-[#0aad0a] font-bold flex items-center gap-2">
+                    <CheckCircle2 size={16} />
+                    <span>OTP sent to {identifier}. (Demo code: 1234)</span>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                      Enter 4-Digit Code
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={4}
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value)}
+                      placeholder="1234"
+                      className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl py-3 px-4 text-center font-mono text-lg font-black tracking-widest focus:outline-none focus:border-[#0aad0a] dark:text-white"
+                      required
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-[#0aad0a] hover:bg-[#088f08] disabled:opacity-50 text-white font-black py-3.5 px-6 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-[#0aad0a]/30 transition-all active:scale-[0.98] text-xs"
+                  >
+                    <span>{loading ? 'Verifying...' : 'Verify OTP & Log In'}</span>
+                  </button>
+                </form>
+              )}
+            </div>
           )}
 
-          <div className="text-center text-xs text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-100 dark:border-gray-800">
-            Don't have an account?{' '}
-            <Link href="/register" className="text-[#0aad0a] font-bold hover:underline">
+          <div className="pt-2 text-center text-xs text-gray-500 dark:text-gray-400">
+            Don&apos;t have a registered account?{' '}
+            <Link href="/register" className="font-bold text-[#0aad0a] hover:underline">
               Create an Account
             </Link>
           </div>

@@ -6,6 +6,7 @@ import { User, MapPin, Plus, Trash2, Edit3, ArrowLeft, CheckCircle2, Home, Brief
 import Header from '@/components/website/Header';
 import Footer from '@/components/website/Footer';
 import { useAuth } from '@/context/AuthContext';
+import { formatNaira } from '@/lib/currency';
 
 interface SavedAddress {
   id: number;
@@ -20,16 +21,16 @@ interface SavedAddress {
 }
 
 const INITIAL_ADDRESSES: SavedAddress[] = [
-  { id: 1, type: 'Home', name: 'Emma Davis', mobile: '+1 (555) 234-5678', flat: 'Apt 4B, 5th Floor', area: '742 Evergreen Terrace, Downtown', city: 'New York', pincode: '10001', isDefault: true },
-  { id: 2, type: 'Work', name: 'Emma Davis', mobile: '+1 (555) 234-5678', flat: 'Floor 12, Office 1204', area: '500 5th Avenue, Midtown', city: 'New York', pincode: '10110', isDefault: false },
+  { id: 1, type: 'Home', name: 'Chinedu Okafor', mobile: '+234 802 345 6789', flat: 'Flat 4B, Oceanview Towers', area: 'Plot 14, Adeola Odeku St, Victoria Island', city: 'Lagos', pincode: '101241', isDefault: true },
+  { id: 2, type: 'Work', name: 'Chinedu Okafor', mobile: '+234 802 345 6789', flat: 'Suite 204, Tech Park', area: '12 Admiralty Way, Lekki Phase 1', city: 'Lagos', pincode: '105102', isDefault: false },
 ];
 
 export default function CustomerProfilePage() {
-  const { user, login, logout } = useAuth();
+  const { user, loginSession, logout } = useAuth();
 
-  const [name, setName] = useState(user?.name || 'Emma Davis');
-  const [email, setEmail] = useState(user?.email || 'emma.davis@example.com');
-  const [mobile, setMobile] = useState(user?.mobile || '+1 (555) 234-5678');
+  const [name, setName] = useState(user?.name || 'Chinedu Okafor');
+  const [email, setEmail] = useState(user?.email || 'customer@groceryhub.ng');
+  const [mobile, setMobile] = useState(user?.mobile || '+234 802 345 6789');
   const [addresses, setAddresses] = useState<SavedAddress[]>(INITIAL_ADDRESSES);
   const [showAddModal, setShowAddModal] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -46,17 +47,15 @@ export default function CustomerProfilePage() {
   const [modalType, setModalType] = useState<'Home' | 'Work' | 'Other'>('Home');
   const [modalFlat, setModalFlat] = useState('');
   const [modalArea, setModalArea] = useState('');
-  const [modalCity, setModalCity] = useState('New York');
-  const [modalPincode, setModalPincode] = useState('10001');
+  const [modalCity, setModalCity] = useState('Lagos');
+  const [modalPincode, setModalPincode] = useState('101241');
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
-    login({
-      ...user,
-      name,
-      email,
-      mobile,
-    });
+    if (user) {
+      const updated = { ...user, name, email, mobile };
+      loginSession(user.token || 'user_jwt', updated);
+    }
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 2500);
   };
@@ -97,10 +96,10 @@ export default function CustomerProfilePage() {
               <ArrowLeft size={14} /> Back to Store
             </Link>
             <h1 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white flex items-center gap-2">
-              <User size={28} className="text-[#0aad0a]" /> Account Profile & Address Book
+              <User size={28} className="text-[#0aad0a]" /> Account Profile &amp; Address Book
             </h1>
             <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-              Manage your personal contact details, saved delivery addresses, and referral rewards
+              Manage your personal contact details, saved Nigerian delivery addresses, and referral rewards
             </p>
           </div>
 
@@ -113,7 +112,7 @@ export default function CustomerProfilePage() {
           </button>
         </div>
 
-        {/* Quick User Stats Banner */}
+        {/* Quick User Stats Banner in Naira */}
         <div className="bg-gradient-to-r from-emerald-600 to-teal-700 rounded-3xl p-6 text-white shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-2xl bg-white/20 text-white font-black text-2xl flex items-center justify-center border border-white/20 shadow-md">
@@ -121,19 +120,19 @@ export default function CustomerProfilePage() {
             </div>
             <div>
               <h3 className="text-lg font-black">{name}</h3>
-              <p className="text-xs text-emerald-100">{email} • {mobile}</p>
+              <p className="text-xs text-emerald-100">{email} &bull; {mobile}</p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
             <div className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-2xl text-center border border-white/20">
               <span className="text-[10px] uppercase font-bold text-emerald-100 block">Digital Wallet</span>
-              <span className="font-black text-base text-amber-300">${(user?.walletBalance ?? 0).toFixed(2)}</span>
+              <span className="font-black text-base text-amber-300 font-mono">{formatNaira(user?.walletBalance ?? 15000)}</span>
             </div>
 
             <div className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-2xl text-center border border-white/20">
               <span className="text-[10px] uppercase font-bold text-emerald-100 block">Referral Code</span>
-              <span className="font-mono font-black text-xs text-white">{user?.referralCode || 'EMMA894'}</span>
+              <span className="font-mono font-black text-xs text-white">{user?.referralCode || 'GROCERY-CHINEDU'}</span>
             </div>
           </div>
         </div>
@@ -199,56 +198,44 @@ export default function CustomerProfilePage() {
                 onClick={() => setShowAddModal(true)}
                 className="bg-[#0aad0a] hover:bg-[#088f08] text-white text-xs font-black px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-md shadow-[#0aad0a]/20 transition-all active:scale-95"
               >
-                <Plus size={15} />
+                <Plus size={14} />
                 <span>Add New Address</span>
               </button>
             </div>
 
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {addresses.map((addr) => (
                 <div
                   key={addr.id}
-                  className={`bg-white dark:bg-[#1e2632] rounded-3xl p-5 border transition-all ${
-                    addr.isDefault
-                      ? 'border-[#0aad0a] shadow-md shadow-[#0aad0a]/10'
-                      : 'border-gray-100 dark:border-gray-800'
+                  className={`bg-white dark:bg-[#1e2632] border-2 rounded-3xl p-5 space-y-3 relative transition-all ${
+                    addr.isDefault ? 'border-[#0aad0a]' : 'border-gray-100 dark:border-gray-800'
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-black px-2.5 py-0.5 rounded-md bg-[#0aad0a]/10 text-[#0aad0a] flex items-center gap-1">
-                          {addr.type === 'Home' ? <Home size={12} /> : <Briefcase size={12} />}
-                          {addr.type}
-                        </span>
-                        {addr.isDefault && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-950/40 text-[#0aad0a]">
-                            ● Default Delivery Address
-                          </span>
-                        )}
-                      </div>
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-xs font-black text-gray-900 dark:text-white">
+                      {addr.type === 'Home' ? <Home size={14} className="text-[#0aad0a]" /> : <Briefcase size={14} className="text-blue-400" />}
+                      {addr.type}
+                    </span>
 
-                      <h4 className="font-bold text-sm text-gray-900 dark:text-white pt-1">{addr.flat}</h4>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">{addr.area}, {addr.city} - {addr.pincode}</p>
-                      <p className="text-xs text-gray-400 font-semibold">{addr.name} • {addr.mobile}</p>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      {!addr.isDefault && (
-                        <button
-                          onClick={() => handleSetDefault(addr.id)}
-                          className="text-xs font-bold text-gray-500 hover:text-[#0aad0a] border border-gray-200 dark:border-gray-700 px-3 py-1 rounded-lg"
-                        >
-                          Set as Default
-                        </button>
-                      )}
+                    {addr.isDefault ? (
+                      <span className="text-[10px] font-black bg-emerald-100 dark:bg-emerald-950/60 text-[#0aad0a] px-2 py-0.5 rounded-full">
+                        Default
+                      </span>
+                    ) : (
                       <button
-                        onClick={() => setAddresses(addresses.filter((a) => a.id !== addr.id))}
-                        className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-400 hover:text-red-400"
+                        onClick={() => handleSetDefault(addr.id)}
+                        className="text-[11px] text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 underline font-medium"
                       >
-                        <Trash2 size={15} />
+                        Set Default
                       </button>
-                    </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-1 text-xs text-gray-600 dark:text-gray-400">
+                    <div className="font-bold text-gray-900 dark:text-white">{addr.name}</div>
+                    <div>{addr.flat}, {addr.area}</div>
+                    <div>{addr.city} - {addr.pincode}</div>
+                    <div className="font-mono text-gray-500">{addr.mobile}</div>
                   </div>
                 </div>
               ))}
@@ -259,7 +246,7 @@ export default function CustomerProfilePage() {
 
       {/* Add Address Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white dark:bg-[#1e2632] w-full max-w-md rounded-3xl p-6 sm:p-8 border border-gray-100 dark:border-gray-800 space-y-6 relative shadow-2xl">
             <button
               onClick={() => setShowAddModal(false)}
@@ -268,36 +255,36 @@ export default function CustomerProfilePage() {
               <X size={20} />
             </button>
 
-            <h3 className="text-xl font-black text-gray-900 dark:text-white">Add Delivery Address</h3>
+            <div>
+              <h3 className="text-xl font-black text-gray-900 dark:text-white">Add Delivery Address</h3>
+              <p className="text-xs text-gray-400 mt-0.5">Save new residential or office address for fast 30-min delivery</p>
+            </div>
 
             <form onSubmit={handleAddAddress} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-700 dark:text-gray-300">Address Label</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(['Home', 'Work', 'Other'] as const).map((type) => (
-                    <button
-                      key={type}
-                      type="button"
-                      onClick={() => setModalType(type)}
-                      className={`py-2 rounded-xl text-xs font-bold border transition-all ${
-                        modalType === type
-                          ? 'border-[#0aad0a] bg-[#0aad0a]/10 text-[#0aad0a]'
-                          : 'border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300'
-                      }`}
-                    >
-                      {type}
-                    </button>
-                  ))}
-                </div>
+              <div className="grid grid-cols-3 gap-2">
+                {(['Home', 'Work', 'Other'] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setModalType(t)}
+                    className={`py-2 rounded-xl text-xs font-bold border transition-all ${
+                      modalType === t
+                        ? 'border-[#0aad0a] bg-[#0aad0a]/10 text-[#0aad0a]'
+                        : 'border-gray-200 dark:border-gray-700 text-gray-500'
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-700 dark:text-gray-300">Flat / House / Floor</label>
+                <label className="text-xs font-bold text-gray-700 dark:text-gray-300">House / Flat / Suite No.</label>
                 <input
                   type="text"
                   value={modalFlat}
                   onChange={(e) => setModalFlat(e.target.value)}
-                  placeholder="e.g. Apt 4B, 5th Floor"
+                  placeholder="e.g. Flat 4B, Oceanview Towers"
                   className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
                   required
                 />
@@ -309,7 +296,7 @@ export default function CustomerProfilePage() {
                   type="text"
                   value={modalArea}
                   onChange={(e) => setModalArea(e.target.value)}
-                  placeholder="e.g. 124 Market Square, Downtown"
+                  placeholder="e.g. Adeola Odeku St, Victoria Island"
                   className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
                   required
                 />
@@ -322,18 +309,19 @@ export default function CustomerProfilePage() {
                     type="text"
                     value={modalCity}
                     onChange={(e) => setModalCity(e.target.value)}
+                    placeholder="Lagos"
                     className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
                     required
                   />
                 </div>
-
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-700 dark:text-gray-300">Zip / Pincode</label>
+                  <label className="text-xs font-bold text-gray-700 dark:text-gray-300">Postal Code</label>
                   <input
                     type="text"
                     value={modalPincode}
                     onChange={(e) => setModalPincode(e.target.value)}
-                    className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
+                    placeholder="101241"
+                    className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl p-3 text-xs font-mono focus:outline-none focus:border-[#0aad0a]"
                     required
                   />
                 </div>
@@ -342,9 +330,9 @@ export default function CustomerProfilePage() {
               <div className="flex gap-3 pt-2">
                 <button
                   type="submit"
-                  className="flex-1 bg-[#0aad0a] hover:bg-[#088f08] text-white font-black py-3.5 rounded-xl text-xs shadow-lg shadow-[#0aad0a]/30"
+                  className="flex-1 bg-[#0aad0a] hover:bg-[#088f08] text-white font-black py-3.5 rounded-xl text-xs shadow-lg shadow-[#0aad0a]/30 transition-all active:scale-95"
                 >
-                  Save Delivery Address
+                  Save Address
                 </button>
                 <button
                   type="button"

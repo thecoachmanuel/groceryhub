@@ -17,77 +17,54 @@ export async function POST(req: NextRequest) {
       return apiError('Email/Mobile and password are required', 400);
     }
 
-    try {
-      await connectToDatabase();
-      const seller = await Seller.findOne({
-        $or: [{ email: identifier }, { mobile: identifier }],
-      }).select('+password');
+    await connectToDatabase();
 
-      if (seller) {
-        if (seller.status === 'suspended' || seller.status === 'rejected') {
-          return apiError(`Your store account is ${seller.status}. Contact support.`, 403);
-        }
+    const seller = await Seller.findOne({
+      $or: [{ email: identifier }, { mobile: identifier }],
+    }).select('+password');
 
-        const isMatch = seller.password ? await verifyPassword(password, seller.password) : password === 'vendor123';
-        if (isMatch) {
-          const token = generateToken({
-            id: seller.seller_id,
-            role: 'seller',
-            email: seller.email,
-            mobile: seller.mobile,
-          });
-
-          return apiSuccess(
-            {
-              token,
-              seller: {
-                id: seller.seller_id,
-                name: seller.name,
-                store_name: seller.store_name,
-                email: seller.email,
-                mobile: seller.mobile,
-                balance: seller.balance,
-                commission_rate: seller.commission_rate,
-                status: seller.status,
-              },
-            },
-            'Seller logged in successfully'
-          );
-        }
-      }
-    } catch (dbErr) {
-      console.warn('MongoDB query warning in seller login:', dbErr);
+    if (!seller) {
+      return apiError('Vendor account not found. Please register as a vendor partner first.', 404);
     }
 
-    // Demo fallback for Green Valley Organic Farms
-    if (identifier.includes('vendor') || identifier.includes('seller') || identifier.includes('green') || password === 'vendor123') {
-      const token = generateToken({
-        id: 1,
-        role: 'seller',
-        email: 'vendor@groceryhub.ng',
-        mobile: '+234 800 123 4567',
-      });
+    if (seller.status === 'suspended' || seller.status === 'rejected') {
+      return apiError(`Your vendor account status is '${seller.status}'. Please contact vendor support.`, 403);
+    }
 
-      return apiSuccess(
-        {
-          token,
-          seller: {
-            id: 1,
-            name: 'Green Valley Organic Farms',
-            store_name: 'Green Valley Organic Farms',
-            email: 'vendor@groceryhub.ng',
-            mobile: '+234 800 123 4567',
-            balance: 485000.00, // ₦485,000
-            commission_rate: 5,
-            status: 'approved',
-          },
+    if (!seller.password) {
+      return apiError('Password is not configured for this account. Please reset your password.', 401);
+    }
+
+    const isMatch = await verifyPassword(password, seller.password);
+    if (!isMatch) {
+      return apiError('Invalid vendor password. Please check your credentials and try again.', 401);
+    }
+
+    const token = generateToken({
+      id: seller.seller_id,
+      role: 'seller',
+      email: seller.email,
+      mobile: seller.mobile,
+    });
+
+    return apiSuccess(
+      {
+        token,
+        seller: {
+          id: seller.seller_id,
+          name: seller.name,
+          store_name: seller.store_name,
+          email: seller.email,
+          mobile: seller.mobile,
+          balance: seller.balance,
+          commission_rate: seller.commission_rate,
+          status: seller.status,
         },
-        'Seller logged in successfully'
-      );
-    }
-
-    return apiError('Invalid seller credentials', 401);
+      },
+      'Vendor authenticated successfully'
+    );
   } catch (error: any) {
-    return apiError(error?.message || 'Seller login failed', 500);
+    console.error('Seller login error:', error);
+    return apiError(error?.message || 'Vendor login failed', 500);
   }
 }

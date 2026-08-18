@@ -4,17 +4,17 @@ import Link from 'next/link';
 import { 
   Truck, 
   ShoppingBag, 
-  DollarSign, 
   MapPin, 
   Phone, 
   ArrowUpRight, 
   CheckCircle2, 
   Clock, 
-  Star,
-  Navigation,
-  ExternalLink
+  Star, 
+  Navigation, 
+  ExternalLink 
 } from 'lucide-react';
 import DeliveryNav from '@/components/delivery/DeliveryNav';
+import { formatNaira } from '@/lib/currency';
 
 export default function DeliveryDashboardPage() {
   return (
@@ -35,15 +35,15 @@ export default function DeliveryDashboardPage() {
 
             <div className="bg-[#1e2632] border border-gray-800 p-5 rounded-2xl space-y-2">
               <span className="text-xs text-gray-400 font-bold">Today&apos;s Trip Earnings</span>
-              <h3 className="text-2xl font-black text-[#0aad0a]">$64.50</h3>
-              <p className="text-[11px] text-gray-400">+$12.00 peak surge incentive</p>
+              <h3 className="text-2xl font-black text-[#0aad0a] font-mono">{formatNaira(64500)}</h3>
+              <p className="text-[11px] text-gray-400">+{formatNaira(12000)} peak surge incentive</p>
             </div>
 
             <div className="bg-[#1e2632] border border-gray-800 p-5 rounded-2xl space-y-2">
               <span className="text-xs text-gray-400 font-bold">Cash in Hand (COD to Remit)</span>
-              <h3 className="text-2xl font-black text-amber-400">$103.50</h3>
+              <h3 className="text-2xl font-black text-amber-400 font-mono">{formatNaira(103500)}</h3>
               <Link href="/delivery/earnings" className="text-[11px] text-amber-300 font-bold hover:underline block">
-                Deposit to Store Counter →
+                Deposit to Store Counter &rarr;
               </Link>
             </div>
 
@@ -66,15 +66,15 @@ export default function DeliveryDashboardPage() {
                   </span>
                   <span className="text-xs font-mono font-bold text-white">#ORD-98241</span>
                 </div>
-                <h3 className="text-xl font-black text-white">Alex Johnson (Apt 4B)</h3>
+                <h3 className="text-xl font-black text-white">Alex Johnson (Flat 4B)</h3>
                 <p className="text-xs text-gray-300 flex items-center gap-1">
-                  <MapPin size={14} className="text-[#0aad0a]" /> 124 Market Square, Downtown Zone (1.2 km away)
+                  <MapPin size={14} className="text-[#0aad0a]" /> Plot 14, Adeola Odeku St, Victoria Island (1.2 km away)
                 </p>
               </div>
 
               <div className="flex items-center gap-3">
                 <a
-                  href="tel:+15559876543"
+                  href="tel:+2348023456789"
                   className="bg-gray-800 hover:bg-gray-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition-colors"
                 >
                   <Phone size={14} /> Call Customer
@@ -93,7 +93,7 @@ export default function DeliveryDashboardPage() {
             <div className="bg-gray-900/80 rounded-2xl p-4 border border-gray-800 grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
               <div>
                 <span className="text-gray-400 block font-semibold">Store Pickup</span>
-                <strong className="text-white">Green Valley Organic Farms</strong>
+                <strong className="text-white">Green Valley Organic Farms (Epe)</strong>
               </div>
               <div>
                 <span className="text-gray-400 block font-semibold">Order Items</span>
@@ -101,7 +101,7 @@ export default function DeliveryDashboardPage() {
               </div>
               <div>
                 <span className="text-gray-400 block font-semibold">Payment Mode</span>
-                <strong className="text-[#0aad0a]">Online Paid ($45.00)</strong>
+                <strong className="text-[#0aad0a]">Online Paid ({formatNaira(45000)})</strong>
               </div>
             </div>
 
@@ -111,7 +111,7 @@ export default function DeliveryDashboardPage() {
                 className="bg-white text-gray-900 hover:bg-gray-100 font-black px-6 py-3 rounded-xl text-xs flex items-center gap-2 transition-all active:scale-95"
               >
                 <CheckCircle2 size={16} className="text-[#0aad0a]" />
-                <span>Mark Delivered & Verify OTP</span>
+                <span>Mark Delivered &amp; Verify OTP</span>
               </Link>
             </div>
           </div>
@@ -121,10 +121,10 @@ export default function DeliveryDashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-base font-black">Today&apos;s Run Manifest</h3>
-                <p className="text-xs text-gray-400">Assigned customer grocery drop-offs and completed deliveries</p>
+                <p className="text-xs text-gray-400">Assigned customer grocery drop-offs and completed deliveries in Lagos</p>
               </div>
               <Link href="/delivery/orders" className="text-xs font-bold text-[#0aad0a] hover:underline">
-                View All Deliveries →
+                View All Deliveries &rarr;
               </Link>
             </div>
 
@@ -133,7 +133,7 @@ export default function DeliveryDashboardPage() {
                 <thead className="border-b border-gray-800 text-gray-400 font-bold uppercase tracking-wider">
                   <tr>
                     <th className="pb-3 px-3">Order</th>
-                    <th className="pb-3 px-3">Customer & Address</th>
+                    <th className="pb-3 px-3">Customer &amp; Address</th>
                     <th className="pb-3 px-3">Pickup Store</th>
                     <th className="pb-3 px-3">Payment</th>
                     <th className="pb-3 px-3">Rider Fee</th>
@@ -142,19 +142,19 @@ export default function DeliveryDashboardPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-800/60 font-medium text-gray-300">
                   {[
-                    { id: 'ORD-98241', customer: 'Alex Johnson', addr: '124 Market Square', store: 'Green Valley Farms', pay: 'Online ($45.00)', fee: '$4.50', status: 'Out for Delivery', color: 'text-amber-400 bg-amber-950/40' },
-                    { id: 'ORD-98240', customer: 'Michael Scott', addr: '1725 Slough Ave', store: 'Daily Dairy Fresh', pay: 'COD ($28.50)', fee: '$3.50', status: 'Assigned', color: 'text-blue-400 bg-blue-950/40' },
-                    { id: 'ORD-98235', customer: 'Emma Davis', addr: '820 5th Avenue', store: 'Artisanal Bakery', pay: 'Online ($62.10)', fee: '$5.50', status: 'Delivered', color: 'text-[#0aad0a] bg-emerald-950/40' },
+                    { id: 'ORD-98241', customer: 'Alex Johnson', addr: 'Adeola Odeku, Victoria Island', store: 'Green Valley Farms', pay: `Online (${formatNaira(45000)})`, fee: formatNaira(1500), status: 'Out for Delivery', color: 'text-amber-400 bg-amber-950/40' },
+                    { id: 'ORD-98240', customer: 'Michael Scott', addr: 'Admiralty Way, Lekki Phase 1', store: 'Daily Dairy Fresh', pay: `COD (${formatNaira(28500)})`, fee: formatNaira(1200), status: 'Assigned', color: 'text-blue-400 bg-blue-950/40' },
+                    { id: 'ORD-98235', customer: 'Chinedu Okafor', addr: 'Oceanview Towers, VI', store: 'Artisanal Bakery', pay: `Online (${formatNaira(62100)})`, fee: formatNaira(2000), status: 'Delivered', color: 'text-[#0aad0a] bg-emerald-950/40' },
                   ].map((r) => (
                     <tr key={r.id} className="hover:bg-gray-800/40">
-                      <td className="py-3.5 px-3 font-bold text-white">{r.id}</td>
+                      <td className="py-3.5 px-3 font-bold text-white font-mono">{r.id}</td>
                       <td className="py-3.5 px-3">
                         <span className="text-white block font-semibold">{r.customer}</span>
                         <span className="text-gray-400 text-[11px]">{r.addr}</span>
                       </td>
                       <td className="py-3.5 px-3 text-gray-300">{r.store}</td>
                       <td className="py-3.5 px-3 font-bold text-white">{r.pay}</td>
-                      <td className="py-3.5 px-3 font-black text-[#0aad0a]">+{r.fee}</td>
+                      <td className="py-3.5 px-3 font-black text-[#0aad0a] font-mono">+{r.fee}</td>
                       <td className="py-3.5 px-3">
                         <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${r.color}`}>
                           ● {r.status}

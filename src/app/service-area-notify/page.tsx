@@ -44,40 +44,40 @@ export default function ServiceAreaNotifyPage() {
             </div>
             <h1 className="text-2xl sm:text-3xl font-black">Is GroceryHub in Your Area?</h1>
             <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-              We are constantly onboarding certified local farms and opening new 30-minute delivery zones. Tell us your location and get a <strong>$10 free grocery voucher</strong> when we launch in your zip code!
+              We are constantly onboarding certified local farms and opening new 30-minute delivery zones across Nigeria. Tell us your location and get a <strong>₦5,000 free grocery voucher</strong> when we launch in your area!
             </p>
           </div>
 
           {isSubmitted ? (
             <div className="bg-emerald-50 dark:bg-emerald-950/60 border border-[#0aad0a]/40 text-[#0aad0a] p-6 rounded-2xl space-y-2 text-center animate-fade-in">
               <CheckCircle2 size={36} className="mx-auto" />
-              <h3 className="font-black text-base">You're on the Priority Launch List!</h3>
+              <h3 className="font-black text-base">You&apos;re on the Priority Launch List!</h3>
               <p className="text-xs text-gray-600 dark:text-gray-300">
-                We've noted <strong>{city} ({zipCode})</strong>. We will notify you immediately when delivery launches with your $10 welcome bonus coupon code.
+                We&apos;ve noted <strong>{city} ({zipCode})</strong>. We will notify you immediately when delivery launches with your ₦5,000 welcome bonus coupon code.
               </p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-700 dark:text-gray-300">City / Municipality</label>
+                  <label className="text-xs font-bold text-gray-700 dark:text-gray-300">City / State</label>
                   <input
                     type="text"
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
-                    placeholder="e.g. Jersey City"
+                    placeholder="e.g. Lekki, Lagos"
                     className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a] dark:text-white"
                     required
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-700 dark:text-gray-300">Postal / Zip Code</label>
+                  <label className="text-xs font-bold text-gray-700 dark:text-gray-300">Area / Postal Code</label>
                   <input
                     type="text"
                     value={zipCode}
                     onChange={(e) => setZipCode(e.target.value)}
-                    placeholder="e.g. 07302"
+                    placeholder="e.g. 101233"
                     className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a] dark:text-white"
                     required
                   />
@@ -90,7 +90,7 @@ export default function ServiceAreaNotifyPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="your.email@example.com"
+                  placeholder="your.email@example.ng"
                   className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a] dark:text-white"
                 />
               </div>
@@ -101,7 +101,7 @@ export default function ServiceAreaNotifyPage() {
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+1 (555) 000-0000"
+                  placeholder="+234 800 000 0000"
                   className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a] dark:text-white"
                 />
               </div>
@@ -111,7 +111,7 @@ export default function ServiceAreaNotifyPage() {
                 className="w-full bg-[#0aad0a] hover:bg-[#088f08] text-white font-black py-3.5 rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-[#0aad0a]/30 transition-all active:scale-95"
               >
                 <Bell size={16} />
-                <span>Notify Me & Claim $10 Credit</span>
+                <span>Notify Me &amp; Claim ₦5,000 Credit</span>
               </button>
             </form>
           )}

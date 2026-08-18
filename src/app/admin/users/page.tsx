@@ -3,12 +3,13 @@
 import { useState } from 'react';
 import { Users, Search, Wallet, DollarSign, ShieldAlert, CheckCircle2, X } from 'lucide-react';
 import AdminSidebar from '@/components/admin/AdminSidebar';
+import { formatNaira } from '@/lib/currency';
 
 const INITIAL_USERS = [
-  { id: 1, name: 'Alice Johnson', email: 'alice@example.com', mobile: '+1 (555) 987-6543', walletBalance: 24.50, ordersCount: 14, status: 'Active', joined: 'Jan 12, 2026' },
-  { id: 2, name: 'Michael Scott', email: 'michael@dundermifflin.com', mobile: '+1 (555) 876-5432', walletBalance: 12.00, ordersCount: 8, status: 'Active', joined: 'Feb 04, 2026' },
-  { id: 3, name: 'Eleanor Shellstrop', email: 'eleanor@goodplace.org', mobile: '+1 (555) 765-4321', walletBalance: 0.00, ordersCount: 5, status: 'Active', joined: 'Mar 18, 2026' },
-  { id: 4, name: 'Dwight Schrute', email: 'dwight@beetfarm.com', mobile: '+1 (555) 654-3210', walletBalance: 85.00, ordersCount: 22, status: 'Active', joined: 'Jan 02, 2026' },
+  { id: 1, name: 'Alice Johnson', email: 'alice@example.com', mobile: '+234 802 987 6543', walletBalance: 24500.00, ordersCount: 14, status: 'Active', joined: 'Jan 12, 2026' },
+  { id: 2, name: 'Michael Scott', email: 'michael@dundermifflin.com', mobile: '+234 803 876 5432', walletBalance: 12000.00, ordersCount: 8, status: 'Active', joined: 'Feb 04, 2026' },
+  { id: 3, name: 'Eleanor Shellstrop', email: 'eleanor@goodplace.org', mobile: '+234 805 765 4321', walletBalance: 0.00, ordersCount: 5, status: 'Active', joined: 'Mar 18, 2026' },
+  { id: 4, name: 'Chinedu Okafor', email: 'chinedu@example.ng', mobile: '+234 809 654 3210', walletBalance: 85000.00, ordersCount: 22, status: 'Active', joined: 'Jan 02, 2026' },
 ];
 
 export default function AdminUsersPage() {
@@ -23,7 +24,7 @@ export default function AdminUsersPage() {
     e.preventDefault();
     if (!selectedUserForWallet) return;
     const amount = parseFloat(walletAmount || '0');
-    if (amount <= 0) return alert('Please enter a valid positive amount');
+    if (amount <= 0) return alert('Please enter a valid positive amount in Naira');
 
     setUsers((prev) =>
       prev.map((u) => {
@@ -59,9 +60,9 @@ export default function AdminUsersPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-black flex items-center gap-2">
-              <Users size={24} className="text-[#0aad0a]" /> Customer Accounts & Digital Wallets
+              <Users size={24} className="text-[#0aad0a]" /> Customer Directory &amp; Wallet Ledgers
             </h1>
-            <p className="text-xs text-gray-400 mt-0.5">Manage registered buyers, order records, security states, and wallet credits</p>
+            <p className="text-xs text-gray-400 mt-0.5">Manage customer account access, grant wallet credits in Naira (₦), and inspect transaction history</p>
           </div>
         </div>
 
@@ -72,7 +73,7 @@ export default function AdminUsersPage() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search customer name, email, or mobile number..."
+              placeholder="Search by name, email, or mobile..."
               className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl py-2 pl-9 pr-3 text-xs focus:outline-none focus:border-[#0aad0a]"
             />
             <Search size={16} className="absolute left-3 top-2.5 text-gray-400" />
@@ -105,11 +106,11 @@ export default function AdminUsersPage() {
                     <td className="py-3.5 px-3">
                       <div>
                         <span className="text-white block">{u.email}</span>
-                        <span className="text-gray-400 text-[11px]">{u.mobile}</span>
+                        <span className="text-gray-400 text-[11px] font-mono">{u.mobile}</span>
                       </div>
                     </td>
-                    <td className="py-3.5 px-3 font-bold text-[#0aad0a]">
-                      ${u.walletBalance.toFixed(2)}
+                    <td className="py-3.5 px-3 font-bold text-[#0aad0a] font-mono">
+                      {formatNaira(u.walletBalance)}
                     </td>
                     <td className="py-3.5 px-3 font-bold text-white">{u.ordersCount} orders</td>
                     <td className="py-3.5 px-3">
@@ -162,7 +163,7 @@ export default function AdminUsersPage() {
             <div className="space-y-1">
               <h3 className="text-xl font-black">Adjust Customer Wallet</h3>
               <p className="text-xs text-gray-400">
-                Customer: <strong className="text-white">{selectedUserForWallet.name}</strong> (Current: ${selectedUserForWallet.walletBalance.toFixed(2)})
+                Customer: <strong className="text-white">{selectedUserForWallet.name}</strong> (Current: {formatNaira(selectedUserForWallet.walletBalance)})
               </p>
             </div>
 
@@ -181,43 +182,44 @@ export default function AdminUsersPage() {
                   type="button"
                   onClick={() => setWalletType('debit')}
                   className={`py-2 rounded-lg text-xs font-bold transition-all ${
-                    walletType === 'debit' ? 'bg-red-600 text-white shadow-sm' : 'text-gray-400'
+                    walletType === 'debit' ? 'bg-red-500 text-white shadow-sm' : 'text-gray-400'
                   }`}
                 >
-                  - Deduct Balance
+                  - Debit Funds
                 </button>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-300">Amount ($)</label>
+                <label className="text-xs font-bold text-gray-300">Amount (₦)</label>
                 <input
                   type="number"
-                  step="0.01"
+                  step="100"
                   value={walletAmount}
                   onChange={(e) => setWalletAmount(e.target.value)}
-                  placeholder="25.00"
-                  className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
+                  placeholder="e.g. 5000"
+                  className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs font-mono font-bold focus:outline-none focus:border-[#0aad0a]"
                   required
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-300">Reason / Remark</label>
+                <label className="text-xs font-bold text-gray-300">Adjustment Note / Reference</label>
                 <input
                   type="text"
                   value={walletRemark}
                   onChange={(e) => setWalletRemark(e.target.value)}
-                  placeholder="e.g. Promotional cashback / Courtesy refund"
+                  placeholder="e.g. Compensation for delayed order #ORD-98241"
                   className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
+                  required
                 />
               </div>
 
               <div className="flex gap-3 pt-2">
                 <button
                   type="submit"
-                  className="flex-1 bg-[#0aad0a] hover:bg-[#088f08] text-white font-black py-3.5 rounded-xl text-xs shadow-lg shadow-[#0aad0a]/30"
+                  className="flex-1 bg-[#0aad0a] hover:bg-[#088f08] text-white font-black py-3.5 rounded-xl text-xs shadow-lg shadow-[#0aad0a]/30 transition-all"
                 >
-                  Apply Wallet Adjustment
+                  Apply {walletType === 'credit' ? 'Credit' : 'Debit'}
                 </button>
                 <button
                   type="button"

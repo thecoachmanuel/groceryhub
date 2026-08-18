@@ -4,22 +4,23 @@ import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { 
-  Sparkles, 
-  Send, 
-  Leaf, 
-  HeartPulse, 
-  Apple, 
-  ShieldCheck, 
-  ShoppingCart, 
   Bot, 
-  User, 
-  ArrowRight,
-  Flame,
-  CheckCircle2
+  Send, 
+  Sparkles, 
+  ShoppingCart, 
+  ArrowLeft, 
+  CheckCircle2, 
+  Heart, 
+  Zap, 
+  Flame, 
+  ShieldCheck,
+  User,
+  ShoppingBag
 } from 'lucide-react';
 import Header from '@/components/website/Header';
 import Footer from '@/components/website/Footer';
 import CartDrawer, { CartItem } from '@/components/website/CartDrawer';
+import { formatNaira } from '@/lib/currency';
 
 interface SuggestedProduct {
   id: number;
@@ -49,29 +50,29 @@ const KNOWLEDGE_BASE: Record<string, { reply: string; products: SuggestedProduct
   protein: {
     reply: "For optimal muscle recovery and daily energy, focus on lean bioavailable proteins, whole dairy, and nutrient-dense greens:",
     products: [
-      { id: 3, name: 'Farm Fresh Pure Whole Milk', category: 'Dairy & Eggs', price: 3.89, image: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=200', benefit: '8g protein per cup with essential calcium' },
-      { id: 1, name: 'Fresh Organic Farm Broccoli', category: 'Vegetables', price: 3.49, image: 'https://images.unsplash.com/photo-1459411621453-7b03977f4bfc?w=200', benefit: 'Rich in amino acids and fiber' },
+      { id: 3, name: 'Farm Fresh Pure Whole Milk', category: 'Dairy & Eggs', price: 3800, image: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=200', benefit: '8g protein per cup with essential calcium' },
+      { id: 1, name: 'Fresh Organic Farm Broccoli', category: 'Vegetables', price: 3500, image: 'https://images.unsplash.com/photo-1459411621453-7b03977f4bfc?w=200', benefit: 'Rich in amino acids and dietary fiber' },
     ],
   },
   vitamin: {
     reply: "To strengthen immune defense and collagen synthesis, incorporate natural citrus, fresh apples, and dark leafy greens:",
     products: [
-      { id: 2, name: 'Red Sweet Crisp Apples (Washington)', category: 'Fruits', price: 4.29, image: 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=200', benefit: 'Rich in Vitamin C and natural antioxidants' },
-      { id: 5, name: 'Fresh Ripe Hass Avocados (Pack of 3)', category: 'Vegetables', price: 4.99, image: 'https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?w=200', benefit: 'Heart-healthy monounsaturated fats & Vitamin E' },
+      { id: 2, name: 'Red Sweet Crisp Apples (1kg Pack)', category: 'Fruits', price: 4500, image: 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=200', benefit: 'Rich in Vitamin C and natural antioxidants' },
+      { id: 5, name: 'Fresh Ripe Hass Avocados (Pack of 4)', category: 'Vegetables', price: 3800, image: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=200', benefit: 'Heart-healthy monounsaturated fats & Vitamin E' },
     ],
   },
   keto: {
     reply: "For a ketogenic lifestyle, prioritize healthy dietary fats, high-fiber avocados, and crisp zero-sugar vegetables:",
     products: [
-      { id: 5, name: 'Fresh Ripe Hass Avocados (Pack of 3)', category: 'Vegetables', price: 4.99, image: 'https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?w=200', benefit: 'Only 2g net carbs with high healthy fats' },
-      { id: 1, name: 'Fresh Organic Farm Broccoli', category: 'Vegetables', price: 3.49, image: 'https://images.unsplash.com/photo-1459411621453-7b03977f4bfc?w=200', benefit: 'High in sulforaphane and keto-friendly fiber' },
+      { id: 5, name: 'Fresh Ripe Hass Avocados (Pack of 4)', category: 'Vegetables', price: 3800, image: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=200', benefit: 'Only 2g net carbs with high healthy fats' },
+      { id: 1, name: 'Fresh Organic Farm Broccoli', category: 'Vegetables', price: 3500, image: 'https://images.unsplash.com/photo-1459411621453-7b03977f4bfc?w=200', benefit: 'High in sulforaphane and keto-friendly fiber' },
     ],
   },
   iron: {
     reply: "Iron deficiency can cause chronic fatigue. Boost your red blood cell count with dark cruciferous veggies and whole farm essentials:",
     products: [
-      { id: 1, name: 'Fresh Organic Farm Broccoli', category: 'Vegetables', price: 3.49, image: 'https://images.unsplash.com/photo-1459411621453-7b03977f4bfc?w=200', benefit: 'Plant-based non-heme iron and folate' },
-      { id: 2, name: 'Red Sweet Crisp Apples (Washington)', category: 'Fruits', price: 4.29, image: 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=200', benefit: 'Vitamin C synergistically accelerates iron absorption' },
+      { id: 1, name: 'Fresh Organic Farm Broccoli', category: 'Vegetables', price: 3500, image: 'https://images.unsplash.com/photo-1459411621453-7b03977f4bfc?w=200', benefit: 'Plant-based non-heme iron and folate' },
+      { id: 2, name: 'Red Sweet Crisp Apples (1kg Pack)', category: 'Fruits', price: 4500, image: 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=200', benefit: 'Vitamin C synergistically accelerates iron absorption' },
     ],
   },
 };
@@ -84,7 +85,7 @@ export default function NutriGuidePage() {
     {
       id: 1,
       sender: 'ai',
-      text: "👋 Hello! I am **NutriGuide**, your AI Nutrition & Meal Planning Assistant. Ask me about nutritional deficiencies, healthy grocery lists, or dietary goals!",
+      text: "👋 Hello! I am **NutriGuide**, your AI Nutrition & Meal Planning Assistant. Ask me about nutritional deficiencies, healthy grocery lists, or dietary goals in Nigeria!",
       time: 'Just now',
     },
   ]);
@@ -133,7 +134,7 @@ export default function NutriGuidePage() {
 
       setMessages((prev) => [...prev, aiMsg]);
       setIsThinking(false);
-    }, 900);
+    }, 800);
   };
 
   const handleAddToCart = (product: SuggestedProduct) => {
@@ -141,59 +142,70 @@ export default function NutriGuidePage() {
       const existing = prev.find((item) => item.product_id === product.id);
       if (existing) {
         return prev.map((item) =>
-          item.product_id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
+          item.product_id === product.id ? { ...item, quantity: item.quantity + 1 } : item
         );
       }
-      const newItem: CartItem = {
-        id: Date.now(),
-        product_id: product.id,
-        variant_id: product.id,
-        name: product.name,
-        variant_title: '500g Pack',
-        image: product.image,
-        price: product.price,
-        quantity: 1,
-      };
-      return [...prev, newItem];
+      return [
+        ...prev,
+        {
+          id: Date.now(),
+          product_id: product.id,
+          variant_id: 1,
+          name: product.name,
+          variant_title: 'Standard Pack',
+          image: product.image,
+          price: product.price,
+          quantity: 1,
+        },
+      ];
     });
 
     setAddedItemName(product.name);
-    setTimeout(() => setAddedItemName(''), 2500);
+    setTimeout(() => setAddedItemName(''), 3000);
   };
 
-  const totalCartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
-
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#121820] text-gray-900 dark:text-white flex flex-col justify-between">
-      <Header cartCount={totalCartCount} onOpenCart={() => setIsCartOpen(true)} />
+    <div className="min-h-screen flex flex-col justify-between bg-gray-50 dark:bg-[#121820] text-gray-900 dark:text-white">
+      <Header
+        cartCount={cartItems.reduce((acc, item) => acc + item.quantity, 0)}
+        onOpenCart={() => setIsCartOpen(true)}
+      />
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 w-full space-y-6">
-        {/* Header Title */}
-        <div className="bg-gradient-to-r from-emerald-600 to-teal-700 rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-xs font-black">
-              <Sparkles size={14} /> AI Powered Health & Nutrition
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full space-y-6 flex-1 flex flex-col">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-2 text-xs font-bold text-gray-500">
+          <Link href="/" className="hover:text-[#0aad0a] flex items-center gap-1">
+            <ArrowLeft size={14} /> Back to Store
+          </Link>
+          <span>/</span>
+          <span className="text-gray-900 dark:text-white">NutriGuide AI Nutritionist</span>
+        </div>
+
+        {/* Hero Banner */}
+        <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-800 rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-col sm:flex-row items-center justify-between gap-6 relative overflow-hidden">
+          <div className="space-y-2 z-10">
+            <div className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider">
+              <Sparkles size={13} className="text-amber-300" />
+              <span>Smart Nutritionist Assistant</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black">NutriGuide Assistant</h1>
-            <p className="text-xs sm:text-sm text-emerald-100 max-w-lg leading-relaxed">
-              Get personalized meal recommendations, discover nutrient-rich produce, and add verified groceries directly to your cart.
+            <h1 className="text-2xl sm:text-3xl font-black">NutriGuide AI Meal Planner</h1>
+            <p className="text-xs sm:text-sm text-emerald-100 max-w-lg">
+              Get personalized grocery lists matching your wellness goals, vitamin deficiencies, and diet preferences in Naira (₦).
             </p>
           </div>
 
-          <div className="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center flex-shrink-0 border border-white/20">
-            <HeartPulse size={36} className="text-white animate-pulse" />
+          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white shrink-0 shadow-lg">
+            <Bot size={40} />
           </div>
         </div>
 
-        {/* Quick Suggestion Chips */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+        {/* Quick Topic Chips */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
           {PRESET_TOPICS.map((topic, idx) => (
             <button
               key={idx}
               onClick={() => handleSendMessage(topic.query)}
-              className="bg-white dark:bg-[#1e2632] border border-gray-200 dark:border-gray-800 hover:border-[#0aad0a] text-xs font-bold px-4 py-2 rounded-xl transition-all whitespace-nowrap shadow-sm active:scale-95"
+              className="bg-white dark:bg-[#1e2632] hover:bg-[#0aad0a] hover:text-white dark:hover:bg-[#0aad0a] border border-gray-200 dark:border-gray-800 px-4 py-2.5 rounded-2xl font-bold whitespace-nowrap transition-all shadow-sm active:scale-95 text-gray-700 dark:text-gray-200"
             >
               {topic.label}
             </button>
@@ -201,46 +213,52 @@ export default function NutriGuidePage() {
         </div>
 
         {addedItemName && (
-          <div className="bg-emerald-950/60 border border-[#0aad0a]/40 text-[#0aad0a] text-xs font-bold p-3 rounded-2xl flex items-center gap-2 animate-fade-in shadow-md">
-            <CheckCircle2 size={16} /> Added <strong>{addedItemName}</strong> to your checkout cart!
+          <div className="bg-emerald-50 dark:bg-emerald-950/60 border border-[#0aad0a]/40 text-[#0aad0a] p-3 rounded-2xl text-xs font-bold flex items-center justify-between animate-fade-in">
+            <span className="flex items-center gap-2">
+              <CheckCircle2 size={16} /> Added &quot;{addedItemName}&quot; to your grocery cart!
+            </span>
+            <button
+              onClick={() => setIsCartOpen(true)}
+              className="underline hover:text-emerald-700 dark:hover:text-emerald-300"
+            >
+              View Cart
+            </button>
           </div>
         )}
 
-        {/* Chat Stream */}
-        <div className="bg-white dark:bg-[#1e2632] border border-gray-200 dark:border-gray-800 rounded-3xl p-6 space-y-6 min-h-[420px] shadow-sm">
+        {/* Chat History Box */}
+        <div className="flex-1 bg-white dark:bg-[#1e2632] border border-gray-200 dark:border-gray-800 rounded-3xl p-4 sm:p-6 shadow-sm overflow-y-auto space-y-4 max-h-[500px] min-h-[350px]">
           {messages.map((m) => (
             <div
               key={m.id}
-              className={`flex items-start gap-3 ${
-                m.sender === 'user' ? 'flex-row-reverse' : ''
-              }`}
+              className={`flex items-start gap-3 ${m.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
             >
               <div
                 className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md ${
-                  m.sender === 'user'
-                    ? 'bg-gray-800 text-white'
-                    : 'bg-[#0aad0a] text-white'
+                  m.sender === 'ai'
+                    ? 'bg-[#0aad0a] text-white'
+                    : 'bg-gray-800 text-white'
                 }`}
               >
-                {m.sender === 'user' ? <User size={18} /> : <Bot size={18} />}
+                {m.sender === 'ai' ? <Bot size={18} /> : <User size={18} />}
               </div>
 
               <div
-                className={`space-y-3 max-w-xl ${
-                  m.sender === 'user' ? 'items-end' : ''
+                className={`max-w-[85%] space-y-2 ${
+                  m.sender === 'user' ? 'items-end text-right' : 'items-start text-left'
                 }`}
               >
                 <div
                   className={`p-4 rounded-2xl text-xs sm:text-sm leading-relaxed ${
                     m.sender === 'user'
                       ? 'bg-[#0aad0a] text-white rounded-tr-none'
-                      : 'bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-800 dark:text-gray-200 rounded-tl-none'
+                      : 'bg-gray-100 dark:bg-gray-800/80 text-gray-800 dark:text-gray-100 rounded-tl-none border border-gray-200 dark:border-gray-700'
                   }`}
                 >
                   <p className="whitespace-pre-line">{m.text}</p>
                 </div>
 
-                {/* Attached Product Recommendations */}
+                {/* Attached Product Recommendations in Naira */}
                 {m.products && m.products.length > 0 && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                     {m.products.map((p) => (
@@ -256,8 +274,8 @@ export default function NutriGuidePage() {
                           <h4 className="font-bold text-xs text-gray-900 dark:text-white truncate">
                             {p.name}
                           </h4>
-                          <span className="text-[11px] text-[#0aad0a] font-semibold block">
-                            ${p.price.toFixed(2)}
+                          <span className="text-[11px] text-[#0aad0a] font-mono font-black block">
+                            {formatNaira(p.price)}
                           </span>
                           <span className="text-[10px] text-gray-500 dark:text-gray-400 block truncate">
                             {p.benefit}
@@ -304,43 +322,39 @@ export default function NutriGuidePage() {
             e.preventDefault();
             handleSendMessage();
           }}
-          className="bg-white dark:bg-[#1e2632] border border-gray-200 dark:border-gray-800 rounded-2xl p-2 flex items-center gap-3 shadow-lg"
+          className="flex gap-2"
         >
           <input
             type="text"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            placeholder="Ask about healthy recipes, vitamins, nutritional deficiencies..."
-            className="flex-1 bg-transparent text-gray-900 dark:text-white px-4 py-2.5 text-xs sm:text-sm focus:outline-none"
+            placeholder="Ask about healthy recipes, vitamin-rich produce, calorie counts..."
+            className="flex-1 bg-white dark:bg-[#1e2632] border border-gray-200 dark:border-gray-800 rounded-2xl px-5 py-4 text-xs sm:text-sm focus:outline-none focus:border-[#0aad0a] shadow-sm text-gray-900 dark:text-white"
           />
           <button
             type="submit"
             disabled={!inputText.trim()}
-            className="bg-[#0aad0a] hover:bg-[#088f08] disabled:opacity-40 text-white font-bold p-3 rounded-xl transition-all shadow-md active:scale-95 flex-shrink-0"
+            className="bg-[#0aad0a] hover:bg-[#088f08] disabled:opacity-40 text-white font-black px-6 sm:px-8 rounded-2xl flex items-center gap-2 shadow-lg shadow-[#0aad0a]/30 transition-all active:scale-95"
           >
-            <Send size={16} />
+            <Send size={18} />
+            <span className="hidden sm:inline text-xs">Send</span>
           </button>
         </form>
       </main>
 
-      {/* Cart Drawer */}
+      <Footer />
+
       <CartDrawer
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
         items={cartItems}
-        onUpdateQty={(itemId, newQty) => {
-          if (newQty <= 0) {
-            setCartItems((prev) => prev.filter((it) => it.id !== itemId));
-          } else {
-            setCartItems((prev) =>
-              prev.map((it) => (it.id === itemId ? { ...it, quantity: newQty } : it))
-            );
-          }
-        }}
-        onRemoveItem={(itemId) => setCartItems((prev) => prev.filter((it) => it.id !== itemId))}
+        onUpdateQty={(id, q) =>
+          setCartItems((prev) =>
+            q > 0 ? prev.map((item) => (item.id === id ? { ...item, quantity: q } : item)) : prev.filter((i) => i.id !== id)
+          )
+        }
+        onRemoveItem={(id) => setCartItems((prev) => prev.filter((i) => i.id !== id))}
       />
-
-      <Footer />
     </div>
   );
 }

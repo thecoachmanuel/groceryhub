@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { seedInitialDataIfNeeded } from './seed';
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/groceryhub';
 
@@ -31,7 +32,13 @@ export async function connectToDatabase(): Promise<typeof mongoose> {
       socketTimeoutMS: 45000,
     };
 
-    cached.promise = mongoose.connect(MONGODB_URI, opts).then((m) => {
+    cached.promise = mongoose.connect(MONGODB_URI, opts).then(async (m) => {
+      // Safely seed default registered users & products on connection
+      try {
+        await seedInitialDataIfNeeded();
+      } catch (seedErr) {
+        console.warn('Seed execution warning:', seedErr);
+      }
       return m;
     }).catch((err) => {
       cached.promise = null;

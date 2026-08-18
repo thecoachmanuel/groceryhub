@@ -6,7 +6,6 @@ import {
   Building2, 
   Plus, 
   Search, 
-  DollarSign, 
   CheckCircle2, 
   Clock, 
   X, 
@@ -16,6 +15,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import SellerNav from '@/components/seller/SellerNav';
+import { formatNaira } from '@/lib/currency';
 
 interface WithdrawalItem {
   id: string;
@@ -31,18 +31,18 @@ interface WithdrawalItem {
 const INITIAL_WITHDRAWALS: WithdrawalItem[] = [
   {
     id: 'REQ-WDR-501',
-    request_amount: 1500.00,
-    bank_name: 'JPMorgan Chase',
+    request_amount: 150000.00,
+    bank_name: 'Zenith Bank PLC',
     account_number: '•••• 8492',
     request_date: '2026-08-15 09:30',
     processed_date: '2026-08-15 11:20',
     status: 'Transferred',
-    notes: 'ACH Direct Deposit Ref #ACH-98124'
+    notes: 'NIP Instant Bank Transfer Ref #NIP-98124'
   },
   {
     id: 'REQ-WDR-502',
-    request_amount: 800.00,
-    bank_name: 'JPMorgan Chase',
+    request_amount: 80000.00,
+    bank_name: 'Zenith Bank PLC',
     account_number: '•••• 8492',
     request_date: '2026-08-10 14:15',
     processed_date: '2026-08-10 17:00',
@@ -52,17 +52,16 @@ const INITIAL_WITHDRAWALS: WithdrawalItem[] = [
 ];
 
 export default function SellerWithdrawalPage() {
-  const [balance, setBalance] = useState(4850.00);
+  const [balance, setBalance] = useState(485000.00);
   const [withdrawals, setWithdrawals] = useState<WithdrawalItem[]>(INITIAL_WITHDRAWALS);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Form states
   const [amount, setAmount] = useState('');
-  const [bankName, setBankName] = useState('JPMorgan Chase');
-  const [accountNumber, setAccountNumber] = useState('8492019482');
-  const [routingNumber, setRoutingNumber] = useState('021000021');
-  const [accountHolder, setAccountHolder] = useState('Green Valley Organic Farms LLC');
+  const [bankName, setBankName] = useState('Zenith Bank PLC');
+  const [accountNumber, setAccountNumber] = useState('0123458492');
+  const [accountHolder, setAccountHolder] = useState('Green Valley Organic Farms Ltd');
   const [successMsg, setSuccessMsg] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -101,24 +100,26 @@ export default function SellerWithdrawalPage() {
         <SellerNav />
 
         <main className="max-w-7xl mx-auto p-6 sm:p-10 space-y-8 w-full">
-          {/* Header */}
+          {/* Top Bar */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="text-2xl font-black flex items-center gap-2">
-                <Building2 size={24} className="text-[#0aad0a]" /> Bank Withdrawal & Payout Requests
+                <Building2 size={24} className="text-[#0aad0a]" /> Bank Payout &amp; Withdrawal Requests
               </h1>
               <p className="text-xs text-gray-400 mt-0.5">
-                Request wire/ACH settlements from your merchant earnings wallet to verified bank accounts
+                Request payouts from your settled wallet directly to your Nigerian commercial bank account
               </p>
             </div>
 
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="bg-[#0aad0a] hover:bg-[#088f08] text-white text-xs font-black px-6 py-3 rounded-2xl flex items-center gap-2 shadow-lg shadow-[#0aad0a]/30 transition-all active:scale-95"
-            >
-              <Plus size={16} />
-              <span>Create Withdrawal Request</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="bg-[#0aad0a] hover:bg-[#088f08] text-white font-black px-5 py-2.5 rounded-2xl text-xs flex items-center gap-2 shadow-lg shadow-[#0aad0a]/30 transition-all active:scale-95"
+              >
+                <Plus size={16} />
+                <span>New Withdrawal Request</span>
+              </button>
+            </div>
           </div>
 
           {/* Sub-nav */}
@@ -130,13 +131,13 @@ export default function SellerWithdrawalPage() {
               Wallet Ledger
             </Link>
             <Link href="/seller/withdrawal" className="px-4 py-2 bg-[#0aad0a] text-white rounded-xl text-xs font-black flex items-center gap-1.5">
-              <Building2 size={13} /> Bank Payout Requests ({withdrawals.length})
+              <Building2 size={13} /> Bank Payout Requests
             </Link>
           </div>
 
           {successMsg && (
-            <div className="bg-emerald-950/60 border border-[#0aad0a]/40 text-[#0aad0a] text-xs font-bold p-4 rounded-2xl flex items-center gap-2 animate-bounce">
-              <CheckCircle2 size={18} /> Withdrawal request submitted! Admin will approve and wire funds shortly.
+            <div className="bg-emerald-950/60 border border-[#0aad0a] text-[#0aad0a] p-4 rounded-2xl text-xs font-bold flex items-center gap-2 animate-fade-in">
+              <CheckCircle2 size={18} /> Payout request placed successfully and queued for admin transfer!
             </div>
           )}
 
@@ -145,17 +146,17 @@ export default function SellerWithdrawalPage() {
             <div className="space-y-1">
               <span className="text-xs font-bold text-gray-400">Available Funds for Withdrawal</span>
               <div className="text-3xl font-black text-white font-mono">
-                ${balance.toFixed(2)}
+                {formatNaira(balance)}
               </div>
-              <span className="text-[11px] text-[#0aad0a] font-semibold">ACH direct deposit processed within 24–48 hours</span>
+              <span className="text-[11px] text-[#0aad0a] font-semibold">NIP direct deposit processed within 24 hours</span>
             </div>
 
             <button
               onClick={() => setIsModalOpen(true)}
               className="bg-[#0aad0a] hover:bg-[#088f08] text-white font-black px-6 py-3 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-[#0aad0a]/20 transition-all active:scale-95"
             >
-              <DollarSign size={16} />
-              <span>Withdraw to Chase Bank (•••• 8492)</span>
+              <Building2 size={16} />
+              <span>Withdraw to Zenith Bank (•••• 8492)</span>
             </button>
           </div>
 
@@ -180,7 +181,7 @@ export default function SellerWithdrawalPage() {
                 <thead className="border-b border-gray-800 text-gray-400 font-bold uppercase tracking-wider">
                   <tr>
                     <th className="pb-3 px-3">Request ID</th>
-                    <th className="pb-3 px-3">Payout Amount</th>
+                    <th className="pb-3 px-3">Payout Amount (₦)</th>
                     <th className="pb-3 px-3">Bank Account</th>
                     <th className="pb-3 px-3">Requested At</th>
                     <th className="pb-3 px-3">Disbursement Date</th>
@@ -195,7 +196,7 @@ export default function SellerWithdrawalPage() {
                         {w.id}
                       </td>
                       <td className="py-3.5 px-3 font-black text-white font-mono text-sm">
-                        ${w.request_amount.toFixed(2)}
+                        {formatNaira(w.request_amount)}
                       </td>
                       <td className="py-3.5 px-3">
                         <div className="font-bold text-white">{w.bank_name}</div>
@@ -244,38 +245,44 @@ export default function SellerWithdrawalPage() {
             <div>
               <h3 className="text-xl font-black">Request Bank Withdrawal</h3>
               <p className="text-xs text-gray-400 mt-0.5">
-                Available Wallet Balance: <span className="text-[#0aad0a] font-mono font-bold">${balance.toFixed(2)}</span>
+                Available Wallet Balance: <span className="text-[#0aad0a] font-mono font-bold">{formatNaira(balance)}</span>
               </p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-300">Withdrawal Amount ($)</label>
+                <label className="text-xs font-bold text-gray-300">Withdrawal Amount (₦)</label>
                 <input
                   type="number"
-                  step="10"
+                  step="1000"
                   max={balance}
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  placeholder={`Max: $${balance.toFixed(2)}`}
+                  placeholder={`Max: ${formatNaira(balance)}`}
                   className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs font-mono font-bold focus:outline-none focus:border-[#0aad0a]"
                   required
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-300">Bank Institution Name</label>
-                <input
-                  type="text"
+                <label className="text-xs font-bold text-gray-300">Bank Institution</label>
+                <select
                   value={bankName}
                   onChange={(e) => setBankName(e.target.value)}
                   className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                  required
-                />
+                >
+                  <option value="Zenith Bank PLC">Zenith Bank PLC</option>
+                  <option value="Access Bank PLC">Access Bank PLC</option>
+                  <option value="Guaranty Trust Bank (GTB)">Guaranty Trust Bank (GTB)</option>
+                  <option value="First Bank of Nigeria">First Bank of Nigeria</option>
+                  <option value="United Bank for Africa (UBA)">United Bank for Africa (UBA)</option>
+                  <option value="OPay Digital Services">OPay Digital Services</option>
+                  <option value="Kuda Microfinance Bank">Kuda Microfinance Bank</option>
+                </select>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-300">Account Holder Business Name</label>
+                <label className="text-xs font-bold text-gray-300">Account Holder Name</label>
                 <input
                   type="text"
                   value={accountHolder}
@@ -285,41 +292,29 @@ export default function SellerWithdrawalPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Account Number</label>
-                  <input
-                    type="text"
-                    value={accountNumber}
-                    onChange={(e) => setAccountNumber(e.target.value)}
-                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs font-mono focus:outline-none focus:border-[#0aad0a]"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Routing Number (ABA)</label>
-                  <input
-                    type="text"
-                    value={routingNumber}
-                    onChange={(e) => setRoutingNumber(e.target.value)}
-                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs font-mono focus:outline-none focus:border-[#0aad0a]"
-                    required
-                  />
-                </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-300">NUBAN Account Number (10 Digits)</label>
+                <input
+                  type="text"
+                  maxLength={10}
+                  value={accountNumber}
+                  onChange={(e) => setAccountNumber(e.target.value)}
+                  className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs font-mono focus:outline-none focus:border-[#0aad0a]"
+                  required
+                />
               </div>
 
               <div className="flex gap-3 pt-2">
                 <button
                   type="submit"
-                  className="flex-1 bg-[#0aad0a] hover:bg-[#088f08] text-white font-black py-3.5 rounded-xl text-xs shadow-lg shadow-[#0aad0a]/30 transition-all"
+                  className="flex-1 bg-[#0aad0a] hover:bg-[#088f08] text-white font-black py-3.5 rounded-xl text-xs shadow-lg shadow-[#0aad0a]/30 transition-all active:scale-95"
                 >
                   Submit Payout Request
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold px-6 py-3.5 rounded-xl text-xs"
+                  className="bg-gray-800 text-gray-300 font-bold px-5 py-3.5 rounded-xl text-xs hover:bg-gray-700 transition-colors"
                 >
                   Cancel
                 </button>

@@ -10,7 +10,7 @@ const SELLERS = [
   {
     id: 1,
     name: 'Green Valley Organic Farms',
-    city: 'Downtown Zone, New York',
+    city: 'Agro Industrial Estate, Epe, Lagos',
     rating: 4.9,
     ratingCount: 340,
     products: '240 Products',
@@ -21,7 +21,7 @@ const SELLERS = [
   {
     id: 2,
     name: 'Daily Dairy & Poultry Fresh',
-    city: 'Westside Market, New York',
+    city: 'Ikeja GRA Wholesale Hub, Lagos',
     rating: 4.8,
     ratingCount: 210,
     products: '180 Products',
@@ -32,7 +32,7 @@ const SELLERS = [
   {
     id: 3,
     name: 'The Artisanal Bakery Co.',
-    city: 'East Midtown, New York',
+    city: 'Victoria Island Central, Lagos',
     rating: 4.9,
     ratingCount: 185,
     products: '95 Products',
@@ -43,7 +43,7 @@ const SELLERS = [
   {
     id: 4,
     name: 'Sunny Orchards Fruit Market',
-    city: 'Brooklyn Heights, New York',
+    city: 'Admiralty Way, Lekki Phase 1, Lagos',
     rating: 4.9,
     ratingCount: 290,
     products: '120 Products',

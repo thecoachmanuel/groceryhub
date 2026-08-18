@@ -121,7 +121,7 @@ export default function TrackOrderPage({ params }: { params: { orderId?: string 
               </div>
 
               <a
-                href="tel:+15551234567"
+                href="tel:+2348091112233"
                 className="p-3 bg-[#0aad0a] hover:bg-[#088f08] text-white rounded-2xl shadow-md transition-all active:scale-95 flex items-center gap-1.5 text-xs font-bold"
               >
                 <Phone size={16} />
@@ -132,11 +132,11 @@ export default function TrackOrderPage({ params }: { params: { orderId?: string 
             <div className="grid grid-cols-2 gap-3 pt-2 text-xs">
               <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-xl border border-gray-200 dark:border-gray-800">
                 <span className="text-gray-400 block">Vehicle Model</span>
-                <span className="font-bold text-gray-900 dark:text-white">Honda Activa EV</span>
+                <span className="font-bold text-gray-900 dark:text-white">Honda Super Cub 125</span>
               </div>
               <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-xl border border-gray-200 dark:border-gray-800">
                 <span className="text-gray-400 block">License Plate</span>
-                <span className="font-mono font-bold text-gray-900 dark:text-white">NY-592-GK</span>
+                <span className="font-mono font-bold text-gray-900 dark:text-white">LAG-8492-VI</span>
               </div>
             </div>
           </div>
@@ -152,10 +152,10 @@ export default function TrackOrderPage({ params }: { params: { orderId?: string 
               <div>
                 <span className="font-bold text-gray-900 dark:text-white block">Home Address</span>
                 <p className="text-gray-500 dark:text-gray-400 mt-0.5">
-                  742 Evergreen Terrace, Apt 4B, Downtown Zone, New York, NY 10001
+                  Plot 14, Adeola Odeku Street, Flat 4B, Victoria Island, Lagos
                 </p>
                 <span className="text-[11px] text-gray-400 mt-1 block">
-                  Delivery Instruction: "Please ring buzzer 4B and leave on porch"
+                  Delivery Instruction: &quot;Please call on arrival at estate gate&quot;
                 </span>
               </div>
             </div>

@@ -13,74 +13,56 @@ export async function POST(req: NextRequest) {
     const { mobile, password } = body;
 
     if (!mobile || !password) {
-      return apiError('Mobile and password are required', 400);
+      return apiError('Mobile phone number and password are required', 400);
     }
 
-    try {
-      await connectToDatabase();
-      const rider = await DeliveryBoy.findOne({ mobile: mobile.trim() }).select('+password');
+    await connectToDatabase();
 
-      if (rider) {
-        if (rider.status === 'suspended') {
-          return apiError('Your courier account is suspended. Contact fleet dispatch.', 403);
-        }
+    const rider = await DeliveryBoy.findOne({ mobile: mobile.trim() }).select('+password');
 
-        const isMatch = rider.password ? await verifyPassword(password, rider.password) : password === 'rider123';
-        if (isMatch) {
-          const token = generateToken({
-            id: rider.delivery_boy_id,
-            role: 'delivery',
-            mobile: rider.mobile,
-          });
-
-          return apiSuccess(
-            {
-              token,
-              delivery_boy: {
-                id: rider.delivery_boy_id,
-                name: rider.name,
-                mobile: rider.mobile,
-                vehicle: rider.vehicle_type,
-                licenseNo: rider.license_number,
-                tripBonus: rider.trip_bonus,
-                balance: rider.balance,
-                cashInHand: rider.cash_in_hand,
-                status: rider.status,
-              },
-            },
-            'Delivery partner logged in successfully'
-          );
-        }
-      }
-    } catch (dbErr) {
-      console.warn('MongoDB query warning in rider login:', dbErr);
+    if (!rider) {
+      return apiError('Courier partner account not found. Please register as a delivery rider first.', 404);
     }
 
-    // Demo fallback for Marcus Vance
+    if (rider.status === 'suspended') {
+      return apiError('Your courier account is suspended. Please contact fleet dispatch.', 403);
+    }
+
+    if (!rider.password) {
+      return apiError('Password is not set for this account. Please reset your password.', 401);
+    }
+
+    const isMatch = await verifyPassword(password, rider.password);
+    if (!isMatch) {
+      return apiError('Invalid courier password. Please check your credentials and try again.', 401);
+    }
+
     const token = generateToken({
-      id: 1,
+      id: rider.delivery_boy_id,
       role: 'delivery',
-      mobile: mobile.trim(),
+      mobile: rider.mobile,
+      email: rider.email,
     });
 
     return apiSuccess(
       {
         token,
         delivery_boy: {
-          id: 1,
-          name: 'Marcus Vance',
-          mobile: mobile.trim(),
-          vehicle: 'Honda Super Cub 125cc (LAG-8492)',
-          licenseNo: 'DL-NG-89104',
-          tripBonus: 500.00, // ₦500 / run
-          balance: 28500.00, // ₦28,500
-          cashInHand: 14200.00, // ₦14,200
-          status: 'on_duty',
+          id: rider.delivery_boy_id,
+          name: rider.name,
+          mobile: rider.mobile,
+          vehicle: rider.vehicle_type,
+          licenseNo: rider.license_number,
+          tripBonus: rider.trip_bonus,
+          balance: rider.balance,
+          cashInHand: rider.cash_in_hand,
+          status: rider.status,
         },
       },
-      'Delivery partner logged in successfully'
+      'Delivery partner authenticated successfully'
     );
   } catch (error: any) {
+    console.error('Courier login error:', error);
     return apiError(error?.message || 'Login failed', 500);
   }
 }

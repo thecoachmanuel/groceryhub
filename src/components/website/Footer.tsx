@@ -15,7 +15,7 @@ export default function Footer() {
               </div>
               <div>
                 <h4 className="font-bold text-sm text-gray-900 dark:text-white">Fast & Free Delivery</h4>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Free delivery for orders over $50</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Free delivery for orders over ₦15,000</p>
               </div>
             </div>
 
@@ -25,7 +25,7 @@ export default function Footer() {
               </div>
               <div>
                 <h4 className="font-bold text-sm text-gray-900 dark:text-white">100% Secure Checkout</h4>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Stripe, Razorpay, Cashfree & PayPal</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Paystack, Nigerian Cards, USSD & COD</p>
               </div>
             </div>
 

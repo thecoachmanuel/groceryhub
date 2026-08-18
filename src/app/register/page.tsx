@@ -3,14 +3,14 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ShoppingBag, User, Mail, Phone, Lock, Gift, ArrowRight, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { ShoppingBag, User, Mail, Phone, Lock, Gift, ArrowRight, AlertCircle } from 'lucide-react';
 import Header from '@/components/website/Header';
 import Footer from '@/components/website/Footer';
 import { useAuth } from '@/context/AuthContext';
 
 export default function CustomerRegisterPage() {
   const router = useRouter();
-  const { register } = useAuth();
+  const { loginSession } = useAuth();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -19,22 +19,40 @@ export default function CustomerRegisterPage() {
   const [referralCode, setReferralCode] = useState('');
   const [agreeTerms, setAgreeTerms] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!agreeTerms) return alert('Please agree to Terms and Conditions');
-    setLoading(true);
+    setErrorMsg('');
+    if (!agreeTerms) return setErrorMsg('Please agree to the Terms of Service & Privacy Policy.');
 
-    setTimeout(() => {
-      register({
-        name,
-        email,
-        mobile,
-        referralCode,
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/user/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          email,
+          mobile,
+          password,
+          referral_code: referralCode,
+        }),
       });
+
+      const data = await res.json();
       setLoading(false);
+
+      if (!res.ok || !data.success) {
+        return setErrorMsg(data.message || 'Registration failed. Please check your details.');
+      }
+
+      loginSession(data.data.token, data.data.user);
       router.push('/');
-    }, 900);
+    } catch (err: any) {
+      setLoading(false);
+      setErrorMsg('Network error occurred. Please try again.');
+    }
   };
 
   return (
@@ -49,9 +67,16 @@ export default function CustomerRegisterPage() {
             </div>
             <h1 className="text-2xl font-black text-gray-900 dark:text-white">Create Your Account</h1>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              Join GroceryHub to unlock 30-min express grocery deliveries
+              Join GroceryHub to unlock 30-min express grocery deliveries in Nigeria
             </p>
           </div>
+
+          {errorMsg && (
+            <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 p-3.5 rounded-2xl text-xs font-bold flex items-center gap-2">
+              <AlertCircle size={16} />
+              <span>{errorMsg}</span>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
@@ -61,7 +86,7 @@ export default function CustomerRegisterPage() {
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Emma Davis"
+                  placeholder="e.g. Chinedu Okafor"
                   className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl py-3 pl-11 pr-4 text-xs font-semibold focus:outline-none focus:border-[#0aad0a] dark:text-white"
                   required
                 />
@@ -76,7 +101,7 @@ export default function CustomerRegisterPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="emma.davis@example.com"
+                  placeholder="chinedu@example.ng"
                   className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl py-3 pl-11 pr-4 text-xs font-semibold focus:outline-none focus:border-[#0aad0a] dark:text-white"
                   required
                 />
@@ -91,7 +116,7 @@ export default function CustomerRegisterPage() {
                   type="tel"
                   value={mobile}
                   onChange={(e) => setMobile(e.target.value)}
-                  placeholder="+1 (555) 000-0000"
+                  placeholder="+234 802 345 6789"
                   className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl py-3 pl-11 pr-4 text-xs font-semibold focus:outline-none focus:border-[#0aad0a] dark:text-white"
                   required
                 />
@@ -100,14 +125,15 @@ export default function CustomerRegisterPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-gray-700 dark:text-gray-300">Password</label>
+              <label className="text-xs font-bold text-gray-700 dark:text-gray-300">Choose Password</label>
               <div className="relative">
                 <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Create a strong password..."
-                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl py-3 pl-11 pr-4 text-xs focus:outline-none focus:border-[#0aad0a] dark:text-white"
+                  placeholder="Min 6 characters"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl py-3 pl-11 pr-4 text-xs font-semibold focus:outline-none focus:border-[#0aad0a] dark:text-white"
+                  minLength={6}
                   required
                 />
                 <Lock size={18} className="absolute left-4 top-3 text-gray-400" />
@@ -115,54 +141,57 @@ export default function CustomerRegisterPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-gray-700 dark:text-gray-300 flex items-center gap-1">
-                <span>Referral Code</span>
-                <span className="text-[10px] text-[#0aad0a] font-bold">($10 bonus credit)</span>
+              <label className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                Referral Code (Optional)
               </label>
               <div className="relative">
                 <input
                   type="text"
                   value={referralCode}
-                  onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
-                  placeholder="e.g. FRIEND10 (Optional)"
-                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl py-3 pl-11 pr-4 text-xs font-mono uppercase focus:outline-none focus:border-[#0aad0a] dark:text-white"
+                  onChange={(e) => setReferralCode(e.target.value)}
+                  placeholder="e.g. GROCERY10"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl py-3 pl-11 pr-4 text-xs font-semibold focus:outline-none focus:border-[#0aad0a] dark:text-white uppercase"
                 />
-                <Gift size={18} className="absolute left-4 top-3 text-gray-400" />
+                <Gift size={18} className="absolute left-4 top-3 text-[#0aad0a]" />
               </div>
+              <p className="text-[11px] text-[#0aad0a] font-medium">
+                🎁 Enter a referral code to receive ₦2,000 instant wallet credit!
+              </p>
             </div>
 
-            <label className="flex items-start gap-2.5 cursor-pointer text-xs text-gray-600 dark:text-gray-300 pt-1">
+            <div className="flex items-center gap-2 pt-2">
               <input
                 type="checkbox"
+                id="terms"
                 checked={agreeTerms}
                 onChange={(e) => setAgreeTerms(e.target.checked)}
-                className="mt-0.5 w-4 h-4 rounded text-[#0aad0a] bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-700 focus:ring-0"
+                className="w-4 h-4 rounded text-[#0aad0a] focus:ring-[#0aad0a] border-gray-300 dark:border-gray-600"
               />
-              <span>
+              <label htmlFor="terms" className="text-xs text-gray-600 dark:text-gray-400">
                 I agree to the{' '}
-                <Link href="/terms-condition" className="text-[#0aad0a] font-bold hover:underline">
+                <Link href="/terms-condition" className="text-[#0aad0a] underline">
                   Terms of Service
                 </Link>{' '}
                 and{' '}
-                <Link href="/privacy-policy" className="text-[#0aad0a] font-bold hover:underline">
+                <Link href="/privacy-policy" className="text-[#0aad0a] underline">
                   Privacy Policy
                 </Link>
-              </span>
-            </label>
+              </label>
+            </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-[#0aad0a] hover:bg-[#088f08] disabled:opacity-50 text-white font-bold py-3.5 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-[#0aad0a]/30 transition-all active:scale-[0.98]"
+              className="w-full bg-[#0aad0a] hover:bg-[#088f08] disabled:opacity-50 text-white font-black py-3.5 px-6 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-[#0aad0a]/30 transition-all active:scale-[0.98] text-xs"
             >
-              <span>{loading ? 'Creating Account...' : 'Create Account & Start Shopping'}</span>
+              <span>{loading ? 'Creating Account...' : 'Create Account'}</span>
               <ArrowRight size={16} />
             </button>
           </form>
 
-          <div className="text-center text-xs text-gray-500 dark:text-gray-400 pt-1">
+          <div className="pt-2 text-center text-xs text-gray-500 dark:text-gray-400">
             Already have an account?{' '}
-            <Link href="/login" className="text-[#0aad0a] font-bold hover:underline">
+            <Link href="/login" className="font-bold text-[#0aad0a] hover:underline">
               Sign In
             </Link>
           </div>

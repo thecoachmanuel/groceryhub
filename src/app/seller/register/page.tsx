@@ -15,7 +15,8 @@ import {
   CheckCircle2, 
   Percent, 
   FileText, 
-  Upload 
+  Upload,
+  AlertCircle
 } from 'lucide-react';
 
 export default function SellerRegisterPage() {
@@ -26,28 +27,59 @@ export default function SellerRegisterPage() {
   const [email, setEmail] = useState('');
   const [mobile, setMobile] = useState('');
   const [password, setPassword] = useState('');
-  const [city, setCity] = useState('New York');
-  const [area, setArea] = useState('Downtown Manhattan');
+  const [city, setCity] = useState('Lagos');
   const [storeAddress, setStoreAddress] = useState('');
   const [taxId, setTaxId] = useState('');
+  const [bankName, setBankName] = useState('Zenith Bank');
   const [bankAccount, setBankAccount] = useState('');
-  const [bankRouting, setBankRouting] = useState('');
   const [agreeTerms, setAgreeTerms] = useState(true);
   const [loading, setLoading] = useState(false);
   const [registeredSuccess, setRegisteredSuccess] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!agreeTerms) return alert('Please agree to Merchant terms & 5% commission agreement');
-    setLoading(true);
+    setErrorMsg('');
+    if (!agreeTerms) return setErrorMsg('Please agree to Merchant terms & 5% commission agreement');
 
-    setTimeout(() => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/seller/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: ownerName,
+          store_name: storeName,
+          email,
+          mobile,
+          password,
+          address: storeAddress,
+          city,
+          tax_id_ein: taxId,
+          bank_name: bankName,
+          bank_account_number: bankAccount,
+        }),
+      });
+
+      const data = await res.json();
       setLoading(false);
+
+      if (!res.ok || !data.success) {
+        return setErrorMsg(data.message || 'Vendor registration failed.');
+      }
+
+      localStorage.setItem('groceryhub_seller_token', data.data.token);
+      localStorage.setItem('groceryhub_seller', JSON.stringify(data.data.seller));
+      document.cookie = `auth_token=${data.data.token}; path=/; max-age=604800; SameSite=Lax`;
+
       setRegisteredSuccess(true);
       setTimeout(() => {
         router.push('/seller/dashboard');
       }, 1500);
-    }, 1000);
+    } catch (err) {
+      setLoading(false);
+      setErrorMsg('Network error occurred. Please try again.');
+    }
   };
 
   return (
@@ -59,222 +91,226 @@ export default function SellerRegisterPage() {
           <div className="w-14 h-14 rounded-2xl bg-[#0aad0a] text-white flex items-center justify-center mx-auto shadow-lg shadow-[#0aad0a]/30 font-black">
             <Store size={28} />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black">Partner Your Store on GroceryHub</h1>
-          <p className="text-xs sm:text-sm text-gray-400">
-            Reach thousands of local grocery shoppers with our instant 30-minute delivery logistics network
+          <h1 className="text-2xl sm:text-3xl font-black">Register as a Verified Merchant</h1>
+          <p className="text-xs text-gray-400">
+            Sell fresh farm produce, organic meats, bakery items, and groceries on Nigeria&apos;s leading delivery platform
           </p>
         </div>
 
-        {registeredSuccess ? (
-          <div className="bg-[#1e2632] border border-emerald-500/40 rounded-3xl p-8 text-center space-y-4 shadow-xl">
-            <div className="w-16 h-16 bg-emerald-500/20 text-[#0aad0a] rounded-full flex items-center justify-center mx-auto">
-              <CheckCircle2 size={36} />
-            </div>
-            <h2 className="text-xl font-black text-white">Merchant Application Approved!</h2>
-            <p className="text-xs text-gray-300">
-              Welcome to the GroceryHub Vendor family. Redirecting you to your store manager dashboard...
-            </p>
+        {registeredSuccess && (
+          <div className="bg-emerald-950/80 border border-[#0aad0a] text-[#0aad0a] p-4 rounded-2xl text-xs font-bold flex items-center gap-2 animate-bounce">
+            <CheckCircle2 size={18} /> Store registered and approved! Redirecting to Merchant Portal...
           </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="bg-[#1e2632] border border-gray-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
-            
-            {/* Step 1: Store & Owner Details */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-black uppercase tracking-wider text-[#0aad0a] flex items-center gap-2 border-b border-gray-800 pb-2">
-                <Store size={16} /> 1. Store Identity & Owner Information
-              </h3>
+        )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Store / Farm Business Name</label>
+        {errorMsg && (
+          <div className="bg-red-950/40 border border-red-800 text-red-400 p-3.5 rounded-2xl text-xs font-bold flex items-center gap-2">
+            <AlertCircle size={16} />
+            <span>{errorMsg}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="bg-[#1e2632] rounded-3xl p-6 sm:p-8 border border-gray-800 shadow-2xl space-y-6">
+          
+          {/* Section 1: Business Info */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-black text-white flex items-center gap-2 border-b border-gray-800 pb-2">
+              <Store size={16} className="text-[#0aad0a]" /> Store &amp; Brand Profile
+            </h3>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div className="space-y-1.5">
+                <label className="font-bold text-gray-300">Store / Business Name</label>
+                <div className="relative">
                   <input
                     type="text"
                     value={storeName}
                     onChange={(e) => setStoreName(e.target.value)}
-                    placeholder="e.g. Green Valley Organic Market"
-                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
+                    placeholder="e.g. Green Valley Organic Farms"
+                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl py-3 pl-10 pr-3 focus:outline-none focus:border-[#0aad0a]"
                     required
                   />
+                  <Store size={16} className="absolute left-3.5 top-3.5 text-gray-400" />
                 </div>
+              </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Proprietor / Owner Name</label>
+              <div className="space-y-1.5">
+                <label className="font-bold text-gray-300">Owner / Manager Full Name</label>
+                <div className="relative">
                   <input
                     type="text"
                     value={ownerName}
                     onChange={(e) => setOwnerName(e.target.value)}
-                    placeholder="e.g. Robert Smith"
-                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
+                    placeholder="e.g. Tunde Balogun"
+                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl py-3 pl-10 pr-3 focus:outline-none focus:border-[#0aad0a]"
                     required
                   />
+                  <User size={16} className="absolute left-3.5 top-3.5 text-gray-400" />
                 </div>
+              </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Business Email Address</label>
+              <div className="space-y-1.5">
+                <label className="font-bold text-gray-300">Merchant Business Email</label>
+                <div className="relative">
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="store@greenvalley.com"
-                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
+                    placeholder="orders@greenvalley.ng"
+                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl py-3 pl-10 pr-3 focus:outline-none focus:border-[#0aad0a]"
                     required
                   />
+                  <Mail size={16} className="absolute left-3.5 top-3.5 text-gray-400" />
                 </div>
+              </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Store Contact Phone</label>
+              <div className="space-y-1.5">
+                <label className="font-bold text-gray-300">Merchant Mobile Phone</label>
+                <div className="relative">
                   <input
                     type="tel"
                     value={mobile}
                     onChange={(e) => setMobile(e.target.value)}
-                    placeholder="+1 (555) 123-4567"
-                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
+                    placeholder="+234 800 123 4567"
+                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl py-3 pl-10 pr-3 focus:outline-none focus:border-[#0aad0a]"
                     required
                   />
+                  <Phone size={16} className="absolute left-3.5 top-3.5 text-gray-400" />
                 </div>
+              </div>
+            </div>
+          </div>
 
-                <div className="space-y-1.5 sm:col-span-2">
-                  <label className="text-xs font-bold text-gray-300">Vendor Portal Password</label>
+          {/* Section 2: Security & Location */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-black text-white flex items-center gap-2 border-b border-gray-800 pb-2">
+              <MapPin size={16} className="text-[#0aad0a]" /> Store Operations &amp; Location
+            </h3>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div className="space-y-1.5">
+                <label className="font-bold text-gray-300">City / State</label>
+                <select
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl py-3 px-3 focus:outline-none focus:border-[#0aad0a]"
+                >
+                  <option value="Lagos">Lagos, Nigeria</option>
+                  <option value="Abuja">Abuja (FCT), Nigeria</option>
+                  <option value="Port Harcourt">Port Harcourt, Rivers</option>
+                  <option value="Ibadan">Ibadan, Oyo</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="font-bold text-gray-300">Physical Warehouse / Store Address</label>
+                <input
+                  type="text"
+                  value={storeAddress}
+                  onChange={(e) => setStoreAddress(e.target.value)}
+                  placeholder="Plot 18, Agro Estate, Epe, Lagos"
+                  className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl py-3 px-3 focus:outline-none focus:border-[#0aad0a]"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="font-bold text-gray-300">Account Password</label>
+                <div className="relative">
                   <input
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Create a secure password..."
-                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
+                    placeholder="••••••••"
+                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl py-3 pl-10 pr-3 focus:outline-none focus:border-[#0aad0a]"
                     required
                   />
+                  <Lock size={16} className="absolute left-3.5 top-3.5 text-gray-400" />
                 </div>
               </div>
-            </div>
 
-            {/* Step 2: Location & Address */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-black uppercase tracking-wider text-[#0aad0a] flex items-center gap-2 border-b border-gray-800 pb-2">
-                <MapPin size={16} /> 2. Store Location & Deliverable Area
-              </h3>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">City</label>
-                  <select
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                  >
-                    <option value="New York">New York</option>
-                    <option value="Brooklyn">Brooklyn</option>
-                    <option value="Queens">Queens</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Geofenced Zone</label>
-                  <select
-                    value={area}
-                    onChange={(e) => setArea(e.target.value)}
-                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                  >
-                    <option value="Downtown Manhattan">Downtown Manhattan Zone</option>
-                    <option value="Midtown">Midtown Zone</option>
-                    <option value="Brooklyn Heights">Brooklyn Heights Zone</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1.5 sm:col-span-2">
-                  <label className="text-xs font-bold text-gray-300">Physical Store Address</label>
-                  <input
-                    type="text"
-                    value={storeAddress}
-                    onChange={(e) => setStoreAddress(e.target.value)}
-                    placeholder="e.g. 142 Green Street, Suite 100, New York, NY 10012"
-                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                    required
-                  />
-                </div>
+              <div className="space-y-1.5">
+                <label className="font-bold text-gray-300">Tax Identification Number (TIN)</label>
+                <input
+                  type="text"
+                  value={taxId}
+                  onChange={(e) => setTaxId(e.target.value)}
+                  placeholder="e.g. 24890123-0001"
+                  className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl py-3 px-3 focus:outline-none focus:border-[#0aad0a]"
+                />
               </div>
             </div>
+          </div>
 
-            {/* Step 3: Tax & Bank Payout Credentials */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-black uppercase tracking-wider text-[#0aad0a] flex items-center gap-2 border-b border-gray-800 pb-2">
-                <CreditCard size={16} /> 3. Business Tax ID & Settlement Account
-              </h3>
+          {/* Section 3: Bank Details */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-black text-white flex items-center gap-2 border-b border-gray-800 pb-2">
+              <CreditCard size={16} className="text-[#0aad0a]" /> Payout Bank Details (Naira ₦)
+            </h3>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Tax ID / EIN Number</label>
-                  <input
-                    type="text"
-                    value={taxId}
-                    onChange={(e) => setTaxId(e.target.value.toUpperCase())}
-                    placeholder="e.g. 12-3456789"
-                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs font-mono uppercase focus:outline-none focus:border-[#0aad0a]"
-                    required
-                  />
-                </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div className="space-y-1.5">
+                <label className="font-bold text-gray-300">Bank Name</label>
+                <select
+                  value={bankName}
+                  onChange={(e) => setBankName(e.target.value)}
+                  className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl py-3 px-3 focus:outline-none focus:border-[#0aad0a]"
+                >
+                  <option value="Zenith Bank">Zenith Bank PLC</option>
+                  <option value="Access Bank">Access Bank PLC</option>
+                  <option value="GTBank">Guaranty Trust Bank (GTB)</option>
+                  <option value="First Bank">First Bank of Nigeria</option>
+                  <option value="UBA">United Bank for Africa (UBA)</option>
+                  <option value="OPay">OPay Digital Services</option>
+                  <option value="Kuda">Kuda Microfinance Bank</option>
+                </select>
+              </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Bank Account #</label>
-                  <input
-                    type="text"
-                    value={bankAccount}
-                    onChange={(e) => setBankAccount(e.target.value)}
-                    placeholder="••••••••9102"
-                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Routing Number</label>
-                  <input
-                    type="text"
-                    value={bankRouting}
-                    onChange={(e) => setBankRouting(e.target.value)}
-                    placeholder="021000021"
-                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                    required
-                  />
-                </div>
+              <div className="space-y-1.5">
+                <label className="font-bold text-gray-300">NUBAN Account Number (10 Digits)</label>
+                <input
+                  type="text"
+                  maxLength={10}
+                  value={bankAccount}
+                  onChange={(e) => setBankAccount(e.target.value)}
+                  placeholder="0123456789"
+                  className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl py-3 px-3 font-mono focus:outline-none focus:border-[#0aad0a]"
+                  required
+                />
               </div>
             </div>
+          </div>
 
-            {/* Commission Policy Badge */}
-            <div className="bg-emerald-950/40 border border-[#0aad0a]/30 p-4 rounded-2xl flex items-center gap-3 text-xs text-emerald-300">
-              <Percent size={20} className="text-[#0aad0a] flex-shrink-0" />
-              <span>Standard 5% platform service fee applies only on successful customer deliveries. Zero upfront listing fees.</span>
-            </div>
-
-            <label className="flex items-start gap-2.5 cursor-pointer text-xs text-gray-400 pt-1">
+          {/* Terms & Agreement */}
+          <div className="pt-2">
+            <div className="flex items-center gap-2">
               <input
                 type="checkbox"
+                id="merchantTerms"
                 checked={agreeTerms}
                 onChange={(e) => setAgreeTerms(e.target.checked)}
-                className="mt-0.5 w-4 h-4 rounded text-[#0aad0a] bg-gray-900 border-gray-700 focus:ring-0"
+                className="w-4 h-4 rounded text-[#0aad0a] focus:ring-[#0aad0a] border-gray-700 bg-gray-900"
               />
-              <span>
-                I agree to the{' '}
-                <Link href="/terms-condition" className="text-[#0aad0a] font-bold hover:underline">
-                  Vendor Partner Agreement & Terms of Service
-                </Link>
-              </span>
-            </label>
+              <label htmlFor="merchantTerms" className="text-xs text-gray-300">
+                I agree to the Standard 5% Platform Commission rate and Merchant Partner Terms
+              </label>
+            </div>
+          </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-[#0aad0a] hover:bg-[#088f08] disabled:opacity-50 text-white font-black py-4 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-[#0aad0a]/30 transition-all active:scale-[0.98]"
-            >
-              <span>{loading ? 'Submitting Application...' : 'Register Store & Open Vendor Portal'}</span>
-              <ArrowRight size={16} />
-            </button>
-          </form>
-        )}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-[#0aad0a] hover:bg-[#088f08] disabled:opacity-50 text-white font-black py-4 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-xl shadow-[#0aad0a]/30 transition-all active:scale-[0.98]"
+          >
+            <span>{loading ? 'Processing Registration...' : 'Complete Vendor Registration'}</span>
+            <ArrowRight size={16} />
+          </button>
+        </form>
 
         <div className="text-center text-xs text-gray-400">
-          Already registered as a seller?{' '}
+          Already registered as a merchant?{' '}
           <Link href="/seller/login" className="text-[#0aad0a] font-bold hover:underline">
-            Sign In to Seller Portal
+            Merchant Sign In
           </Link>
         </div>
       </div>

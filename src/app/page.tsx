@@ -408,7 +408,7 @@ export default function HomePage() {
         <section className="rounded-3xl bg-gray-900 text-white p-8 sm:p-12 flex flex-col md:flex-row items-center justify-between gap-8 shadow-2xl relative overflow-hidden">
           <div className="space-y-3 max-w-xl z-10">
             <h3 className="text-2xl sm:text-3xl font-black">
-              Get $10 Off Your First Order!
+              Get ₦5,000 Off Your First Order!
             </h3>
             <p className="text-xs sm:text-sm text-gray-400 leading-relaxed">
               Subscribe to our newsletter for exclusive weekly discounts, organic seasonal deals, and new store arrivals.

@@ -20,6 +20,7 @@ import {
   ThumbsDown 
 } from 'lucide-react';
 import AdminSidebar from '@/components/admin/AdminSidebar';
+import { formatNaira } from '@/lib/currency';
 
 interface SellerItem {
   id: number;
@@ -45,15 +46,15 @@ const INITIAL_SELLERS: SellerItem[] = [
     id: 1,
     name: 'Green Valley Organic Farms',
     owner: 'Robert Jenkins',
-    email: 'robert@greenvalley.com',
-    phone: '+1 (555) 123-4567',
-    city: 'New York',
-    area: 'Downtown Manhattan Zone',
+    email: 'robert@greenvalley.ng',
+    phone: '+234 802 345 6789',
+    city: 'Lagos',
+    area: 'Victoria Island Zone',
     products: 240,
     commission: 5.0,
-    walletBalance: 4890.50,
-    taxId: '12-3456789',
-    bankAccount: '••••••••9102',
+    walletBalance: 489050.00,
+    taxId: 'TIN-12345678',
+    bankAccount: 'Zenith Bank •••• 9102',
     status: 'Approved',
     requireProductApproval: false,
     image: 'https://images.unsplash.com/photo-1500937386664-56d1dfef3854?w=300',
@@ -62,15 +63,15 @@ const INITIAL_SELLERS: SellerItem[] = [
     id: 2,
     name: 'Daily Dairy & Poultry Fresh',
     owner: 'Sarah Miller',
-    email: 'sarah@dailydairy.com',
-    phone: '+1 (555) 234-5678',
-    city: 'New York',
-    area: 'Westside Market Zone',
+    email: 'sarah@dailydairy.ng',
+    phone: '+234 803 234 5678',
+    city: 'Lagos',
+    area: 'Ikeja GRA Wholesale Hub',
     products: 180,
     commission: 5.0,
-    walletBalance: 3120.00,
-    taxId: '98-7654321',
-    bankAccount: '••••••••4812',
+    walletBalance: 312000.00,
+    taxId: 'TIN-98765432',
+    bankAccount: 'GTBank •••• 4812',
     status: 'Approved',
     requireProductApproval: false,
     image: 'https://images.unsplash.com/photo-1528750997573-59b89d56f4f7?w=300',
@@ -79,15 +80,15 @@ const INITIAL_SELLERS: SellerItem[] = [
     id: 3,
     name: 'SunFresh Orchard Produce',
     owner: 'Marcus Vance',
-    email: 'marcus@sunfresh.com',
-    phone: '+1 (555) 890-1234',
-    city: 'Brooklyn',
-    area: 'Brooklyn Heights Zone',
+    email: 'marcus@sunfresh.ng',
+    phone: '+234 809 890 1234',
+    city: 'Lagos',
+    area: 'Lekki Phase 1 Corridor',
     products: 45,
     commission: 6.0,
     walletBalance: 0.00,
-    taxId: '54-9871234',
-    bankAccount: '••••••••7721',
+    taxId: 'TIN-54987123',
+    bankAccount: 'Access Bank •••• 7721',
     status: 'Pending',
     requireProductApproval: true,
     image: 'https://images.unsplash.com/photo-1610348725531-843dff563e2c?w=300',
@@ -96,15 +97,15 @@ const INITIAL_SELLERS: SellerItem[] = [
     id: 4,
     name: 'The Artisanal Bakery Co.',
     owner: 'Jean-Luc Dupont',
-    email: 'jean@artisanalbakery.com',
-    phone: '+1 (555) 345-6789',
-    city: 'New York',
-    area: 'East Midtown Zone',
-    products: 95,
+    email: 'jean@artisanalbakery.ng',
+    phone: '+234 807 345 6789',
+    city: 'Lagos',
+    area: 'Ikoyi Gourmet Zone',
+    products: 32,
     commission: 5.0,
-    walletBalance: 1980.25,
-    taxId: '33-2211445',
-    bankAccount: '••••••••3319',
+    walletBalance: 120500.00,
+    taxId: 'TIN-77123984',
+    bankAccount: 'First Bank •••• 3341',
     status: 'Approved',
     requireProductApproval: false,
     image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=300',
@@ -276,8 +277,8 @@ export default function AdminSellersPage() {
                         {s.commission}% commission
                       </span>
                     </td>
-                    <td className="py-3.5 px-3 font-bold text-white">
-                      ${s.walletBalance.toFixed(2)}
+                    <td className="py-3.5 px-3 font-bold text-white font-mono">
+                      {formatNaira(s.walletBalance)}
                     </td>
                     <td className="py-3.5 px-3">
                       <span

@@ -209,7 +209,7 @@ export default function Header({ cartCount = 0, onOpenCart }: HeaderProps) {
                       onClick={() => setUserDropdownOpen(false)}
                       className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 font-semibold"
                     >
-                      <Wallet size={15} /> Digital Wallet (${(user?.walletBalance ?? 0).toFixed(2)})
+                      <Wallet size={15} /> Digital Wallet ({formatNaira(user?.walletBalance ?? 0)})
                     </Link>
 
                     <button
@@ -280,7 +280,7 @@ export default function Header({ cartCount = 0, onOpenCart }: HeaderProps) {
             <div className="p-3 bg-gray-50 dark:bg-gray-800/60 rounded-2xl flex items-center justify-between">
               <div>
                 <span className="font-bold text-xs text-gray-900 dark:text-white block">{user?.name}</span>
-                <span className="text-[11px] text-[#0aad0a] font-semibold">Wallet: ${(user?.walletBalance ?? 0).toFixed(2)}</span>
+                <span className="text-[11px] text-[#0aad0a] font-semibold">Wallet: {formatNaira(user?.walletBalance ?? 0)}</span>
               </div>
               <button
                 onClick={() => {

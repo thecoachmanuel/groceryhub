@@ -2,22 +2,44 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ShoppingBag, Lock, Mail, ArrowRight, ShieldCheck } from 'lucide-react';
+import { ShoppingBag, Lock, Mail, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('admin@gmail.com');
-  const [password, setPassword] = useState('admin123');
+  const [email, setEmail] = useState('admin@groceryhub.ng');
+  const [password, setPassword] = useState('AdminPassword2026!');
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMsg('');
     setLoading(true);
-    setTimeout(() => {
+
+    try {
+      const res = await fetch('/api/auth/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
       setLoading(false);
+
+      if (!res.ok || !data.success) {
+        return setErrorMsg(data.message || 'Invalid admin credentials.');
+      }
+
+      localStorage.setItem('groceryhub_admin_token', data.data.token);
+      localStorage.setItem('groceryhub_admin', JSON.stringify(data.data.user));
+      document.cookie = `auth_token=${data.data.token}; path=/; max-age=604800; SameSite=Lax`;
+
       router.push('/admin/dashboard');
-    }, 800);
+    } catch (err) {
+      setLoading(false);
+      setErrorMsg('Network error occurred. Please try again.');
+    }
   };
 
   return (
@@ -32,9 +54,16 @@ export default function AdminLoginPage() {
           <p className="text-xs text-gray-400">Sign in to manage multi-vendor grocery ecosystem</p>
         </div>
 
+        {errorMsg && (
+          <div className="bg-red-950/40 border border-red-800 text-red-400 p-3.5 rounded-2xl text-xs font-bold flex items-center gap-2">
+            <AlertCircle size={16} />
+            <span>{errorMsg}</span>
+          </div>
+        )}
+
         <form onSubmit={handleLogin} className="space-y-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-gray-300">Admin Username / Email</label>
+            <label className="text-xs font-bold text-gray-300">Admin Email</label>
             <div className="relative">
               <input
                 type="email"
@@ -50,7 +79,6 @@ export default function AdminLoginPage() {
           <div className="space-y-1.5">
             <div className="flex justify-between items-center text-xs">
               <label className="font-bold text-gray-300">Password</label>
-              <span className="text-[#0aad0a] text-[11px] cursor-pointer hover:underline">Forgot password?</span>
             </div>
             <div className="relative">
               <input

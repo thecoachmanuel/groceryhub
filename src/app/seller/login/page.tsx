@@ -2,22 +2,49 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Store, Lock, Phone, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Store, Lock, Phone, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 
 export default function SellerLoginPage() {
   const router = useRouter();
-  const [mobile, setMobile] = useState('+1 (555) 123-4567');
-  const [password, setPassword] = useState('seller123');
+  const [identifier, setIdentifier] = useState('vendor@groceryhub.ng');
+  const [password, setPassword] = useState('VendorPassword2026!');
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMsg('');
     setLoading(true);
-    setTimeout(() => {
+
+    try {
+      const res = await fetch('/api/auth/seller/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: identifier.includes('@') ? identifier : undefined,
+          mobile: !identifier.includes('@') ? identifier : undefined,
+          password,
+        }),
+      });
+
+      const data = await res.json();
       setLoading(false);
+
+      if (!res.ok || !data.success) {
+        return setErrorMsg(data.message || 'Vendor login failed. Invalid credentials.');
+      }
+
+      // Store seller session
+      localStorage.setItem('groceryhub_seller_token', data.data.token);
+      localStorage.setItem('groceryhub_seller', JSON.stringify(data.data.seller));
+      document.cookie = `auth_token=${data.data.token}; path=/; max-age=604800; SameSite=Lax`;
+
       router.push('/seller/dashboard');
-    }, 800);
+    } catch (err) {
+      setLoading(false);
+      setErrorMsg('Network error occurred. Please try again.');
+    }
   };
 
   return (
@@ -32,14 +59,22 @@ export default function SellerLoginPage() {
           <p className="text-xs text-gray-400">Manage your store inventory, retail POS, and orders</p>
         </div>
 
+        {errorMsg && (
+          <div className="bg-red-950/40 border border-red-800 text-red-400 p-3.5 rounded-2xl text-xs font-bold flex items-center gap-2">
+            <AlertCircle size={16} />
+            <span>{errorMsg}</span>
+          </div>
+        )}
+
         <form onSubmit={handleLogin} className="space-y-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-gray-300">Registered Vendor Mobile</label>
+            <label className="text-xs font-bold text-gray-300">Registered Vendor Email or Mobile</label>
             <div className="relative">
               <input
                 type="text"
-                value={mobile}
-                onChange={(e) => setMobile(e.target.value)}
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                placeholder="vendor@groceryhub.ng"
                 className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl py-3 pl-10 pr-4 text-xs font-semibold focus:outline-none focus:border-[#0aad0a]"
                 required
               />
@@ -50,13 +85,13 @@ export default function SellerLoginPage() {
           <div className="space-y-1.5">
             <div className="flex justify-between items-center text-xs">
               <label className="font-bold text-gray-300">Password</label>
-              <span className="text-[#0aad0a] text-[11px] cursor-pointer hover:underline">Forgot?</span>
             </div>
             <div className="relative">
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
                 className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl py-3 pl-10 pr-4 text-xs focus:outline-none focus:border-[#0aad0a]"
                 required
               />
@@ -69,23 +104,17 @@ export default function SellerLoginPage() {
             disabled={loading}
             className="w-full bg-[#0aad0a] hover:bg-[#088f08] disabled:opacity-50 text-white font-black py-3.5 rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-[#0aad0a]/30 transition-all active:scale-[0.98]"
           >
-            <span>{loading ? 'Logging into Store...' : 'Access Seller Portal'}</span>
+            <span>{loading ? 'Authenticating...' : 'Sign In to Vendor Portal'}</span>
             <ArrowRight size={16} />
           </button>
         </form>
 
         <div className="text-center text-xs text-gray-400">
-          Want to sell on GroceryHub?{' '}
+          Want to sell fresh produce on GroceryHub?{' '}
           <Link href="/seller/register" className="text-[#0aad0a] font-bold hover:underline">
-            Register Store & Partner
+            Register Your Store
           </Link>
         </div>
-
-        <div className="pt-2 text-center text-xs text-gray-400 border-t border-gray-800 flex justify-between items-center">
-          <Link href="/" className="hover:text-white">← Return to Storefront</Link>
-          <Link href="/seller/pos" className="text-[#0aad0a] font-bold hover:underline">Open POS Terminal →</Link>
-        </div>
-
       </div>
     </div>
   );

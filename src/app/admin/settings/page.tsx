@@ -2,19 +2,24 @@
 
 import { useState } from 'react';
 import { 
-  Sliders, 
+  Settings, 
+  Globe, 
+  ShieldCheck, 
+  ShoppingBag, 
+  Smartphone, 
   Save, 
   CheckCircle2, 
-  Globe, 
-  DollarSign, 
-  ShieldAlert, 
-  Truck, 
-  Smartphone, 
-  Building,
-  UploadCloud
+  HelpCircle,
+  Truck,
+  Mail,
+  Phone,
+  MapPin,
+  Lock,
+  RefreshCw
 } from 'lucide-react';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import LocalImageUploader from '@/components/common/LocalImageUploader';
+import { formatNaira } from '@/lib/currency';
 
 export default function AdminSettingsPage() {
   const [activeTab, setActiveTab] = useState<'general' | 'localization' | 'orders' | 'security' | 'mobile'>('general');
@@ -22,22 +27,22 @@ export default function AdminSettingsPage() {
 
   // General Identity
   const [appName, setAppName] = useState('GroceryHub');
-  const [appDescription, setAppDescription] = useState('Hyper-local 30-minute grocery delivery platform');
-  const [supportPhone, setSupportPhone] = useState('+1 (800) 123-4567');
-  const [supportEmail, setSupportEmail] = useState('support@groceryhub.com');
-  const [address, setAddress] = useState('124 Market Square, Downtown Zone, NY 10001');
+  const [appDescription, setAppDescription] = useState('Hyper-local 30-minute grocery delivery platform in Nigeria');
+  const [supportPhone, setSupportPhone] = useState('+234 (800) 123-4567');
+  const [supportEmail, setSupportEmail] = useState('support@groceryhub.ng');
+  const [address, setAddress] = useState('Plot 14, Adeola Odeku St, Victoria Island, Lagos, Nigeria');
   const [storeLogoUrl, setStoreLogoUrl] = useState('');
 
   // Localization
-  const [currencySymbol, setCurrencySymbol] = useState('$');
-  const [currencyCode, setCurrencyCode] = useState('USD');
-  const [timezone, setTimezone] = useState('America/New_York (EST)');
+  const [currencySymbol, setCurrencySymbol] = useState('₦');
+  const [currencyCode, setCurrencyCode] = useState('NGN');
+  const [timezone, setTimezone] = useState('Africa/Lagos (WAT)');
 
   // Orders & Logistics Defaults
   const [orderPrefix, setOrderPrefix] = useState('ORD-');
-  const [defaultRadius, setDefaultRadius] = useState('7.5');
-  const [minOrderSpend, setMinOrderSpend] = useState('15.00');
-  const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState('50.00');
+  const [defaultRadius, setDefaultRadius] = useState('15');
+  const [minOrderSpend, setMinOrderSpend] = useState('2000.00');
+  const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState('15000.00');
   const [autoAssignDrivers, setAutoAssignDrivers] = useState(true);
 
   // Security & Auth
@@ -63,64 +68,54 @@ export default function AdminSettingsPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-black flex items-center gap-2">
-              <Sliders size={24} className="text-[#0aad0a]" /> System & Store Configuration
+              <Settings size={24} className="text-[#0aad0a]" /> Global Platform Settings
             </h1>
             <p className="text-xs text-gray-400 mt-0.5">
-              Control global store settings, currency localization, default dispatch thresholds, and maintenance mode
+              Control platform branding, Nigerian localization, dispatch thresholds, and authentication policies
             </p>
           </div>
 
-          <button
-            onClick={handleSave}
-            className="bg-[#0aad0a] hover:bg-[#088f08] text-white text-xs font-black px-6 py-2.5 rounded-2xl flex items-center gap-2 shadow-lg shadow-[#0aad0a]/30 transition-all active:scale-95"
-          >
-            <Save size={16} />
-            <span>Save Configuration</span>
-          </button>
+          {savedSuccess && (
+            <div className="bg-emerald-950/80 border border-[#0aad0a] text-[#0aad0a] px-4 py-2 rounded-2xl text-xs font-bold flex items-center gap-2 animate-bounce">
+              <CheckCircle2 size={16} /> Configuration saved and applied!
+            </div>
+          )}
         </div>
 
-        {savedSuccess && (
-          <div className="bg-emerald-950/50 border border-[#0aad0a]/40 text-[#0aad0a] text-xs font-bold p-4 rounded-2xl flex items-center gap-2 animate-fade-in">
-            <CheckCircle2 size={18} /> Store configuration settings saved successfully!
-          </div>
-        )}
-
-        {/* Setting Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 border-b border-gray-800">
+        {/* Setting Category Tabs */}
+        <div className="flex items-center gap-2 border-b border-gray-800 pb-2 overflow-x-auto">
           {[
-            { id: 'general', label: 'Store Identity & Contact', icon: Building },
-            { id: 'localization', label: 'Currency & Timezone', icon: DollarSign },
-            { id: 'orders', label: 'Order & Dispatch Rules', icon: Truck },
-            { id: 'security', label: 'Security & Maintenance', icon: ShieldAlert },
-            { id: 'mobile', label: 'Mobile App URLs', icon: Smartphone },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
+            { id: 'general', label: 'Store Identity', icon: Settings },
+            { id: 'localization', label: 'Currency & Timezone', icon: Globe },
+            { id: 'orders', label: 'Orders & Dispatch', icon: Truck },
+            { id: 'security', label: 'Security & Maintenance', icon: ShieldCheck },
+            { id: 'mobile', label: 'Mobile App Store Links', icon: Smartphone },
+          ].map((t) => {
+            const Icon = t.icon;
             return (
               <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
+                key={t.id}
+                onClick={() => setActiveTab(t.id as any)}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-                  isActive
-                    ? 'bg-[#0aad0a] text-white shadow-md shadow-[#0aad0a]/20'
-                    : 'bg-gray-800/80 text-gray-400 hover:text-white hover:bg-gray-800'
+                  activeTab === t.id
+                    ? 'bg-[#0aad0a] text-white shadow-md shadow-[#0aad0a]/30'
+                    : 'bg-[#1e2632] hover:bg-gray-800 text-gray-400 hover:text-white'
                 }`}
               >
                 <Icon size={14} />
-                <span>{tab.label}</span>
+                <span>{t.label}</span>
               </button>
             );
           })}
         </div>
 
-        {/* Tab Contents */}
-        <form onSubmit={handleSave} className="bg-[#1e2632] border border-gray-800 rounded-3xl p-8 space-y-6 max-w-4xl">
+        <form onSubmit={handleSave} className="bg-[#1e2632] border border-gray-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-xl">
           {/* General Identity */}
           {activeTab === 'general' && (
-            <div className="space-y-4">
+            <div className="space-y-5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Store / App Name</label>
+                  <label className="text-xs font-bold text-gray-300">App Name / Brand Title</label>
                   <input
                     type="text"
                     value={appName}
@@ -131,7 +126,7 @@ export default function AdminSettingsPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Customer Support Phone</label>
+                  <label className="text-xs font-bold text-gray-300">Support Phone (+234)</label>
                   <input
                     type="text"
                     value={supportPhone}
@@ -140,6 +135,17 @@ export default function AdminSettingsPage() {
                     required
                   />
                 </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-300">Platform Tagline</label>
+                <input
+                  type="text"
+                  value={appDescription}
+                  onChange={(e) => setAppDescription(e.target.value)}
+                  className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
+                  required
+                />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -208,11 +214,9 @@ export default function AdminSettingsPage() {
                     onChange={(e) => setTimezone(e.target.value)}
                     className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
                   >
-                    <option value="America/New_York (EST)">America/New_York (EST)</option>
-                    <option value="America/Chicago (CST)">America/Chicago (CST)</option>
-                    <option value="America/Los_Angeles (PST)">America/Los_Angeles (PST)</option>
+                    <option value="Africa/Lagos (WAT)">Africa/Lagos (WAT - West Africa Time)</option>
                     <option value="Europe/London (GMT)">Europe/London (GMT)</option>
-                    <option value="Asia/Kolkata (IST)">Asia/Kolkata (IST)</option>
+                    <option value="America/New_York (EST)">America/New_York (EST)</option>
                   </select>
                 </div>
               </div>
@@ -249,10 +253,10 @@ export default function AdminSettingsPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Minimum Order Spend ($)</label>
+                  <label className="text-xs font-bold text-gray-300">Minimum Order Spend (₦)</label>
                   <input
                     type="number"
-                    step="0.01"
+                    step="100"
                     value={minOrderSpend}
                     onChange={(e) => setMinOrderSpend(e.target.value)}
                     className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
@@ -261,10 +265,10 @@ export default function AdminSettingsPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Free Delivery Threshold ($)</label>
+                  <label className="text-xs font-bold text-gray-300">Free Delivery Threshold (₦)</label>
                   <input
                     type="number"
-                    step="0.01"
+                    step="500"
                     value={freeDeliveryThreshold}
                     onChange={(e) => setFreeDeliveryThreshold(e.target.value)}
                     className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
@@ -302,30 +306,25 @@ export default function AdminSettingsPage() {
                 </div>
               </div>
 
-              <div className="p-4 bg-gray-900/80 rounded-2xl border border-gray-800 flex items-center justify-between">
+              <div className="p-4 bg-gray-900/60 border border-gray-800 rounded-2xl flex items-center justify-between">
                 <div>
-                  <h4 className="font-bold text-xs text-white">Store Maintenance Mode</h4>
-                  <p className="text-[11px] text-gray-400 mt-0.5">
-                    When active, customers will see a temporary maintenance message while admins retain access
-                  </p>
+                  <h4 className="text-xs font-bold text-white">Platform Maintenance Lockdown</h4>
+                  <p className="text-[11px] text-gray-400">Temporarily pause customer checkout while updating database indexes</p>
                 </div>
-
                 <button
                   type="button"
                   onClick={() => setMaintenanceMode(!maintenanceMode)}
                   className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${
-                    maintenanceMode
-                      ? 'bg-red-600 text-white'
-                      : 'bg-gray-800 text-gray-400 hover:text-white'
+                    maintenanceMode ? 'bg-red-500 text-white' : 'bg-gray-800 text-gray-400'
                   }`}
                 >
-                  {maintenanceMode ? 'ENABLED (Offline)' : 'DISABLED (Online)'}
+                  {maintenanceMode ? 'Lockdown ACTIVE' : 'Normal Operation'}
                 </button>
               </div>
             </div>
           )}
 
-          {/* Mobile App URLs */}
+          {/* Mobile App Store Links */}
           {activeTab === 'mobile' && (
             <div className="space-y-4">
               <div className="space-y-1.5">
@@ -350,12 +349,13 @@ export default function AdminSettingsPage() {
             </div>
           )}
 
-          <div className="pt-4 border-t border-gray-800 flex justify-end">
+          <div className="flex justify-end pt-4 border-t border-gray-800">
             <button
               type="submit"
-              className="bg-[#0aad0a] hover:bg-[#088f08] text-white font-black px-8 py-3.5 rounded-xl text-xs shadow-lg shadow-[#0aad0a]/30 transition-all active:scale-95"
+              className="bg-[#0aad0a] hover:bg-[#088f08] text-white font-black px-8 py-3.5 rounded-2xl text-xs flex items-center gap-2 shadow-lg shadow-[#0aad0a]/30 transition-all active:scale-95"
             >
-              Save Configuration Settings
+              <Save size={16} />
+              <span>Save System Settings</span>
             </button>
           </div>
         </form>

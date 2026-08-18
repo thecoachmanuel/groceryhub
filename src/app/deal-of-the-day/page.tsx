@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import Header from '@/components/website/Header';
 import Footer from '@/components/website/Footer';
+import { formatNaira } from '@/lib/currency';
 
 interface DealProduct {
   id: number;
@@ -36,13 +37,13 @@ interface DealProduct {
 const DEAL_PRODUCTS: DealProduct[] = [
   {
     id: 1,
-    name: 'Organic Honeycrisp Apples (3lb Bag)',
+    name: 'Organic Honeycrisp Apples (1kg Bag)',
     category: 'Fresh Fruits',
     seller_name: 'Fresh Harvest Organics',
-    price: 3.99,
-    original_price: 6.99,
-    discount_percentage: 43,
-    unit: '3 lb bag',
+    price: 3500,
+    original_price: 5500,
+    discount_percentage: 36,
+    unit: '1 kg pack',
     rating: 4.9,
     reviews_count: 128,
     image: 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=300&auto=format&fit=crop&q=60',
@@ -53,10 +54,10 @@ const DEAL_PRODUCTS: DealProduct[] = [
     name: 'Fresh Atlantic Salmon Fillet (Wild Caught)',
     category: 'Meat & Seafood',
     seller_name: 'Ocean Catch Seafood',
-    price: 9.99,
-    original_price: 15.99,
+    price: 9500,
+    original_price: 15500,
     discount_percentage: 38,
-    unit: '1 lb portion',
+    unit: '500g portion',
     rating: 4.8,
     reviews_count: 85,
     image: 'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=300&auto=format&fit=crop&q=60',
@@ -67,9 +68,9 @@ const DEAL_PRODUCTS: DealProduct[] = [
     name: 'Artisanal Italian Olive Oil (Cold-Pressed Extra Virgin)',
     category: 'Pantry Essentials',
     seller_name: 'Green Valley Grocers',
-    price: 8.49,
-    original_price: 13.99,
-    discount_percentage: 39,
+    price: 8500,
+    original_price: 13500,
+    discount_percentage: 37,
     unit: '500ml bottle',
     rating: 5.0,
     reviews_count: 210,
@@ -81,9 +82,9 @@ const DEAL_PRODUCTS: DealProduct[] = [
     name: 'Organic Hass Avocados (Jumbo 4-Pack)',
     category: 'Vegetables',
     seller_name: 'Fresh Harvest Organics',
-    price: 4.49,
-    original_price: 7.99,
-    discount_percentage: 44,
+    price: 3800,
+    original_price: 6500,
+    discount_percentage: 41,
     unit: '4 count pack',
     rating: 4.9,
     reviews_count: 340,
@@ -92,13 +93,13 @@ const DEAL_PRODUCTS: DealProduct[] = [
   },
   {
     id: 5,
-    name: 'Pure Raw Blossom Honey (Unfiltered)',
+    name: 'Pure Raw Blossom Honey (Unfiltered 500g)',
     category: 'Pantry Essentials',
     seller_name: 'Green Valley Grocers',
-    price: 6.99,
-    original_price: 11.50,
+    price: 5500,
+    original_price: 9000,
     discount_percentage: 39,
-    unit: '16 oz jar',
+    unit: '500g jar',
     rating: 4.9,
     reviews_count: 95,
     image: 'https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=300&auto=format&fit=crop&q=60',
@@ -109,9 +110,9 @@ const DEAL_PRODUCTS: DealProduct[] = [
     name: 'Handcrafted Chocolate Almond Croissants (4-Pack)',
     category: 'Bakery',
     seller_name: 'Daily Baker Market',
-    price: 5.49,
-    original_price: 8.99,
-    discount_percentage: 39,
+    price: 4500,
+    original_price: 7500,
+    discount_percentage: 40,
     unit: '4 pcs box',
     rating: 4.9,
     reviews_count: 160,
@@ -120,13 +121,18 @@ const DEAL_PRODUCTS: DealProduct[] = [
   }
 ];
 
-export default function DealOfTheDayPage() {
-  const [products] = useState<DealProduct[]>(DEAL_PRODUCTS);
-  const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  const [addedNotification, setAddedNotification] = useState<string | null>(null);
+const CATEGORIES = ['All Deals', 'Fresh Fruits', 'Vegetables', 'Meat & Seafood', 'Bakery', 'Pantry Essentials'];
 
-  // Countdown timer state (hours, minutes, seconds)
-  const [timeLeft, setTimeLeft] = useState({ hours: 7, minutes: 42, seconds: 19 });
+export default function DealOfTheDayPage() {
+  const [selectedCategory, setSelectedCategory] = useState('All Deals');
+  const [addedItem, setAddedItem] = useState<string | null>(null);
+
+  // Live Countdown state
+  const [timeLeft, setTimeLeft] = useState({
+    hours: 8,
+    minutes: 42,
+    seconds: 19
+  });
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -138,82 +144,97 @@ export default function DealOfTheDayPage() {
         } else if (prev.hours > 0) {
           return { hours: prev.hours - 1, minutes: 59, seconds: 59 };
         }
-        return prev;
+        return { hours: 23, minutes: 59, seconds: 59 };
       });
     }, 1000);
     return () => clearInterval(timer);
   }, []);
 
-  const handleAddToCart = (name: string) => {
-    setAddedNotification(`Added ${name} to your cart!`);
-    setTimeout(() => setAddedNotification(null), 3000);
+  const handleAddToCart = (productName: string) => {
+    setAddedItem(productName);
+    setTimeout(() => setAddedItem(null), 3000);
   };
 
-  const categories = ['All', 'Fresh Fruits', 'Vegetables', 'Meat & Seafood', 'Bakery', 'Pantry Essentials'];
-
-  const filtered = selectedCategory === 'All' 
-    ? products 
-    : products.filter(p => p.category === selectedCategory);
+  const filtered = selectedCategory === 'All Deals' 
+    ? DEAL_PRODUCTS 
+    : DEAL_PRODUCTS.filter(p => p.category === selectedCategory);
 
   return (
     <div className="min-h-screen flex flex-col justify-between bg-gray-50 dark:bg-[#121820] text-gray-900 dark:text-white">
       <Header />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8 w-full">
-        {/* Toast */}
-        {addedNotification && (
-          <div className="fixed bottom-6 right-6 z-50 bg-[#0aad0a] text-white font-black text-xs px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2 animate-bounce">
-            <CheckCircle2 size={16} /> {addedNotification}
-          </div>
-        )}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 w-full">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-2 text-xs font-bold text-gray-500">
+          <Link href="/" className="hover:text-[#0aad0a] flex items-center gap-1">
+            <ArrowLeft size={14} /> Back to Storefront
+          </Link>
+          <span>/</span>
+          <span className="text-gray-900 dark:text-white">Deals of the Day</span>
+        </div>
 
-        {/* Hero Deal Banner with Live Countdown */}
-        <div className="bg-gradient-to-r from-red-600 via-amber-600 to-orange-500 rounded-3xl p-6 sm:p-10 text-white flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-xl relative overflow-hidden">
-          <div className="space-y-2 relative z-10">
-            <div className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider">
-              <Flame size={14} className="text-yellow-300" /> Flash Markdown Sale
+        {/* Hero Banner with Live Countdown Clock */}
+        <div className="rounded-3xl bg-gradient-to-r from-red-600 via-orange-600 to-amber-600 p-6 sm:p-10 text-white shadow-2xl relative overflow-hidden flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
+          
+          <div className="space-y-3 max-w-xl z-10">
+            <div className="inline-flex items-center gap-1.5 bg-black/30 backdrop-blur-md px-3.5 py-1.5 rounded-full text-xs font-black uppercase tracking-wider text-amber-300">
+              <Flame size={14} className="fill-amber-300" />
+              <span>Limited Time Daily Flash Sale</span>
             </div>
-            <h1 className="text-2xl sm:text-4xl font-black">
-              Deal of the Day — Up to 50% OFF
+            
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-tight">
+              Deals of the Day 🔥
             </h1>
-            <p className="text-xs sm:text-sm text-red-100 max-w-xl">
-              Limited daily inventory flash discounts on premium organic groceries, wild-caught seafood, and artisan pantry staples.
+            <p className="text-sm sm:text-base text-orange-100 font-medium">
+              Save up to 45% OFF hand-picked fresh organic produce, bakery delights, and pantry staples in Naira (₦).
             </p>
           </div>
 
-          {/* Countdown Clock */}
-          <div className="bg-black/30 backdrop-blur-md border border-white/20 p-4 sm:p-5 rounded-3xl text-center space-y-2 relative z-10 shrink-0">
-            <div className="text-[11px] font-bold text-red-100 flex items-center justify-center gap-1.5 uppercase tracking-wider">
-              <Clock size={14} /> Offers Expire In
+          {/* Countdown Clock Box */}
+          <div className="bg-black/40 backdrop-blur-xl border border-white/20 rounded-3xl p-6 sm:p-8 flex flex-col items-center justify-center space-y-3 z-10 shrink-0">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-300">
+              <Clock size={16} /> Deals Expire In
             </div>
-            <div className="flex items-center justify-center gap-2 font-mono font-black text-xl sm:text-2xl">
-              <div className="bg-white/20 px-3 py-1.5 rounded-xl">
-                {String(timeLeft.hours).padStart(2, '0')}
-                <span className="block text-[9px] font-sans font-normal text-red-200">HRS</span>
+
+            <div className="flex items-center gap-3 font-mono font-black text-3xl sm:text-4xl text-white">
+              <div className="bg-white/10 px-3.5 py-2 rounded-2xl border border-white/10 text-center">
+                <span>{String(timeLeft.hours).padStart(2, '0')}</span>
+                <span className="block text-[9px] font-sans font-normal text-orange-200 mt-1">HRS</span>
               </div>
-              <span>:</span>
-              <div className="bg-white/20 px-3 py-1.5 rounded-xl">
-                {String(timeLeft.minutes).padStart(2, '0')}
-                <span className="block text-[9px] font-sans font-normal text-red-200">MIN</span>
+              <span className="text-amber-300 animate-pulse">:</span>
+              <div className="bg-white/10 px-3.5 py-2 rounded-2xl border border-white/10 text-center">
+                <span>{String(timeLeft.minutes).padStart(2, '0')}</span>
+                <span className="block text-[9px] font-sans font-normal text-orange-200 mt-1">MIN</span>
               </div>
-              <span>:</span>
-              <div className="bg-white/20 px-3 py-1.5 rounded-xl text-yellow-300">
-                {String(timeLeft.seconds).padStart(2, '0')}
-                <span className="block text-[9px] font-sans font-normal text-red-200">SEC</span>
+              <span className="text-amber-300 animate-pulse">:</span>
+              <div className="bg-white/10 px-3.5 py-2 rounded-2xl border border-white/10 text-center text-amber-300">
+                <span>{String(timeLeft.seconds).padStart(2, '0')}</span>
+                <span className="block text-[9px] font-sans font-normal text-orange-200 mt-1">SEC</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Category Filters */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-          {categories.map((c) => (
+        {addedItem && (
+          <div className="bg-emerald-500 text-white p-4 rounded-2xl text-xs font-bold flex items-center justify-between shadow-xl animate-fade-in">
+            <span className="flex items-center gap-2">
+              <CheckCircle2 size={16} /> Added &quot;{addedItem}&quot; to cart at exclusive flash sale price!
+            </span>
+            <Link href="/cart" className="underline font-black hover:text-emerald-100">
+              View Cart &amp; Checkout
+            </Link>
+          </div>
+        )}
+
+        {/* Categories Bar */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 text-xs">
+          {CATEGORIES.map((c) => (
             <button
               key={c}
               onClick={() => setSelectedCategory(c)}
-              className={`px-4 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all ${
+              className={`px-4 py-2.5 rounded-2xl font-bold whitespace-nowrap transition-all shadow-sm active:scale-95 ${
                 selectedCategory === c
-                  ? 'bg-[#0aad0a] text-white shadow-md shadow-[#0aad0a]/20'
+                  ? 'bg-red-600 text-white shadow-md shadow-red-500/30'
                   : 'bg-white dark:bg-[#1e2632] border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:border-gray-300'
               }`}
             >
@@ -262,8 +283,8 @@ export default function DealOfTheDayPage() {
                 </Link>
 
                 <div className="flex items-baseline gap-2">
-                  <span className="font-black text-xl text-[#0aad0a] font-mono">${product.price.toFixed(2)}</span>
-                  <span className="text-xs text-gray-400 line-through font-mono">${product.original_price.toFixed(2)}</span>
+                  <span className="font-black text-xl text-[#0aad0a] font-mono">{formatNaira(product.price)}</span>
+                  <span className="text-xs text-gray-400 line-through font-mono">{formatNaira(product.original_price)}</span>
                   <span className="text-xs text-gray-500 font-mono font-medium">/ {product.unit}</span>
                 </div>
 
@@ -282,13 +303,13 @@ export default function DealOfTheDayPage() {
                 </div>
               </div>
 
-              {/* Add to cart CTA */}
+              {/* Action */}
               <button
                 onClick={() => handleAddToCart(product.name)}
-                className="w-full bg-[#0aad0a] hover:bg-[#088f08] text-white font-black py-3 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-[#0aad0a]/20 transition-all active:scale-95"
+                className="w-full bg-gray-900 dark:bg-gray-800 hover:bg-[#0aad0a] dark:hover:bg-[#0aad0a] text-white font-black py-3 rounded-2xl text-xs flex items-center justify-center gap-2 transition-all shadow-md active:scale-95 group-hover:bg-[#0aad0a]"
               >
-                <ShoppingBag size={15} />
-                <span>Add to Cart • ${product.price.toFixed(2)}</span>
+                <ShoppingBag size={16} />
+                <span>Claim Deal &bull; {formatNaira(product.price)}</span>
               </button>
             </div>
           ))}

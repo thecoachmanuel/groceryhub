@@ -17,7 +17,7 @@ const FAQS = [
   },
   {
     q: 'What payment methods are supported?',
-    a: 'We support all major payment gateways including Stripe, Razorpay, Cashfree, PayPal, credit/debit cards, Apple Pay, Google Pay, and Cash on Delivery (COD).',
+    a: 'We support all major Nigerian payment methods including Paystack (Debit/Credit Cards, Bank Transfer, USSD), Store Wallet, and Cash on Delivery (COD).',
   },
   {
     q: 'How do I return or replace a damaged product?',
@@ -25,7 +25,7 @@ const FAQS = [
   },
   {
     q: 'Is there a minimum order amount for free delivery?',
-    a: 'Orders above $50 qualify for free express delivery. For orders below $50, a small nominal delivery fee is applied based on your delivery zone.',
+    a: 'Orders above ₦15,000 qualify for free express delivery. For orders below ₦15,000, a nominal delivery fee is applied based on your delivery zone.',
   },
   {
     q: 'How do I become a vendor / sell on GroceryHub?',

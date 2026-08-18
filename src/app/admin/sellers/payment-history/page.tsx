@@ -18,6 +18,7 @@ import {
   Filter
 } from 'lucide-react';
 import AdminSidebar from '@/components/admin/AdminSidebar';
+import { formatNaira } from '@/lib/currency';
 
 interface PaymentRecord {
   id: number;
@@ -180,17 +181,17 @@ export default function AdminSellerPaymentHistoryPage() {
           <div className="bg-[#1e2632] border border-gray-800 rounded-3xl p-6 space-y-1">
             <span className="text-xs font-bold text-gray-400">Total Net Disbursed</span>
             <div className="text-2xl font-black text-white font-mono">
-              ${totalDisbursed.toFixed(2)}
+              {formatNaira(totalDisbursed)}
             </div>
-            <span className="text-[11px] text-[#0aad0a] font-semibold">Processed to partner banks</span>
+            <span className="text-[11px] text-[#0aad0a] font-semibold">Processed to partner Nigerian banks</span>
           </div>
 
           <div className="bg-[#1e2632] border border-gray-800 rounded-3xl p-6 space-y-1">
             <span className="text-xs font-bold text-gray-400">Platform Commission Retained</span>
             <div className="text-2xl font-black text-amber-400 font-mono">
-              ${totalCommissionEarned.toFixed(2)}
+              {formatNaira(totalCommissionEarned)}
             </div>
-            <span className="text-[11px] text-gray-400 font-semibold">Net platform profit share</span>
+            <span className="text-[11px] text-gray-400 font-semibold">Net platform profit share (5%)</span>
           </div>
 
           <div className="bg-[#1e2632] border border-gray-800 rounded-3xl p-6 space-y-1">
@@ -224,9 +225,9 @@ export default function AdminSellerPaymentHistoryPage() {
                 <tr>
                   <th className="pb-3 px-3">Transaction ID</th>
                   <th className="pb-3 px-3">Vendor / Store</th>
-                  <th className="pb-3 px-3">Gross Order Total</th>
-                  <th className="pb-3 px-3">Commission Cut</th>
-                  <th className="pb-3 px-3">Net Payout Transferred</th>
+                  <th className="pb-3 px-3">Gross Order Total (₦)</th>
+                  <th className="pb-3 px-3">Commission Cut (5%)</th>
+                  <th className="pb-3 px-3">Net Payout Transferred (₦)</th>
                   <th className="pb-3 px-3">Disbursement Method</th>
                   <th className="pb-3 px-3">Date</th>
                   <th className="pb-3 px-3 text-right">Status</th>
@@ -243,13 +244,13 @@ export default function AdminSellerPaymentHistoryPage() {
                       <span className="text-[11px] text-gray-400">{p.bank_account}</span>
                     </td>
                     <td className="py-3.5 px-3 text-gray-300 font-mono font-bold">
-                      ${p.amount.toFixed(2)}
+                      {formatNaira(p.amount)}
                     </td>
                     <td className="py-3.5 px-3 text-amber-400 font-mono font-bold">
-                      -${p.commission_deducted.toFixed(2)}
+                      -{formatNaira(p.commission_deducted)}
                     </td>
                     <td className="py-3.5 px-3 text-[#0aad0a] font-mono font-black text-sm">
-                      ${p.net_payout.toFixed(2)}
+                      {formatNaira(p.net_payout)}
                     </td>
                     <td className="py-3.5 px-3">
                       <span className="bg-gray-900 border border-gray-700 px-2.5 py-1 rounded-lg text-gray-300 font-medium text-[11px]">
@@ -307,10 +308,10 @@ export default function AdminSellerPaymentHistoryPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Gross Sales Value ($)</label>
+                  <label className="text-xs font-bold text-gray-300">Gross Sales Value (₦)</label>
                   <input
                     type="number"
-                    step="10"
+                    step="1000"
                     value={amount}
                     onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
                     className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs font-mono font-bold focus:outline-none focus:border-[#0aad0a]"
@@ -334,11 +335,11 @@ export default function AdminSellerPaymentHistoryPage() {
               <div className="p-3 bg-gray-900 border border-gray-800 rounded-xl space-y-1 text-xs">
                 <div className="flex justify-between text-gray-400">
                   <span>Platform Commission Cut ({commissionRate}%):</span>
-                  <span className="font-mono text-amber-400">${((amount * commissionRate) / 100).toFixed(2)}</span>
+                  <span className="font-mono text-amber-400">{formatNaira((amount * commissionRate) / 100)}</span>
                 </div>
                 <div className="flex justify-between font-black text-white pt-1 border-t border-gray-800">
                   <span>Net Payout to Bank:</span>
-                  <span className="font-mono text-[#0aad0a]">${(amount - (amount * commissionRate) / 100).toFixed(2)}</span>
+                  <span className="font-mono text-[#0aad0a]">{formatNaira(amount - (amount * commissionRate) / 100)}</span>
                 </div>
               </div>
 

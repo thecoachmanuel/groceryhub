@@ -12,72 +12,48 @@ export interface UserProfile {
   walletBalance: number;
   avatar?: string;
   referralCode?: string;
+  role?: string;
 }
 
 interface AuthContextType {
   user: UserProfile | null;
   isAuthenticated: boolean;
-  login: (userData: Partial<UserProfile>) => void;
-  register: (userData: Partial<UserProfile>) => void;
+  loginSession: (token: string, userData: UserProfile) => void;
   logout: () => void;
   updateWallet: (newBalance: number) => void;
 }
 
-const DEFAULT_USER: UserProfile = {
-  id: 101,
-  name: 'Emma Davis',
-  email: 'emma.davis@example.com',
-  mobile: '+1 (555) 234-5678',
-  walletBalance: 125.50,
-  avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120',
-  referralCode: 'EMMA894',
-};
-
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<UserProfile | null>(DEFAULT_USER);
+  const [user, setUser] = useState<UserProfile | null>(null);
   const router = useRouter();
 
   useEffect(() => {
-    // Check localStorage
+    // Restore session from localStorage if present
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('groceryhub_user');
-      if (saved) {
+      const savedUser = localStorage.getItem('groceryhub_user');
+      const savedToken = localStorage.getItem('groceryhub_token');
+      if (savedUser && savedToken) {
         try {
-          setUser(JSON.parse(saved));
+          const parsed = JSON.parse(savedUser);
+          setUser({ ...parsed, token: savedToken });
         } catch (e) {
-          // keep default
+          localStorage.removeItem('groceryhub_user');
+          localStorage.removeItem('groceryhub_token');
         }
       }
     }
   }, []);
 
-  const login = (userData: Partial<UserProfile>) => {
-    const newUser: UserProfile = {
-      ...DEFAULT_USER,
-      ...userData,
-      name: userData.name || userData.email?.split('@')[0] || 'Grocery Shopper',
-    };
-    setUser(newUser);
+  const loginSession = (token: string, userData: UserProfile) => {
+    const activeUser = { ...userData, token };
+    setUser(activeUser);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('groceryhub_user', JSON.stringify(newUser));
-    }
-  };
-
-  const register = (userData: Partial<UserProfile>) => {
-    const newUser: UserProfile = {
-      id: Date.now(),
-      name: userData.name || 'New Shopper',
-      email: userData.email || '',
-      mobile: userData.mobile || '',
-      walletBalance: userData.referralCode ? 10.00 : 0.00, // $10 referral bonus
-      referralCode: 'GH' + Math.floor(1000 + Math.random() * 9000),
-      ...userData,
-    };
-    setUser(newUser);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('groceryhub_user', JSON.stringify(newUser));
+      localStorage.setItem('groceryhub_token', token);
+      localStorage.setItem('groceryhub_user', JSON.stringify(activeUser));
+      // Also set standard auth cookie for server-side auth guard
+      document.cookie = `auth_token=${token}; path=/; max-age=604800; SameSite=Lax`;
     }
   };
 
@@ -85,6 +61,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     if (typeof window !== 'undefined') {
       localStorage.removeItem('groceryhub_user');
+      localStorage.removeItem('groceryhub_token');
+      document.cookie = 'auth_token=; path=/; max-age=0';
     }
     router.push('/');
   };
@@ -104,8 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         user,
         isAuthenticated: !!user,
-        login,
-        register,
+        loginSession,
         logout,
         updateWallet,
       }}

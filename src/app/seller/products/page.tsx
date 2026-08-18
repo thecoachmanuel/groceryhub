@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { Package, Plus, Search, Trash2, Edit3, X, Filter } from 'lucide-react';
 import SellerNav from '@/components/seller/SellerNav';
 import LocalImageUploader from '@/components/common/LocalImageUploader';
+import { formatNaira } from '@/lib/currency';
 
 interface VendorProduct {
   id: number;
@@ -18,10 +19,10 @@ interface VendorProduct {
 }
 
 const INITIAL_VENDOR_PRODUCTS: VendorProduct[] = [
-  { id: 1, name: 'Fresh Organic Farm Broccoli', category: 'Vegetables', price: 3.49, stock: 45, unit: '500g', status: 'Active', image: 'https://images.unsplash.com/photo-1459411621453-7b03977f4bfc?w=200' },
-  { id: 2, name: 'Red Sweet Crisp Apples (Washington)', category: 'Fruits', price: 4.29, stock: 50, unit: '1kg', status: 'Active', image: 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=200' },
-  { id: 3, name: 'Fresh Hass Avocados (Pack of 3)', category: 'Vegetables', price: 4.99, stock: 35, unit: 'Pack of 3', status: 'Active', image: 'https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?w=200' },
-  { id: 4, name: 'Organic Baby Spinach (Pre-washed)', category: 'Vegetables', price: 2.79, stock: 60, unit: '250g', status: 'Active', image: 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=200' },
+  { id: 1, name: 'Fresh Organic Farm Broccoli', category: 'Vegetables', price: 3500, stock: 45, unit: '500g', status: 'Active', image: 'https://images.unsplash.com/photo-1459411621453-7b03977f4bfc?w=200' },
+  { id: 2, name: 'Red Sweet Crisp Apples (1kg Pack)', category: 'Fruits', price: 4500, stock: 50, unit: '1kg', status: 'Active', image: 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=200' },
+  { id: 3, name: 'Fresh Hass Avocados (Pack of 4)', category: 'Vegetables', price: 3800, stock: 35, unit: 'Pack of 4', status: 'Active', image: 'https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?w=200' },
+  { id: 4, name: 'Organic Baby Spinach (Pre-washed 250g)', category: 'Vegetables', price: 2800, stock: 60, unit: '250g', status: 'Active', image: 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=200' },
 ];
 
 export default function SellerProductsPage() {
@@ -41,7 +42,7 @@ export default function SellerProductsPage() {
     setEditingProduct(null);
     setName('');
     setCategory('Vegetables');
-    setPrice('3.49');
+    setPrice('3500');
     setStock('50');
     setUnit('500g');
     setImageUrl('');
@@ -70,16 +71,16 @@ export default function SellerProductsPage() {
     const finalStatus: VendorProduct['status'] = finalStock <= 15 ? 'Low Stock' : 'Active';
 
     if (editingProduct) {
-      setProducts((prev) =>
-        prev.map((p) =>
+      setProducts(
+        products.map((p) =>
           p.id === editingProduct.id
             ? {
                 ...p,
-                name,
+                name: name.trim(),
                 category,
                 price: finalPrice,
                 stock: finalStock,
-                unit,
+                unit: unit.trim(),
                 image: finalImage,
                 status: finalStatus,
               }
@@ -87,30 +88,32 @@ export default function SellerProductsPage() {
         )
       );
     } else {
-      const newProd: VendorProduct = {
+      const newProduct: VendorProduct = {
         id: Date.now(),
-        name,
+        name: name.trim(),
         category,
         price: finalPrice,
         stock: finalStock,
-        unit,
-        status: finalStatus,
+        unit: unit.trim(),
         image: finalImage,
+        status: finalStatus,
       };
-      setProducts([newProd, ...products]);
+      setProducts([newProduct, ...products]);
     }
+
     setIsModalOpen(false);
   };
 
   const handleDelete = (id: number) => {
-    if (confirm('Are you sure you want to remove this item from your store?')) {
-      setProducts((prev) => prev.filter((p) => p.id !== id));
+    if (confirm('Are you sure you want to remove this product from your inventory?')) {
+      setProducts(products.filter((p) => p.id !== id));
     }
   };
 
-  const filtered = products.filter((p) =>
-    p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.category.toLowerCase().includes(searchQuery.toLowerCase())
+  const filtered = products.filter(
+    (p) =>
+      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.category.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -118,53 +121,56 @@ export default function SellerProductsPage() {
       <div>
         <SellerNav />
 
-        <main className="max-w-7xl mx-auto p-6 sm:p-10 space-y-6 w-full">
+        <main className="max-w-7xl mx-auto p-6 sm:p-10 space-y-8 w-full">
+          {/* Top Bar */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="text-2xl font-black flex items-center gap-2">
-                <Package size={24} className="text-[#0aad0a]" /> Store Product Catalog
+                <Package size={24} className="text-[#0aad0a]" /> Store Catalog &amp; Inventory
               </h1>
-              <p className="text-xs text-gray-400 mt-0.5">Manage your store inventory, retail prices, and local image uploads</p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                Add fresh farm items, update pricing in Naira (₦), and track stock availability
+              </p>
             </div>
 
-            <button
-              onClick={openCreateModal}
-              className="bg-[#0aad0a] hover:bg-[#088f08] text-white text-xs font-black px-5 py-2.5 rounded-2xl flex items-center gap-2 shadow-lg shadow-[#0aad0a]/30 transition-all active:scale-95"
-            >
-              <Plus size={16} />
-              <span>Add Store Product</span>
-            </button>
-          </div>
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search products..."
+                  className="bg-[#1e2632] border border-gray-800 text-white rounded-2xl py-2.5 pl-10 pr-4 text-xs font-semibold focus:outline-none focus:border-[#0aad0a] w-64"
+                />
+                <Search size={16} className="absolute left-3.5 top-3 text-gray-400" />
+              </div>
 
-          {/* Search */}
-          <div className="bg-[#1e2632] border border-gray-800 p-4 rounded-2xl flex items-center justify-between">
-            <div className="relative flex-1 max-w-md">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search store inventory..."
-                className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl py-2 pl-9 pr-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-              />
-              <Search size={16} className="absolute left-3 top-2.5 text-gray-400" />
+              <button
+                onClick={openCreateModal}
+                className="bg-[#0aad0a] hover:bg-[#088f08] text-white font-black px-5 py-2.5 rounded-2xl text-xs flex items-center gap-2 shadow-lg shadow-[#0aad0a]/30 transition-all active:scale-95 whitespace-nowrap"
+              >
+                <Plus size={16} />
+                <span>Add New Product</span>
+              </button>
             </div>
           </div>
 
-          <div className="bg-[#1e2632] border border-gray-800 rounded-3xl p-6 overflow-hidden">
+          {/* Product Table */}
+          <div className="bg-[#1e2632] border border-gray-800 rounded-3xl p-6 shadow-xl space-y-4">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="border-b border-gray-800 text-gray-400 font-bold uppercase tracking-wider">
-                  <tr>
-                    <th className="pb-3 px-3">Product</th>
-                    <th className="pb-3 px-3">Department</th>
-                    <th className="pb-3 px-3">Unit / Pack</th>
-                    <th className="pb-3 px-3">Price</th>
-                    <th className="pb-3 px-3">Stock Available</th>
-                    <th className="pb-3 px-3">Status</th>
-                    <th className="pb-3 px-3 text-right">Actions</th>
+                <thead>
+                  <tr className="text-gray-400 border-b border-gray-800">
+                    <th className="pb-3 px-3 font-bold">Product Item</th>
+                    <th className="pb-3 px-3 font-bold">Category</th>
+                    <th className="pb-3 px-3 font-bold">Unit Measure</th>
+                    <th className="pb-3 px-3 font-bold">Price (₦)</th>
+                    <th className="pb-3 px-3 font-bold">Inventory</th>
+                    <th className="pb-3 px-3 font-bold">Status</th>
+                    <th className="pb-3 px-3 font-bold text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-800/60 font-medium text-gray-300">
+                <tbody className="divide-y divide-gray-800">
                   {filtered.map((p) => (
                     <tr key={p.id} className="hover:bg-gray-800/40 transition-colors">
                       <td className="py-3.5 px-3">
@@ -177,7 +183,7 @@ export default function SellerProductsPage() {
                       </td>
                       <td className="py-3.5 px-3 text-gray-400">{p.category}</td>
                       <td className="py-3.5 px-3">{p.unit}</td>
-                      <td className="py-3.5 px-3 font-bold text-white">${p.price.toFixed(2)}</td>
+                      <td className="py-3.5 px-3 font-bold text-white font-mono">{formatNaira(p.price)}</td>
                       <td className="py-3.5 px-3 font-bold text-white">{p.stock} units</td>
                       <td className="py-3.5 px-3">
                         <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
@@ -218,7 +224,7 @@ export default function SellerProductsPage() {
       {/* Create / Edit Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#1e2632] w-full max-w-lg rounded-3xl p-6 sm:p-8 border border-gray-800 space-y-6 relative max-h-[90vh] overflow-y-auto">
+          <div className="bg-[#1e2632] w-full max-w-md rounded-3xl p-6 sm:p-8 border border-gray-800 space-y-5 relative max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setIsModalOpen(false)}
               className="absolute right-5 top-5 p-2 rounded-full hover:bg-gray-800 text-gray-400"
@@ -227,22 +233,18 @@ export default function SellerProductsPage() {
             </button>
 
             <div>
-              <h3 className="text-xl font-black">
-                {editingProduct ? 'Edit Store Product' : 'Add Product to Store'}
-              </h3>
-              <p className="text-xs text-gray-400 mt-0.5">
-                Set item title, category, price, stock, and local image
-              </p>
+              <h3 className="text-xl font-black">{editingProduct ? 'Edit Product' : 'Add New Produce Item'}</h3>
+              <p className="text-xs text-gray-400 mt-0.5">Publish your grocery inventory to thousands of local customers</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-300">Product Name</label>
+                <label className="text-xs font-bold text-gray-300">Product Title</label>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Farm Fresh Crisp Lettuce"
+                  placeholder="e.g. Fresh Organic Farm Broccoli"
                   className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
                   required
                 />
@@ -258,14 +260,16 @@ export default function SellerProductsPage() {
                   >
                     <option value="Vegetables">Vegetables</option>
                     <option value="Fruits">Fruits</option>
-                    <option value="Dairy & Eggs">Dairy & Eggs</option>
+                    <option value="Dairy & Eggs">Dairy &amp; Eggs</option>
                     <option value="Bakery">Bakery</option>
+                    <option value="Beverages">Beverages</option>
+                    <option value="Snacks">Snacks</option>
                     <option value="Pantry">Pantry</option>
                   </select>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Unit / Measure</label>
+                  <label className="text-xs font-bold text-gray-300">Unit Measure</label>
                   <input
                     type="text"
                     value={unit}
@@ -278,13 +282,13 @@ export default function SellerProductsPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Price ($)</label>
+                  <label className="text-xs font-bold text-gray-300">Price (₦)</label>
                   <input
                     type="number"
-                    step="0.01"
+                    step="50"
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
-                    placeholder="3.99"
+                    placeholder="3500"
                     className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
                     required
                   />
@@ -321,7 +325,7 @@ export default function SellerProductsPage() {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold px-6 py-3.5 rounded-xl text-xs"
+                  className="bg-gray-800 text-gray-300 font-bold px-5 py-3.5 rounded-xl text-xs hover:bg-gray-700"
                 >
                   Cancel
                 </button>
