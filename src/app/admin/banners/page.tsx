@@ -1,30 +1,36 @@
 'use client';
 
-import { useState } from 'react';
-import Image from 'next/image';
-import { Image as ImageIcon, Plus, Search, Trash2, Edit3, X, ExternalLink } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Image as ImageIcon, Plus, Search, Trash2, Edit3, X, RefreshCw, CheckCircle2 } from 'lucide-react';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import LocalImageUploader from '@/components/common/LocalImageUploader';
 
 interface AdminBanner {
-  id: number;
+  id: string;
   title: string;
   placement: string;
   targetType: string;
   targetValue: string;
   image: string;
   status: 'Active' | 'Inactive';
+  createdAt: string;
 }
 
-const INITIAL_BANNERS: AdminBanner[] = [
-  { id: 1, title: 'Mega Savings Festival Banner', placement: 'Header Banner', targetType: 'Category', targetValue: 'vegetables', image: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=600', status: 'Active' },
-  { id: 2, title: 'Deal of the Day: Organic Fruits 30% OFF', placement: 'Deal of Day', targetType: 'Category', targetValue: 'fruits', image: 'https://images.unsplash.com/photo-1619566636858-adf3ef46400b?w=600', status: 'Active' },
-  { id: 3, title: 'Pure Farm Milk & Cheeses Special', placement: 'Home Section', targetType: 'Category', targetValue: 'dairy', image: 'https://images.unsplash.com/photo-1528750997573-59b89d56f4f7?w=600', status: 'Active' },
-  { id: 4, title: 'Artisan Bakery Morning Treat', placement: 'Footer Banner', targetType: 'Category', targetValue: 'bakery', image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=600', status: 'Active' },
-];
+const formatBannerFromApi = (b: any): AdminBanner => ({
+  id: b._id,
+  title: b.title || 'Banner',
+  placement: b.placement || 'Header Banner',
+  targetType: b.target_type || b.targetType || 'Category',
+  targetValue: b.target_value || b.targetValue || '',
+  image: b.image || '',
+  status: b.status || 'Active',
+  createdAt: b.createdAt ? new Date(b.createdAt).toLocaleDateString('en-NG') : '—',
+});
 
 export default function AdminBannersPage() {
-  const [banners, setBanners] = useState<AdminBanner[]>(INITIAL_BANNERS);
+  const [banners, setBanners] = useState<AdminBanner[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBanner, setEditingBanner] = useState<AdminBanner | null>(null);
 
@@ -34,6 +40,26 @@ export default function AdminBannersPage() {
   const [targetValue, setTargetValue] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [status, setStatus] = useState<'Active' | 'Inactive'>('Active');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const fetchBanners = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/admin/banners');
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        setBanners(json.data.map(formatBannerFromApi));
+      }
+    } catch (err) {
+      console.warn('Failed to fetch banners:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBanners();
+  }, []);
 
   const openCreateModal = () => {
     setEditingBanner(null);
@@ -57,176 +83,227 @@ export default function AdminBannersPage() {
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return alert('Banner title is required');
 
     const defaultImg = 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=600';
     const finalImage = imageUrl || defaultImg;
 
-    if (editingBanner) {
-      setBanners((prev) =>
-        prev.map((b) =>
-          b.id === editingBanner.id
-            ? {
-                ...b,
-                title,
-                placement,
-                targetType,
-                targetValue,
-                image: finalImage,
-                status,
-              }
-            : b
-        )
-      );
-    } else {
-      const newBanner: AdminBanner = {
-        id: Date.now(),
-        title,
-        placement,
-        targetType,
-        targetValue,
-        image: finalImage,
-        status,
-      };
-      setBanners([newBanner, ...banners]);
+    setSaving(true);
+    try {
+      if (editingBanner) {
+        await fetch('/api/admin/banners', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            bannerId: editingBanner.id,
+            title,
+            placement,
+            target_type: targetType,
+            target_value: targetValue,
+            image: finalImage,
+            status,
+          }),
+        });
+        setBanners((prev) =>
+          prev.map((b) =>
+            b.id === editingBanner.id
+              ? { ...b, title, placement, targetType, targetValue, image: finalImage, status }
+              : b
+          )
+        );
+      } else {
+        const res = await fetch('/api/admin/banners', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title,
+            placement,
+            target_type: targetType,
+            target_value: targetValue,
+            image: finalImage,
+            status,
+          }),
+        });
+        const json = await res.json();
+        if (json.success && json.data) {
+          setBanners((prev) => [formatBannerFromApi(json.data), ...prev]);
+        }
+      }
+      setIsModalOpen(false);
+    } catch (err) {
+      console.warn('Banner submit error:', err);
+    } finally {
+      setSaving(false);
     }
-    setIsModalOpen(false);
   };
 
-  const handleDelete = (id: number) => {
-    if (confirm('Are you sure you want to delete this promotional banner?')) {
+  const handleDelete = async (id: string) => {
+    if (!confirm('Delete this banner?')) return;
+    try {
+      await fetch('/api/admin/banners', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bannerId: id }),
+      });
       setBanners((prev) => prev.filter((b) => b.id !== id));
+    } catch (err) {
+      console.warn('Delete error:', err);
     }
   };
 
-  const handleToggleStatus = (id: number) => {
-    setBanners((prev) =>
-      prev.map((b) =>
-        b.id === id
-          ? {
-              ...b,
-              status: b.status === 'Active' ? 'Inactive' : 'Active',
-            }
-          : b
-      )
-    );
+  const handleToggleStatus = async (id: string, current: 'Active' | 'Inactive') => {
+    const newStatus = current === 'Active' ? 'Inactive' : 'Active';
+    try {
+      await fetch('/api/admin/banners', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bannerId: id, status: newStatus }),
+      });
+      setBanners((prev) => prev.map((b) => (b.id === id ? { ...b, status: newStatus } : b)));
+    } catch (err) {
+      console.warn('Toggle status error:', err);
+    }
   };
+
+  const filtered = banners.filter(
+    (b) =>
+      b.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      b.placement.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="flex bg-[#121820] text-white min-h-screen">
       <AdminSidebar />
 
       <main className="flex-1 p-8 space-y-6 overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-black flex items-center gap-2">
-              <ImageIcon size={24} className="text-[#0aad0a]" /> Banner & Ads Management
+              <ImageIcon size={24} className="text-[#0aad0a]" /> Banners &amp; Promotional Ads
             </h1>
-            <p className="text-xs text-gray-400 mt-0.5">Control promotional header slides, deal banners, and storefront advertising</p>
+            <p className="text-xs text-gray-400 mt-0.5">Manage homepage hero banners, promotional section popups, and deal placements in MongoDB</p>
           </div>
-
-          <button
-            onClick={openCreateModal}
-            className="bg-[#0aad0a] hover:bg-[#088f08] text-white text-xs font-black px-5 py-2.5 rounded-2xl flex items-center gap-2 shadow-lg shadow-[#0aad0a]/30 transition-all active:scale-95"
-          >
-            <Plus size={16} />
-            <span>Upload New Banner</span>
-          </button>
+          <div className="flex gap-2">
+            <button onClick={fetchBanners} disabled={loading} className="inline-flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-bold px-3 py-2 rounded-xl">
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh
+            </button>
+            <button onClick={openCreateModal} className="inline-flex items-center gap-1.5 bg-[#0aad0a] hover:bg-[#088f08] text-white text-xs font-bold px-4 py-2 rounded-xl">
+              <Plus size={14} /> Add New Banner
+            </button>
+          </div>
         </div>
 
-        {/* Banners Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {banners.map((b) => (
-            <div
-              key={b.id}
-              className="bg-[#1e2632] border border-gray-800 rounded-3xl p-5 space-y-4 hover:border-[#0aad0a]/40 transition-all group"
-            >
-              <div className="relative w-full h-44 rounded-2xl overflow-hidden bg-gray-900 border border-gray-700">
-                <Image src={b.image} alt={b.title} fill className="object-cover group-hover:scale-105 transition-transform" />
-                <span className="absolute top-3 left-3 bg-black/70 backdrop-blur-md text-[10px] font-black px-2.5 py-1 rounded-full text-white uppercase">
-                  {b.placement}
-                </span>
-                <button
-                  onClick={() => handleToggleStatus(b.id)}
-                  className={`absolute top-3 right-3 text-[10px] font-black px-2.5 py-1 rounded-full cursor-pointer transition-transform active:scale-95 ${
-                    b.status === 'Active'
-                      ? 'bg-emerald-950/90 text-[#0aad0a] border border-[#0aad0a]/40'
-                      : 'bg-gray-900/90 text-gray-400 border border-gray-700'
-                  }`}
-                  title="Click to toggle status"
-                >
-                  ● {b.status}
-                </button>
-              </div>
+        {/* Search */}
+        <div className="bg-[#1e2632] border border-gray-800 p-4 rounded-2xl flex items-center justify-between">
+          <div className="relative flex-1 max-w-md">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by title or placement..."
+              className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl py-2 pl-9 pr-3 text-xs focus:outline-none focus:border-[#0aad0a]"
+            />
+            <Search size={16} className="absolute left-3 top-2.5 text-gray-400" />
+          </div>
+          <span className="text-xs text-gray-400 font-bold">{banners.length} Banners</span>
+        </div>
 
-              <div className="flex items-start justify-between gap-4">
-                <div className="space-y-1">
-                  <h3 className="font-black text-sm text-white">{b.title}</h3>
-                  <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                    <ExternalLink size={13} className="text-[#0aad0a]" />
-                    <span>Target: {b.targetType} → <strong className="text-white">{b.targetValue}</strong></span>
+        {/* Grid */}
+        {loading ? (
+          <div className="py-12 text-center space-y-3">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0aad0a] mx-auto" />
+            <p className="text-xs text-gray-400">Loading banners from database...</p>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="py-12 text-center space-y-3 bg-[#1e2632] border border-gray-800 rounded-3xl p-8">
+            <ImageIcon size={36} className="mx-auto text-gray-500" />
+            <h4 className="text-sm font-bold">No banners found</h4>
+            <p className="text-xs text-gray-400">
+              {banners.length === 0
+                ? 'No promotional banners in database yet. Click Add New Banner to create one.'
+                : 'No banners match your search.'}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {filtered.map((b) => (
+              <div key={b.id} className="bg-[#1e2632] border border-gray-800 rounded-3xl overflow-hidden shadow-xl flex flex-col justify-between">
+                <div className="relative h-44 w-full bg-gray-900">
+                  <img src={b.image} alt={b.title} className="w-full h-full object-cover" onError={(e: any) => { e.target.style.display = 'none'; }} />
+                  <div className="absolute top-3 right-3 flex items-center gap-2">
+                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full backdrop-blur-md ${
+                      b.status === 'Active' ? 'bg-emerald-950/80 text-[#0aad0a] border border-[#0aad0a]/30' : 'bg-gray-900/80 text-gray-400 border border-gray-700'
+                    }`}>
+                      ● {b.status}
+                    </span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => openEditModal(b)}
-                    className="p-2 rounded-xl bg-gray-800 text-gray-300 hover:text-white transition-colors"
-                    title="Edit Banner"
-                  >
-                    <Edit3 size={15} />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(b.id)}
-                    className="p-2 rounded-xl bg-red-950/40 text-red-400 hover:bg-red-900/60 transition-colors"
-                    title="Delete Banner"
-                  >
-                    <Trash2 size={15} />
-                  </button>
+                <div className="p-5 space-y-3">
+                  <div>
+                    <span className="text-[10px] font-bold text-[#0aad0a] uppercase tracking-wider block">{b.placement}</span>
+                    <h3 className="text-base font-black text-white">{b.title}</h3>
+                    <p className="text-xs text-gray-400 mt-0.5">Target: {b.targetType} &rarr; {b.targetValue || 'All'}</p>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-gray-800 text-xs">
+                    <button
+                      onClick={() => handleToggleStatus(b.id, b.status)}
+                      className="font-bold text-gray-400 hover:text-white transition-colors"
+                    >
+                      {b.status === 'Active' ? 'Deactivate' : 'Activate'}
+                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => openEditModal(b)}
+                        className="p-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 transition-colors"
+                      >
+                        <Edit3 size={14} />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(b.id)}
+                        className="p-2 rounded-xl bg-red-950/40 hover:bg-red-900/60 text-red-400 transition-colors"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </main>
 
-      {/* Create / Edit Banner Modal */}
+      {/* Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#1e2632] w-full max-w-lg rounded-3xl p-6 sm:p-8 border border-gray-800 space-y-6 relative max-h-[90vh] overflow-y-auto">
-            <button
-              onClick={() => setIsModalOpen(false)}
-              className="absolute right-5 top-5 p-2 rounded-full hover:bg-gray-800 text-gray-400"
-            >
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#1e2632] w-full max-w-lg rounded-3xl p-6 sm:p-8 border border-gray-800 space-y-5 relative max-h-[90vh] overflow-y-auto">
+            <button onClick={() => setIsModalOpen(false)} className="absolute right-5 top-5 p-2 rounded-full hover:bg-gray-800 text-gray-400">
               <X size={20} />
             </button>
 
             <div>
-              <h3 className="text-xl font-black">
-                {editingBanner ? 'Edit Store Banner' : 'Upload Store Banner'}
-              </h3>
-              <p className="text-xs text-gray-400 mt-0.5">
-                Set promotional slide title, layout slot, click redirect target, and upload graphic
-              </p>
+              <h3 className="text-xl font-black">{editingBanner ? 'Edit Banner' : 'Create Banner'}</h3>
+              <p className="text-xs text-gray-400">Add or edit promotional banner for the storefront</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-300">Banner Title / Campaign</label>
+                <label className="text-xs font-bold text-gray-300">Banner Title *</label>
                 <input
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g. Weekend Flash Sale 40% OFF"
+                  placeholder="e.g. Mega Savings Festival 30% OFF"
                   className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
                   required
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-gray-300">Placement Slot</label>
                   <select
@@ -234,10 +311,10 @@ export default function AdminBannersPage() {
                     onChange={(e) => setPlacement(e.target.value)}
                     className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
                   >
-                    <option value="Header Banner">Header Banner (Slot 0)</option>
-                    <option value="Deal of Day">Deal of the Day (Slot 1)</option>
-                    <option value="Home Section">Home Mid Section (Slot 2)</option>
-                    <option value="Footer Banner">Footer Banner (Slot 3)</option>
+                    <option value="Header Banner">Header Banner</option>
+                    <option value="Deal of Day">Deal of Day</option>
+                    <option value="Home Section">Home Section</option>
+                    <option value="Footer Banner">Footer Banner</option>
                   </select>
                 </div>
 
@@ -248,52 +325,64 @@ export default function AdminBannersPage() {
                     onChange={(e) => setTargetType(e.target.value)}
                     className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
                   >
-                    <option value="Category">Category Link</option>
-                    <option value="Product">Specific Product</option>
-                    <option value="Seller">Store / Vendor</option>
-                    <option value="External">External URL</option>
+                    <option value="Category">Open Category</option>
+                    <option value="Product">Open Product</option>
+                    <option value="URL">External URL</option>
                   </select>
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-300">Target Value / Slug / URL</label>
+                <label className="text-xs font-bold text-gray-300">Target Category / Value</label>
                 <input
                   type="text"
                   value={targetValue}
                   onChange={(e) => setTargetValue(e.target.value)}
-                  placeholder="e.g. organic-fruits or /category/vegetables"
+                  placeholder="e.g. vegetables or fruit"
                   className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                  required
                 />
               </div>
 
-              {/* Local Image Uploader */}
-              <LocalImageUploader
-                label="Banner Graphic (Local Server Storage)"
-                folder="banners"
-                value={imageUrl}
-                onChange={setImageUrl}
-              />
+              <div className="space-y-1.5">
+                <LocalImageUploader
+                  label="Banner Image"
+                  folder="banners"
+                  value={imageUrl}
+                  onChange={(url) => setImageUrl(url)}
+                />
+              </div>
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-gray-300">Status</label>
-                <select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value as any)}
-                  className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                >
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </select>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setStatus('Active')}
+                    className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                      status === 'Active' ? 'bg-[#0aad0a] text-white' : 'bg-gray-900 text-gray-400'
+                    }`}
+                  >
+                    Active
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStatus('Inactive')}
+                    className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                      status === 'Inactive' ? 'bg-gray-700 text-white' : 'bg-gray-900 text-gray-400'
+                    }`}
+                  >
+                    Inactive
+                  </button>
+                </div>
               </div>
 
               <div className="flex gap-3 pt-2">
                 <button
                   type="submit"
-                  className="flex-1 bg-[#0aad0a] hover:bg-[#088f08] text-white font-black py-3.5 rounded-xl text-xs shadow-lg shadow-[#0aad0a]/30 transition-all"
+                  disabled={saving}
+                  className="flex-1 bg-[#0aad0a] hover:bg-[#088f08] text-white font-black py-3.5 rounded-xl text-xs shadow-lg shadow-[#0aad0a]/30 transition-all disabled:opacity-60"
                 >
-                  {editingBanner ? 'Save Banner Updates' : 'Publish Banner Graphic'}
+                  {saving ? 'Saving...' : editingBanner ? 'Update Banner' : 'Create Banner'}
                 </button>
                 <button
                   type="button"

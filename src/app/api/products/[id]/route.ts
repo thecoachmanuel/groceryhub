@@ -5,6 +5,31 @@ import { apiSuccess, apiError } from '@/lib/api-response';
 
 export const dynamic = 'force-dynamic';
 
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    await connectToDatabase();
+    const id = params.id;
+    const numericId = parseInt(id, 10);
+
+    const filter = isNaN(numericId)
+      ? { $or: [{ _id: id }, { slug: id }] }
+      : { $or: [{ product_id: numericId }, { id: numericId }, { _id: id }, { slug: id }] };
+
+    const product = await Product.findOne(filter).lean();
+    if (!product) {
+      return apiError('Product not found', 404);
+    }
+
+    return apiSuccess(product, 'Product retrieved successfully');
+  } catch (error: any) {
+    console.error('GET /api/products/[id] error:', error);
+    return apiError(error?.message || 'Failed to fetch product', 500);
+  }
+}
+
 export async function PUT(
   req: NextRequest,
   { params }: { params: { id: string } }

@@ -18,7 +18,6 @@ import {
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import LocalImageUploader from '@/components/common/LocalImageUploader';
 import { formatNaira } from '@/lib/currency';
-import { PRODUCTS_CATALOG } from '@/lib/catalog';
 
 interface AdminProduct {
   id: number;
@@ -31,17 +30,6 @@ interface AdminProduct {
   image: string;
   description?: string;
 }
-
-const INITIAL_ADMIN_PRODUCTS: AdminProduct[] = PRODUCTS_CATALOG.map((p) => ({
-  id: p.id,
-  name: p.name,
-  category: p.category,
-  price: p.variants[0]?.price || 3500,
-  stock: p.variants[0]?.stock || 45,
-  status: 'Active',
-  image: p.image,
-  description: p.description,
-}));
 
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<AdminProduct[]>([]);
@@ -66,42 +54,25 @@ export default function AdminProductsPage() {
       setLoading(true);
       const res = await fetch('/api/products');
       const json = await res.json();
-      if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+      if (json.success && Array.isArray(json.data)) {
         const formatted: AdminProduct[] = json.data.map((p: any) => ({
           id: p.product_id || p.id || Date.now(),
           _id: p._id,
           name: p.name,
-          category: p.category,
-          price: p.variants?.[0]?.price || p.price || 3500,
-          stock: p.variants?.[0]?.stock || p.stock || 50,
+          category: p.category || 'Vegetables',
+          price: p.variants?.[0]?.price || p.price || 0,
+          stock: p.variants?.[0]?.stock || p.stock || 0,
           status: p.status || 'Active',
-          image: p.image,
-          description: p.description,
+          image: p.image || 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=300',
+          description: p.description || '',
         }));
         setProducts(formatted);
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('groceryhub_admin_products', JSON.stringify(formatted));
-        }
       } else {
-        // Fallback to initial catalog if API returns empty
-        const saved = typeof window !== 'undefined' ? localStorage.getItem('groceryhub_admin_products') : null;
-        if (saved) {
-          try {
-            const parsed = JSON.parse(saved);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              setProducts(parsed);
-              return;
-            }
-          } catch {}
-        }
-        setProducts(INITIAL_ADMIN_PRODUCTS);
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('groceryhub_admin_products', JSON.stringify(INITIAL_ADMIN_PRODUCTS));
-        }
+        setProducts([]);
       }
     } catch (err) {
-      console.warn('Products fetch warning:', err);
-      setProducts(INITIAL_ADMIN_PRODUCTS);
+      console.warn('Products fetch error:', err);
+      setProducts([]);
     } finally {
       setLoading(false);
     }

@@ -1,23 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   ArrowLeft, 
   Sparkles, 
-  Filter, 
   Flame, 
-  SlidersHorizontal,
-  ArrowUpDown
+  ArrowUpDown,
+  ShoppingBag
 } from 'lucide-react';
 import Header from '@/components/website/Header';
 import Footer from '@/components/website/Footer';
 import ProductCard from '@/components/website/ProductCard';
 import CartDrawer, { CartItem } from '@/components/website/CartDrawer';
-import { formatNaira } from '@/lib/currency';
-import { PRODUCTS_CATALOG } from '@/lib/catalog';
-
-const ALL_POPULAR_PRODUCTS = PRODUCTS_CATALOG;
 
 const CATEGORIES = [
   { id: 'all', label: 'All Popular' },
@@ -29,17 +24,83 @@ const CATEGORIES = [
 ];
 
 export default function PopularProductsPage() {
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [sortBy, setSortBy] = useState('popular');
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
 
+  const formatProduct = (p: any) => {
+    const pId = p.product_id || p.id || Math.floor(Math.random() * 10000);
+    const rawPrice = typeof p.price === 'number' ? p.price : parseFloat(p.price || '3500') || 3500;
+    const originalPrice = Math.round(rawPrice * 1.25);
+    const variants = Array.isArray(p.variants) && p.variants.length > 0
+      ? p.variants.map((v: any, idx: number) => ({
+          id: v.variant_id || v.id || pId + idx,
+          title: v.title || 'Standard Pack',
+          price: v.price || originalPrice,
+          discounted_price: v.discounted_price || rawPrice,
+          stock: v.stock ?? 50,
+          unit: v.unit || '1 pack',
+        }))
+      : [
+          {
+            id: pId,
+            title: 'Standard Pack',
+            price: originalPrice,
+            discounted_price: rawPrice,
+            stock: p.stock ?? 50,
+            unit: '1 pack',
+          },
+        ];
+
+    return {
+      id: pId,
+      name: p.name || 'Grocery Item',
+      slug: p.slug || (p.name ? p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') : `product-${pId}`),
+      category: p.category || 'vegetables',
+      image: p.image || 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=300',
+      rating: p.rating || 4.9,
+      rating_count: p.rating_count || p.ratingCount || 120,
+      variants,
+      description: p.description || p.name || '',
+    };
+  };
+
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/products');
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        setProducts(json.data.map(formatProduct));
+      } else {
+        setProducts([]);
+      }
+    } catch (err) {
+      console.warn('Failed to load products:', err);
+      setProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProducts();
+    const handleUpdate = () => fetchProducts();
+    if (typeof window !== 'undefined') {
+      window.addEventListener('groceryhub_catalog_updated', handleUpdate);
+      return () => window.removeEventListener('groceryhub_catalog_updated', handleUpdate);
+    }
+  }, []);
+
   const handleAddToCart = (variantId: number, qty: number) => {
     let matchedProduct: any = null;
     let matchedVariant: any = null;
 
-    for (const p of ALL_POPULAR_PRODUCTS) {
-      const v = p.variants.find((item) => item.id === variantId);
+    for (const p of products) {
+      const v = p.variants?.find((item: any) => item.id === variantId);
       if (v) {
         matchedProduct = p;
         matchedVariant = v;
@@ -77,14 +138,14 @@ export default function PopularProductsPage() {
     setIsCartOpen(true);
   };
 
-  const filteredProducts = ALL_POPULAR_PRODUCTS.filter((p) => {
+  const filteredProducts = products.filter((p) => {
     if (selectedCategory === 'all') return true;
-    return p.category === selectedCategory;
+    return (p.category || '').toLowerCase().includes(selectedCategory.toLowerCase());
   }).sort((a, b) => {
-    if (sortBy === 'price-low') return a.variants[0].discounted_price - b.variants[0].discounted_price;
-    if (sortBy === 'price-high') return b.variants[0].discounted_price - a.variants[0].discounted_price;
-    if (sortBy === 'rating') return b.rating - a.rating;
-    return b.rating_count - a.rating_count;
+    if (sortBy === 'price-low') return (a.variants[0]?.discounted_price || 0) - (b.variants[0]?.discounted_price || 0);
+    if (sortBy === 'price-high') return (b.variants[0]?.discounted_price || 0) - (a.variants[0]?.discounted_price || 0);
+    if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
+    return (b.rating_count || 0) - (a.rating_count || 0);
   });
 
   return (
@@ -158,21 +219,38 @@ export default function PopularProductsPage() {
         </div>
 
         {/* Product Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-          {filteredProducts.map((product) => (
-            <ProductCard
-              key={product.id}
-              id={product.id}
-              name={product.name}
-              slug={product.slug}
-              image={product.image}
-              rating={product.rating}
-              rating_count={product.rating_count}
-              variants={product.variants}
-              onAddToCart={handleAddToCart}
-            />
-          ))}
-        </div>
+        {loading ? (
+          <div className="py-16 text-center space-y-3">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0aad0a] mx-auto" />
+            <p className="text-xs text-gray-400">Loading products from database...</p>
+          </div>
+        ) : filteredProducts.length === 0 ? (
+          <div className="py-16 text-center space-y-3 bg-white dark:bg-[#1e2632] border border-gray-200 dark:border-gray-800 rounded-3xl p-8">
+            <ShoppingBag size={40} className="mx-auto text-gray-400" />
+            <h3 className="text-base font-bold text-gray-900 dark:text-white">No products found</h3>
+            <p className="text-xs text-gray-500 max-w-sm mx-auto">
+              {products.length === 0
+                ? 'No products available in database yet. Admin can add products from the Admin Hub.'
+                : 'No products match your selected category filter.'}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+            {filteredProducts.map((product) => (
+              <ProductCard
+                key={product.id}
+                id={product.id}
+                name={product.name}
+                slug={product.slug}
+                image={product.image}
+                rating={product.rating}
+                rating_count={product.rating_count}
+                variants={product.variants}
+                onAddToCart={handleAddToCart}
+              />
+            ))}
+          </div>
+        )}
       </main>
 
       <Footer />

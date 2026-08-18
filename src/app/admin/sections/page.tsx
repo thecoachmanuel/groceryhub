@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   Layout, 
@@ -45,6 +45,25 @@ export default function AdminSectionsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSection, setEditingSection] = useState<SectionItem | null>(null);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('groceryhub_admin_sections');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) setSections(parsed);
+        } catch {}
+      }
+    }
+  }, []);
+
+  const saveSections = (updated: SectionItem[]) => {
+    setSections(updated);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('groceryhub_admin_sections', JSON.stringify(updated));
+    }
+  };
+
   // Form
   const [title, setTitle] = useState('');
   const [shortDesc, setShortDesc] = useState('');
@@ -83,7 +102,7 @@ export default function AdminSectionsPage() {
     if (!title.trim()) return alert('Section title is required');
 
     if (editingSection) {
-      setSections(prev => prev.map(s => s.id === editingSection.id ? {
+      const updated = sections.map(s => s.id === editingSection.id ? {
         ...s,
         title,
         short_description: shortDesc,
@@ -92,7 +111,8 @@ export default function AdminSectionsPage() {
         item_limit: itemLimit,
         sort_order: sortOrder,
         status
-      } : s));
+      } : s);
+      saveSections(updated);
     } else {
       const newSec: SectionItem = {
         id: Date.now(),
@@ -104,19 +124,19 @@ export default function AdminSectionsPage() {
         sort_order: sortOrder,
         status
       };
-      setSections([...sections, newSec]);
+      saveSections([...sections, newSec]);
     }
     setIsModalOpen(false);
   };
 
   const handleDelete = (id: number) => {
     if (confirm('Are you sure you want to remove this Homepage Section?')) {
-      setSections(prev => prev.filter(s => s.id !== id));
+      saveSections(sections.filter(s => s.id !== id));
     }
   };
 
   const handleToggleStatus = (id: number) => {
-    setSections(prev => prev.map(s => s.id === id ? { ...s, status: s.status === 'Active' ? 'Hidden' : 'Active' } : s));
+    saveSections(sections.map(s => s.id === id ? { ...s, status: s.status === 'Active' ? 'Hidden' : 'Active' } : s));
   };
 
   const filtered = sections.filter(s => 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -25,7 +25,6 @@ import Header from '@/components/website/Header';
 import Footer from '@/components/website/Footer';
 import CartDrawer, { CartItem } from '@/components/website/CartDrawer';
 import { formatNaira } from '@/lib/currency';
-import { getProductById, PRODUCTS_CATALOG } from '@/lib/catalog';
 
 interface ReviewItem {
   id: number;
@@ -37,41 +36,13 @@ interface ReviewItem {
   verified: boolean;
 }
 
-const INITIAL_REVIEWS: ReviewItem[] = [
-  {
-    id: 1,
-    userName: 'Amina Bello',
-    rating: 5,
-    date: 'Aug 16, 2026',
-    title: 'Extremely fresh and crisp!',
-    comment: 'Ordered this morning and got it delivered in 25 minutes. Farm-picked freshness and superior quality!',
-    verified: true,
-  },
-  {
-    id: 2,
-    userName: 'Emeka Nwosu',
-    rating: 5,
-    date: 'Aug 14, 2026',
-    title: 'Top tier organic produce',
-    comment: 'Much better quality than regular supermarkets. You can tell it was picked from local farms today.',
-    verified: true,
-  },
-  {
-    id: 3,
-    userName: 'Fatima Sanusi',
-    rating: 4,
-    date: 'Aug 11, 2026',
-    title: 'Great value & speedy delivery',
-    comment: 'Arrived nicely packed and chilled. Will definitely reorder for my family.',
-    verified: true,
-  }
-];
-
 export default function ProductDetailPage() {
   const params = useParams();
-  const productId = Number(params?.id);
-  const product = getProductById(productId);
+  const rawId = params?.id ? String(params.id) : '';
 
+  const [product, setProduct] = useState<any | null>(null);
+  const [allProducts, setAllProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedVariant, setSelectedVariant] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [isWishlisted, setIsWishlisted] = useState(false);
@@ -79,17 +50,97 @@ export default function ProductDetailPage() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
 
   // Reviews state
-  const [reviews, setReviews] = useState<ReviewItem[]>(INITIAL_REVIEWS);
+  const [reviews, setReviews] = useState<ReviewItem[]>([]);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewTitle, setReviewTitle] = useState('');
   const [reviewComment, setReviewComment] = useState('');
   const [reviewSuccess, setReviewSuccess] = useState(false);
 
+  const formatProduct = (p: any) => {
+    const pId = p.product_id || p.id || Math.floor(Math.random() * 10000);
+    const rawPrice = typeof p.price === 'number' ? p.price : parseFloat(p.price || '3500') || 3500;
+    const originalPrice = Math.round(rawPrice * 1.25);
+    const variants = Array.isArray(p.variants) && p.variants.length > 0
+      ? p.variants.map((v: any, idx: number) => ({
+          id: v.variant_id || v.id || pId + idx,
+          title: v.title || 'Standard Pack',
+          price: v.price || originalPrice,
+          discounted_price: v.discounted_price || rawPrice,
+          stock: v.stock ?? 50,
+          unit: v.unit || '1 pack',
+        }))
+      : [
+          {
+            id: pId,
+            title: 'Standard Pack',
+            price: originalPrice,
+            discounted_price: rawPrice,
+            stock: p.stock ?? 50,
+            unit: '1 pack',
+          },
+        ];
+
+    return {
+      id: pId,
+      name: p.name || 'Grocery Item',
+      slug: p.slug || (p.name ? p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') : `product-${pId}`),
+      category: p.category || 'vegetables',
+      image: p.image || 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=300',
+      rating: p.rating || 4.9,
+      rating_count: p.rating_count || p.ratingCount || 120,
+      variants,
+      description: p.description || p.name || '',
+    };
+  };
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        if (rawId) {
+          const res = await fetch(`/api/products/${rawId}`);
+          const json = await res.json();
+          if (json.success && json.data) {
+            setProduct(formatProduct(json.data));
+          }
+        }
+        const allRes = await fetch('/api/products');
+        const allJson = await allRes.json();
+        if (allJson.success && Array.isArray(allJson.data)) {
+          const formattedAll = allJson.data.map(formatProduct);
+          setAllProducts(formattedAll);
+          if (!product && rawId) {
+            const found = formattedAll.find((p: any) => String(p.id) === rawId || p.slug === rawId);
+            if (found) setProduct(found);
+          }
+        }
+      } catch (err) {
+        console.warn('Product detail fetch error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, [rawId]);
+
   // Related products — same category, exclude current
   const relatedProducts = product
-    ? PRODUCTS_CATALOG.filter((p) => p.category === product.category && p.id !== product.id).slice(0, 3)
+    ? allProducts.filter((p) => p.category === product.category && p.id !== product.id).slice(0, 3)
     : [];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col justify-between bg-gray-50 dark:bg-[#121820]">
+        <Header />
+        <main className="max-w-md mx-auto px-4 py-24 text-center space-y-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0aad0a] mx-auto" />
+          <p className="text-xs text-gray-400">Loading product details from database...</p>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   // Product not found
   if (!product) {
@@ -264,7 +315,7 @@ export default function ProductDetailPage() {
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-700 dark:text-gray-300">Select Pack Size</label>
               <div className="grid grid-cols-3 gap-2">
-                {product.variants.map((v, idx) => (
+                {product.variants.map((v: any, idx: number) => (
                   <button
                     key={v.id}
                     onClick={() => setSelectedVariant(idx)}
@@ -341,7 +392,7 @@ export default function ProductDetailPage() {
               <div className="bg-gray-50 dark:bg-gray-900/50 rounded-2xl p-4 space-y-3 border border-gray-100 dark:border-gray-800">
                 <h4 className="text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-wider">Nutritional Highlights</h4>
                 <div className="grid grid-cols-2 gap-2">
-                  {product.nutrition.map((n, i) => (
+                  {product.nutrition.map((n: any, i: number) => (
                     <div key={i} className="flex items-center justify-between text-xs bg-white dark:bg-gray-800 rounded-xl px-3 py-2">
                       <span className="text-gray-500 dark:text-gray-400 font-semibold">{n.label}</span>
                       <span className="font-black text-gray-900 dark:text-white">{n.value}</span>
@@ -402,7 +453,7 @@ export default function ProductDetailPage() {
                 { stars: '3 Stars', pct: 3, count: 5 },
                 { stars: '2 Stars', pct: 2, count: 3 },
                 { stars: '1 Star', pct: 1, count: 1 },
-              ].map((bar, idx) => (
+              ].map((bar: { stars: string; pct: number; count: number }, idx: number) => (
                 <div key={idx} className="flex items-center gap-3 text-xs">
                   <span className="w-14 text-gray-600 dark:text-gray-400 font-bold">{bar.stars}</span>
                   <div className="flex-1 bg-gray-200 dark:bg-gray-800 h-2.5 rounded-full overflow-hidden">
@@ -416,7 +467,7 @@ export default function ProductDetailPage() {
 
           {/* Reviews List */}
           <div className="space-y-4 divide-y divide-gray-100 dark:divide-gray-800">
-            {reviews.map((r) => (
+            {reviews.map((r: ReviewItem) => (
               <div key={r.id} className="pt-4 first:pt-0 space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -455,7 +506,7 @@ export default function ProductDetailPage() {
           <section className="space-y-5">
             <h3 className="text-xl font-black text-gray-900 dark:text-white">You May Also Like</h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-              {relatedProducts.map((rp) => (
+              {relatedProducts.map((rp: any) => (
                 <Link
                   key={rp.id}
                   href={`/product/${rp.id}`}
@@ -568,8 +619,8 @@ export default function ProductDetailPage() {
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
         items={cartItems}
-        onUpdateQty={(id, q) => setCartItems(cartItems.map((c) => (c.id === id ? { ...c, quantity: q } : c)))}
-        onRemoveItem={(id) => setCartItems(cartItems.filter((c) => c.id !== id))}
+        onUpdateQty={(id, q) => setCartItems(cartItems.map((c: CartItem) => (c.id === id ? { ...c, quantity: q } : c)))}
+        onRemoveItem={(id) => setCartItems(cartItems.filter((c: CartItem) => c.id !== id))}
       />
     </div>
   );

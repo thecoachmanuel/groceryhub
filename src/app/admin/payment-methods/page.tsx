@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { CreditCard, Save, CheckCircle2, ShieldCheck, KeyRound, Globe, DollarSign, Smartphone } from 'lucide-react';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 
@@ -54,22 +54,40 @@ export default function AdminPaymentMethodsPage() {
   const [gateways, setGateways] = useState<PaymentGateway[]>(INITIAL_GATEWAYS);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('groceryhub_admin_payment_gateways');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) setGateways(parsed);
+        } catch {}
+      }
+    }
+  }, []);
+
+  const saveGateways = (updated: PaymentGateway[]) => {
+    setGateways(updated);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('groceryhub_admin_payment_gateways', JSON.stringify(updated));
+    }
+  };
+
   const handleToggle = (id: string) => {
-    setGateways((prev) =>
-      prev.map((g) => (g.id === id ? { ...g, enabled: !g.enabled } : g))
-    );
+    const updated = gateways.map((g) => (g.id === id ? { ...g, enabled: !g.enabled } : g));
+    saveGateways(updated);
   };
 
   const handleModeToggle = (id: string) => {
-    setGateways((prev) =>
-      prev.map((g) =>
-        g.id === id ? { ...g, mode: g.mode === 'sandbox' ? 'live' : 'sandbox' } : g
-      )
+    const updated: PaymentGateway[] = gateways.map((g) =>
+      g.id === id ? { ...g, mode: g.mode === 'sandbox' ? 'live' : 'sandbox' } : g
     );
+    saveGateways(updated);
   };
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
+    saveGateways(gateways);
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 2500);
   };

@@ -15,6 +15,7 @@ import {
   ArrowLeft,
   Plus,
   X,
+  Trash2,
   Home,
   Briefcase
 } from 'lucide-react';
@@ -76,16 +77,27 @@ export default function CheckoutPage() {
             setSelectedAddressId(defaultAddr.id);
           }
         } catch {}
-      } else if (user?.email === 'customer@groceryhub.ng') {
-        const demoAddrs: SavedAddress[] = [
-          { id: 1, type: 'Home', name: user.name || 'Chinedu Okafor', mobile: user.mobile || '+234 802 345 6789', flat: 'Flat 4B, Oceanview Towers', area: 'Plot 14, Adeola Odeku St, VI', city: 'Lagos', pincode: '101241', isDefault: true },
-          { id: 2, type: 'Work', name: user.name || 'Chinedu Okafor', mobile: user.mobile || '+234 802 345 6789', flat: 'Suite 204, Tech Park', area: '12 Admiralty Way, Lekki Phase 1', city: 'Lagos', pincode: '105102', isDefault: false },
-        ];
-        setAddresses(demoAddrs);
-        setSelectedAddressId(1);
+      } else {
+        setAddresses([]);
+        setSelectedAddressId(null);
       }
     }
   }, [user]);
+
+  const handleDeleteAddress = (addrId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const updated = addresses.filter(a => a.id !== addrId);
+    setAddresses(updated);
+
+    if (selectedAddressId === addrId) {
+      setSelectedAddressId(updated.length > 0 ? updated[0].id : null);
+    }
+
+    if (typeof window !== 'undefined') {
+      const savedKey = user?.id ? `groceryhub_addresses_${user.id}` : 'groceryhub_guest_addresses';
+      localStorage.setItem(savedKey, JSON.stringify(updated));
+    }
+  };
 
   const handleAddAddressSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -307,7 +319,17 @@ export default function CheckoutPage() {
                             {addr.type === 'Home' ? <Home size={13} className="text-[#0aad0a]" /> : <Briefcase size={13} className="text-blue-400" />}
                             {addr.type}
                           </span>
-                          {selectedAddressId === addr.id && <CheckCircle2 size={16} className="text-[#0aad0a]" />}
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              title="Delete address"
+                              onClick={(e) => handleDeleteAddress(addr.id, e)}
+                              className="text-gray-400 hover:text-red-500 p-1 rounded-md transition-colors"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                            {selectedAddressId === addr.id && <CheckCircle2 size={16} className="text-[#0aad0a]" />}
+                          </div>
                         </div>
                         <p className="text-xs font-bold text-gray-800 dark:text-gray-200">{addr.name}</p>
                         <p className="text-xs text-gray-500 dark:text-gray-400">{addr.flat}, {addr.area}</p>

@@ -1,21 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { 
   ArrowLeft, 
-  Filter, 
   ArrowUpDown, 
   Sparkles,
-  ChevronRight
+  ChevronRight,
+  ShoppingBag
 } from 'lucide-react';
 import Header from '@/components/website/Header';
 import Footer from '@/components/website/Footer';
 import ProductCard from '@/components/website/ProductCard';
 import CartDrawer, { CartItem } from '@/components/website/CartDrawer';
-import { formatNaira } from '@/lib/currency';
-import { PRODUCTS_CATALOG } from '@/lib/catalog';
 
 const CATEGORY_MAP: Record<string, { title: string; desc: string; icon: string }> = {
   vegetables: {
@@ -55,9 +53,6 @@ const CATEGORY_MAP: Record<string, { title: string; desc: string; icon: string }
   },
 };
 
-// Products sourced from the shared catalog — see src/lib/catalog.ts
-
-
 export default function CategoryDetailsPage({ params }: { params?: { slug?: string } }) {
   const routerParams = useParams();
   const rawSlug = (params?.slug || (routerParams?.slug as string) || 'all');
@@ -69,16 +64,82 @@ export default function CategoryDetailsPage({ params }: { params?: { slug?: stri
     icon: '🛒',
   };
 
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState('popular');
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+
+  const formatProduct = (p: any) => {
+    const pId = p.product_id || p.id || Math.floor(Math.random() * 10000);
+    const rawPrice = typeof p.price === 'number' ? p.price : parseFloat(p.price || '3500') || 3500;
+    const originalPrice = Math.round(rawPrice * 1.25);
+    const variants = Array.isArray(p.variants) && p.variants.length > 0
+      ? p.variants.map((v: any, idx: number) => ({
+          id: v.variant_id || v.id || pId + idx,
+          title: v.title || 'Standard Pack',
+          price: v.price || originalPrice,
+          discounted_price: v.discounted_price || rawPrice,
+          stock: v.stock ?? 50,
+          unit: v.unit || '1 pack',
+        }))
+      : [
+          {
+            id: pId,
+            title: 'Standard Pack',
+            price: originalPrice,
+            discounted_price: rawPrice,
+            stock: p.stock ?? 50,
+            unit: '1 pack',
+          },
+        ];
+
+    return {
+      id: pId,
+      name: p.name || 'Grocery Item',
+      slug: p.slug || (p.name ? p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') : `product-${pId}`),
+      category: p.category || 'vegetables',
+      image: p.image || 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=300',
+      rating: p.rating || 4.9,
+      rating_count: p.rating_count || p.ratingCount || 120,
+      variants,
+      description: p.description || p.name || '',
+    };
+  };
+
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/products');
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        setProducts(json.data.map(formatProduct));
+      } else {
+        setProducts([]);
+      }
+    } catch (err) {
+      console.warn('Failed to load category products:', err);
+      setProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProducts();
+    const handleUpdate = () => fetchProducts();
+    if (typeof window !== 'undefined') {
+      window.addEventListener('groceryhub_catalog_updated', handleUpdate);
+      return () => window.removeEventListener('groceryhub_catalog_updated', handleUpdate);
+    }
+  }, [slug]);
 
   const handleAddToCart = (variantId: number, qty: number) => {
     let matchedProduct: any = null;
     let matchedVariant: any = null;
 
-    for (const p of PRODUCTS_CATALOG) {
-      const v = p.variants.find((item) => item.id === variantId);
+    for (const p of products) {
+      const v = p.variants?.find((item: any) => item.id === variantId);
       if (v) {
         matchedProduct = p;
         matchedVariant = v;
@@ -116,14 +177,14 @@ export default function CategoryDetailsPage({ params }: { params?: { slug?: stri
     setIsCartOpen(true);
   };
 
-  const filteredProducts = PRODUCTS_CATALOG.filter((p) => {
+  const filteredProducts = products.filter((p) => {
     if (slug === 'all') return true;
-    return p.category === slug;
+    return (p.category || '').toLowerCase().includes(slug.toLowerCase());
   }).sort((a, b) => {
-    if (sortBy === 'price-low') return a.variants[0].discounted_price - b.variants[0].discounted_price;
-    if (sortBy === 'price-high') return b.variants[0].discounted_price - a.variants[0].discounted_price;
-    if (sortBy === 'rating') return b.rating - a.rating;
-    return b.rating_count - a.rating_count;
+    if (sortBy === 'price-low') return (a.variants[0]?.discounted_price || 0) - (b.variants[0]?.discounted_price || 0);
+    if (sortBy === 'price-high') return (b.variants[0]?.discounted_price || 0) - (a.variants[0]?.discounted_price || 0);
+    if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
+    return (b.rating_count || 0) - (a.rating_count || 0);
   });
 
   return (
@@ -140,69 +201,62 @@ export default function CategoryDetailsPage({ params }: { params?: { slug?: stri
             <ArrowLeft size={14} /> Back to Store
           </Link>
           <span>/</span>
-          <Link href="/category" className="hover:text-[#0aad0a]">
-            Categories
-          </Link>
+          <Link href="/category" className="hover:text-[#0aad0a]">Categories</Link>
           <span>/</span>
-          <span className="text-gray-900 dark:text-white">{categoryMeta.title}</span>
+          <span className="text-gray-900 dark:text-white capitalize">{categoryMeta.title}</span>
         </div>
 
-        {/* Category Hero Banner */}
-        <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-800 rounded-3xl p-8 text-white shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-6 relative overflow-hidden">
-          <div className="space-y-2 z-10">
-            <div className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider">
-              <Sparkles size={13} className="text-amber-300" />
-              <span>30-Minute Doorstep Delivery</span>
-            </div>
+        {/* Hero Header */}
+        <div className="bg-gradient-to-r from-emerald-800 to-[#0aad0a] rounded-3xl p-8 text-white shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+          <div className="space-y-2">
+            <span className="text-3xl">{categoryMeta.icon}</span>
             <h1 className="text-2xl sm:text-4xl font-black">{categoryMeta.title}</h1>
-            <p className="text-xs sm:text-sm text-emerald-100 max-w-lg leading-relaxed">
+            <p className="text-xs sm:text-sm text-emerald-100 max-w-lg">
               {categoryMeta.desc}
             </p>
           </div>
 
-          <div className="text-6xl sm:text-7xl p-4 rounded-3xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center shrink-0 shadow-lg">
-            {categoryMeta.icon}
+          <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-3 rounded-2xl border border-white/20 text-xs font-bold shrink-0">
+            <span>{filteredProducts.length} Products Available</span>
           </div>
         </div>
 
-        {/* Action / Sort Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="text-xs font-bold text-gray-500 dark:text-gray-400">
-            Showing <span className="text-[#0aad0a] font-black">{filteredProducts.length}</span> fresh products
-          </div>
+        {/* Sort Bar */}
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-bold text-gray-500">
+            Showing {filteredProducts.length} item{filteredProducts.length === 1 ? '' : 's'}
+          </p>
 
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 bg-white dark:bg-[#1e2632] border border-gray-200 dark:border-gray-800 rounded-2xl px-3 py-2 text-xs font-bold shadow-sm">
-              <ArrowUpDown size={14} className="text-[#0aad0a]" />
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="bg-transparent focus:outline-none text-gray-800 dark:text-gray-200"
-              >
-                <option value="popular">Most Popular</option>
-                <option value="rating">Highest Rated</option>
-                <option value="price-low">Price: Low to High (₦)</option>
-                <option value="price-high">Price: High to Low (₦)</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Product Grid */}
-        {filteredProducts.length === 0 ? (
-          <div className="bg-white dark:bg-[#1e2632] rounded-3xl p-12 text-center border border-gray-200 dark:border-gray-800 space-y-4">
-            <div className="text-5xl">🌾</div>
-            <h3 className="text-lg font-black text-gray-900 dark:text-white">No products found in this category</h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Check back soon as our farm partners restock fresh harvests daily.
-            </p>
-            <Link
-              href="/category"
-              className="inline-flex items-center gap-2 bg-[#0aad0a] hover:bg-[#088f08] text-white font-black px-6 py-3 rounded-2xl text-xs shadow-md"
+          <div className="flex items-center gap-2 bg-white dark:bg-[#1e2632] border border-gray-200 dark:border-gray-800 rounded-2xl px-3 py-2 text-xs font-bold shadow-sm">
+            <ArrowUpDown size={14} className="text-[#0aad0a]" />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="bg-transparent focus:outline-none text-gray-800 dark:text-gray-200"
             >
-              <span>Explore All Categories</span>
-              <ChevronRight size={14} />
-            </Link>
+              <option value="popular">Most Popular</option>
+              <option value="rating">Highest Rated</option>
+              <option value="price-low">Price: Low to High (₦)</option>
+              <option value="price-high">Price: High to Low (₦)</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Grid */}
+        {loading ? (
+          <div className="py-16 text-center space-y-3">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0aad0a] mx-auto" />
+            <p className="text-xs text-gray-400">Loading products from database...</p>
+          </div>
+        ) : filteredProducts.length === 0 ? (
+          <div className="py-16 text-center space-y-3 bg-white dark:bg-[#1e2632] border border-gray-200 dark:border-gray-800 rounded-3xl p-8">
+            <ShoppingBag size={40} className="mx-auto text-gray-400" />
+            <h3 className="text-base font-bold text-gray-900 dark:text-white">No products in this category yet</h3>
+            <p className="text-xs text-gray-500 max-w-sm mx-auto">
+              {products.length === 0
+                ? 'No products found in the database. Add products from the Admin Hub.'
+                : 'No items found matching this category.'}
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">

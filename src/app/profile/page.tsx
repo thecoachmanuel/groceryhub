@@ -20,11 +20,6 @@ interface SavedAddress {
   isDefault: boolean;
 }
 
-const INITIAL_ADDRESSES: SavedAddress[] = [
-  { id: 1, type: 'Home', name: 'Chinedu Okafor', mobile: '+234 802 345 6789', flat: 'Flat 4B, Oceanview Towers', area: 'Plot 14, Adeola Odeku St, Victoria Island', city: 'Lagos', pincode: '101241', isDefault: true },
-  { id: 2, type: 'Work', name: 'Chinedu Okafor', mobile: '+234 802 345 6789', flat: 'Suite 204, Tech Park', area: '12 Admiralty Way, Lekki Phase 1', city: 'Lagos', pincode: '105102', isDefault: false },
-];
-
 export default function CustomerProfilePage() {
   const { user, loginSession, logout } = useAuth();
 
@@ -40,7 +35,7 @@ export default function CustomerProfilePage() {
         try { return JSON.parse(saved); } catch {}
       }
     }
-    return isDemoUser ? INITIAL_ADDRESSES : [];
+    return [];
   });
   const [showAddModal, setShowAddModal] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -54,8 +49,6 @@ export default function CustomerProfilePage() {
       const saved = localStorage.getItem(`groceryhub_addresses_${user.id}`);
       if (saved) {
         try { setAddresses(JSON.parse(saved)); } catch {}
-      } else if (user.email === 'customer@groceryhub.ng') {
-        setAddresses(INITIAL_ADDRESSES);
       } else {
         setAddresses([]);
       }

@@ -17,23 +17,6 @@ import Header from '@/components/website/Header';
 import Footer from '@/components/website/Footer';
 import ProductCard from '@/components/website/ProductCard';
 import CartDrawer, { CartItem } from '@/components/website/CartDrawer';
-import { PRODUCTS_CATALOG } from '@/lib/catalog';
-
-// Mock/Initial Display Data matching GroceryHub's database catalog
-const CATEGORIES = [
-  { id: 1, name: 'Vegetables', slug: 'vegetables', icon: '🥬', count: '120+ Items', color: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600' },
-  { id: 2, name: 'Fresh Fruits', slug: 'fruits', icon: '🍎', count: '85+ Items', color: 'bg-amber-50 dark:bg-amber-950/40 text-amber-600' },
-  { id: 3, name: 'Dairy & Eggs', slug: 'dairy', icon: '🥛', count: '60+ Items', color: 'bg-blue-50 dark:bg-blue-950/40 text-blue-600' },
-  { id: 4, name: 'Bakery & Bread', slug: 'bakery', icon: '🍞', count: '45+ Items', color: 'bg-orange-50 dark:bg-orange-950/40 text-orange-600' },
-  { id: 5, name: 'Beverages', slug: 'beverages', icon: '🧃', count: '90+ Items', color: 'bg-purple-50 dark:bg-purple-950/40 text-purple-600' },
-  { id: 6, name: 'Snacks & Munchies', slug: 'snacks', icon: '🍿', count: '140+ Items', color: 'bg-pink-50 dark:bg-pink-950/40 text-pink-600' },
-  { id: 7, name: 'Pantry Staples', slug: 'pantry', icon: '🍚', count: '110+ Items', color: 'bg-teal-50 dark:bg-teal-950/40 text-teal-600' },
-];
-
-// Products sourced from shared catalog — see src/lib/catalog.ts
-const POPULAR_PRODUCTS = PRODUCTS_CATALOG.slice(0, 8);
-
-
 const TOP_SELLERS = [
   {
     id: 1,
@@ -41,7 +24,7 @@ const TOP_SELLERS = [
     city: 'Epe Industrial Estate, Lagos',
     rating: 4.9,
     slug: 'vegetables',
-    products: `${PRODUCTS_CATALOG.filter((p) => p.category === 'Vegetables' || p.category === 'Fruits').length} Products`,
+    products: 'Certified Organic Partner',
     image: 'https://images.unsplash.com/photo-1500937386664-56d1dfef3854?w=400',
   },
   {
@@ -50,7 +33,7 @@ const TOP_SELLERS = [
     city: 'Ikeja Wholesale Hub, Lagos',
     rating: 4.8,
     slug: 'dairy',
-    products: `${PRODUCTS_CATALOG.filter((p) => p.category === 'Dairy').length} Products`,
+    products: 'Certified Fresh Partner',
     image: 'https://images.unsplash.com/photo-1528750997573-59b89d56f4f7?w=400',
   },
   {
@@ -59,7 +42,7 @@ const TOP_SELLERS = [
     city: 'Victoria Island Central, Lagos',
     rating: 4.9,
     slug: 'bakery',
-    products: `${PRODUCTS_CATALOG.filter((p) => p.category === 'Bakery').length} Products`,
+    products: 'Artisanal Partner',
     image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400',
   },
 ];
@@ -67,7 +50,7 @@ const TOP_SELLERS = [
 export default function HomePage() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [catalogProducts, setCatalogProducts] = useState<any[]>(PRODUCTS_CATALOG);
+  const [catalogProducts, setCatalogProducts] = useState<any[]>([]);
 
   const formatProductForStore = (p: any) => {
     const pId = p.product_id || p.id || Math.floor(Math.random() * 10000);
@@ -111,26 +94,15 @@ export default function HomePage() {
     try {
       const res = await fetch('/api/products');
       const json = await res.json();
-      if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+      if (json.success && Array.isArray(json.data)) {
         const formatted = json.data.map(formatProductForStore);
         setCatalogProducts(formatted);
         return;
       }
-    } catch (err) {}
-
-    // Fallback to local storage or static catalog
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('groceryhub_admin_products');
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            const formatted = parsed.map(formatProductForStore);
-            setCatalogProducts(formatted);
-          }
-        } catch {}
-      }
+    } catch (err) {
+      console.warn('Failed to fetch live products:', err);
     }
+    setCatalogProducts([]);
   };
 
   useEffect(() => {
@@ -295,7 +267,7 @@ export default function HomePage() {
 
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4">
             {CATEGORIES.map((cat) => {
-              const catCount = PRODUCTS_CATALOG.filter((p) => p.category === cat.slug).length;
+              const catCount = catalogProducts.filter((p) => (p.category || '').toLowerCase().includes(cat.slug.toLowerCase())).length;
               return (
                 <Link
                   key={cat.id}
