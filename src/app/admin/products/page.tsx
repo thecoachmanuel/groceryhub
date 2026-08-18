@@ -12,7 +12,8 @@ import {
   Edit3, 
   CheckCircle2, 
   X,
-  Filter
+  Filter,
+  RefreshCw
 } from 'lucide-react';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import LocalImageUploader from '@/components/common/LocalImageUploader';
@@ -21,6 +22,7 @@ import { PRODUCTS_CATALOG } from '@/lib/catalog';
 
 interface AdminProduct {
   id: number;
+  _id?: string;
   name: string;
   category: string;
   price: number;
@@ -42,7 +44,8 @@ const INITIAL_ADMIN_PRODUCTS: AdminProduct[] = PRODUCTS_CATALOG.map((p) => ({
 }));
 
 export default function AdminProductsPage() {
-  const [products, setProducts] = useState<AdminProduct[]>(INITIAL_ADMIN_PRODUCTS);
+  const [products, setProducts] = useState<AdminProduct[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<AdminProduct | null>(null);
 
@@ -58,29 +61,61 @@ export default function AdminProductsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
 
-  // Load from localStorage on mount & ensure full catalog sync
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('groceryhub_admin_products');
-      if (saved) {
-        try {
-          const parsed: AdminProduct[] = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length >= PRODUCTS_CATALOG.length) {
-            setProducts(parsed);
-            return;
-          }
-        } catch {}
+  const fetchProductsFromApi = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/products');
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+        const formatted: AdminProduct[] = json.data.map((p: any) => ({
+          id: p.product_id || p.id || Date.now(),
+          _id: p._id,
+          name: p.name,
+          category: p.category,
+          price: p.variants?.[0]?.price || p.price || 3500,
+          stock: p.variants?.[0]?.stock || p.stock || 50,
+          status: p.status || 'Active',
+          image: p.image,
+          description: p.description,
+        }));
+        setProducts(formatted);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('groceryhub_admin_products', JSON.stringify(formatted));
+        }
+      } else {
+        // Fallback to initial catalog if API returns empty
+        const saved = typeof window !== 'undefined' ? localStorage.getItem('groceryhub_admin_products') : null;
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setProducts(parsed);
+              return;
+            }
+          } catch {}
+        }
+        setProducts(INITIAL_ADMIN_PRODUCTS);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('groceryhub_admin_products', JSON.stringify(INITIAL_ADMIN_PRODUCTS));
+        }
       }
-      // If no saved list or stale 4-5 items, save full catalog
-      localStorage.setItem('groceryhub_admin_products', JSON.stringify(INITIAL_ADMIN_PRODUCTS));
+    } catch (err) {
+      console.warn('Products fetch warning:', err);
       setProducts(INITIAL_ADMIN_PRODUCTS);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    fetchProductsFromApi();
   }, []);
 
-  const saveProductsToStorage = (updated: AdminProduct[]) => {
-    setProducts(updated);
+  const notifyCatalogChanged = (updatedList: AdminProduct[]) => {
+    setProducts(updatedList);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('groceryhub_admin_products', JSON.stringify(updated));
+      localStorage.setItem('groceryhub_admin_products', JSON.stringify(updatedList));
+      window.dispatchEvent(new CustomEvent('groceryhub_catalog_updated', { detail: updatedList }));
     }
   };
 
@@ -119,7 +154,7 @@ export default function AdminProductsPage() {
     }, 600);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return alert('Product name is required');
 
@@ -128,9 +163,27 @@ export default function AdminProductsPage() {
     const finalPrice = parseFloat(price || '0');
     const finalStock = parseInt(stock || '0', 10);
 
-    let updated: AdminProduct[];
     if (editingProduct) {
-      updated = products.map((p) =>
+      // API call to PUT /api/products/[id]
+      try {
+        await fetch(`/api/products/${editingProduct.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name,
+            category,
+            price: finalPrice,
+            stock: finalStock,
+            description,
+            image: finalImage,
+            status,
+          }),
+        });
+      } catch (err) {
+        console.warn('API update error:', err);
+      }
+
+      const updated = products.map((p) =>
         p.id === editingProduct.id
           ? {
               ...p,
@@ -144,9 +197,34 @@ export default function AdminProductsPage() {
             }
           : p
       );
+      notifyCatalogChanged(updated);
     } else {
+      // API call to POST /api/products
+      let newId = Date.now();
+      try {
+        const createRes = await fetch('/api/products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name,
+            category,
+            price: finalPrice,
+            stock: finalStock,
+            description,
+            image: finalImage,
+            status,
+          }),
+        });
+        const createJson = await createRes.json();
+        if (createJson.success && createJson.data?.product_id) {
+          newId = createJson.data.product_id;
+        }
+      } catch (err) {
+        console.warn('API create error:', err);
+      }
+
       const newProduct: AdminProduct = {
-        id: Date.now(),
+        id: newId,
         name,
         category,
         price: finalPrice,
@@ -155,17 +233,22 @@ export default function AdminProductsPage() {
         image: finalImage,
         status,
       };
-      updated = [newProduct, ...products];
+      const updated = [newProduct, ...products];
+      notifyCatalogChanged(updated);
     }
 
-    saveProductsToStorage(updated);
     setIsModalOpen(false);
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: number) => {
     if (confirm('Are you sure you want to remove this product?')) {
+      try {
+        await fetch(`/api/products/${id}`, { method: 'DELETE' });
+      } catch (err) {
+        console.warn('API delete error:', err);
+      }
       const updated = products.filter((p) => p.id !== id);
-      saveProductsToStorage(updated);
+      notifyCatalogChanged(updated);
     }
   };
 
@@ -191,13 +274,25 @@ export default function AdminProductsPage() {
             <p className="text-xs text-gray-400 mt-0.5">Manage live grocery items, inventory levels, AI descriptions, and Naira pricing in real time</p>
           </div>
 
-          <button
-            onClick={openCreateModal}
-            className="bg-[#0aad0a] hover:bg-[#088f08] text-white text-xs font-black px-5 py-2.5 rounded-2xl flex items-center gap-2 shadow-lg shadow-[#0aad0a]/30 transition-all active:scale-95 whitespace-nowrap"
-          >
-            <Plus size={16} />
-            <span>Add New Product</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={fetchProductsFromApi}
+              disabled={loading}
+              className="bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-bold px-3 py-2.5 rounded-2xl flex items-center gap-1.5 transition-all"
+              title="Refresh Catalog"
+            >
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+              <span>Refresh</span>
+            </button>
+
+            <button
+              onClick={openCreateModal}
+              className="bg-[#0aad0a] hover:bg-[#088f08] text-white text-xs font-black px-5 py-2.5 rounded-2xl flex items-center gap-2 shadow-lg shadow-[#0aad0a]/30 transition-all active:scale-95 whitespace-nowrap"
+            >
+              <Plus size={16} />
+              <span>Add New Product</span>
+            </button>
+          </div>
         </div>
 
         {/* Sub-nav */}
@@ -241,13 +336,19 @@ export default function AdminProductsPage() {
               <option value="fruits">Fruits</option>
               <option value="dairy & eggs">Dairy &amp; Eggs</option>
               <option value="bakery">Bakery</option>
+              <option value="pantry">Pantry Staples</option>
             </select>
           </div>
         </div>
 
         {/* Product Table */}
         <div className="bg-[#1e2632] border border-gray-800 rounded-3xl p-6 overflow-hidden shadow-xl">
-          {filtered.length === 0 ? (
+          {loading ? (
+            <div className="py-12 text-center space-y-3">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0aad0a] mx-auto" />
+              <p className="text-xs text-gray-400">Loading live catalog from database...</p>
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="py-12 text-center space-y-3">
               <Package size={36} className="mx-auto text-gray-500" />
               <h4 className="text-sm font-bold">No products found</h4>
@@ -283,7 +384,7 @@ export default function AdminProductsPage() {
                         </div>
                       </td>
                       <td className="py-3.5 px-3">
-                        <span className="bg-gray-800 text-gray-300 font-bold text-[10px] px-2.5 py-1 rounded-lg">
+                        <span className="bg-gray-800 text-gray-300 font-bold text-[10px] px-2.5 py-1 rounded-lg capitalize">
                           {item.category}
                         </span>
                       </td>

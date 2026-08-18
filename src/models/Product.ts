@@ -16,6 +16,7 @@ export interface IProduct extends Document {
   seller_id: number;
   brand_id?: number;
   category_id: number;
+  category?: string;
   subcategory_id?: number;
   name: string;
   slug: string;
@@ -48,7 +49,8 @@ const ProductSchema: Schema = new Schema(
     product_id: { type: Number, required: true, unique: true, index: true },
     seller_id: { type: Number, required: true, index: true },
     brand_id: { type: Number, default: 0, index: true },
-    category_id: { type: Number, required: true, index: true },
+    category_id: { type: Number, default: 1, index: true },
+    category: { type: String, default: 'Vegetables' },
     subcategory_id: { type: Number, default: 0 },
     name: { type: String, required: true, trim: true },
     slug: { type: String, required: true, unique: true, lowercase: true, trim: true },

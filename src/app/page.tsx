@@ -69,8 +69,30 @@ export default function HomePage() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [catalogProducts, setCatalogProducts] = useState<any[]>(PRODUCTS_CATALOG);
 
-  // Sync frontpage with Admin Hub products
-  useEffect(() => {
+  // Sync frontpage with Admin Hub products & API database
+  const loadLiveCatalog = async () => {
+    try {
+      const res = await fetch('/api/products');
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+        const formatted = json.data.map((p: any) => ({
+          id: p.product_id || p.id,
+          name: p.name,
+          category: p.category,
+          image: p.image,
+          rating: 4.9,
+          ratingCount: 120,
+          variants: p.variants && p.variants.length > 0 ? p.variants : [
+            { id: p.product_id || p.id, title: 'Standard Pack', price: p.price || 3500, originalPrice: Math.round((p.price || 3500) * 1.25), stock: p.stock || 50 }
+          ],
+          description: p.description || p.name,
+        }));
+        setCatalogProducts(formatted);
+        return;
+      }
+    } catch (err) {}
+
+    // Fallback to local storage or static catalog
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('groceryhub_admin_products');
       if (saved) {
@@ -93,6 +115,35 @@ export default function HomePage() {
           }
         } catch {}
       }
+    }
+  };
+
+  useEffect(() => {
+    loadLiveCatalog();
+
+    const handleCatalogUpdate = (e: any) => {
+      if (e?.detail && Array.isArray(e.detail)) {
+        const formatted = e.detail.map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          category: p.category,
+          image: p.image,
+          rating: 4.9,
+          ratingCount: 120,
+          variants: [
+            { id: p.id, title: 'Standard Pack', price: p.price, originalPrice: Math.round(p.price * 1.25), stock: p.stock },
+          ],
+          description: p.description || p.name,
+        }));
+        setCatalogProducts(formatted);
+      } else {
+        loadLiveCatalog();
+      }
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('groceryhub_catalog_updated', handleCatalogUpdate);
+      return () => window.removeEventListener('groceryhub_catalog_updated', handleCatalogUpdate);
     }
   }, []);
 
