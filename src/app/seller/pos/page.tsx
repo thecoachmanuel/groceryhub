@@ -1,34 +1,37 @@
 'use client';
 
-import { useState } from 'react';
-import Link from 'next/link';
-import Image from 'next/image';
+import { useState, useEffect } from 'react';
 import { 
   Barcode, 
   Search, 
-  User, 
   Trash2, 
   Plus, 
   Minus, 
-  Printer, 
   CreditCard, 
   DollarSign, 
-  PauseCircle, 
-  RotateCcw,
   CheckCircle2,
   X,
   Smartphone
 } from 'lucide-react';
 import SellerNav from '@/components/seller/SellerNav';
 import { formatNaira } from '@/lib/currency';
+import { useSellerAuth } from '@/context/AuthContext';
+
+interface PosProduct {
+  _id: string;
+  name: string;
+  category?: string;
+  price: number;
+  special_price?: number;
+  barcode?: string;
+  stock?: number;
+  image?: string;
+  unit?: string;
+}
 
 interface PosItem {
-  id: number;
-  name: string;
-  variant_title: string;
-  price: number;
+  product: PosProduct;
   quantity: number;
-  image: string;
 }
 
 interface SellerTerminalSession {
@@ -39,45 +42,47 @@ interface SellerTerminalSession {
   items: PosItem[];
 }
 
-const POS_PRODUCTS = [
-  { id: 1, name: 'Organic Farm Broccoli', price: 3500, unit: '500g', barcode: '8901234567890', image: 'https://images.unsplash.com/photo-1459411621453-7b03977f4bfc?w=300' },
-  { id: 2, name: 'Red Crisp Apples', price: 4500, unit: '1kg', barcode: '8901234567891', image: 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=300' },
-  { id: 3, name: 'Farm Whole Milk', price: 3800, unit: '1 Gallon', barcode: '8901234567892', image: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=300' },
-  { id: 4, name: 'Sourdough Bread', price: 3200, unit: '400g', barcode: '8901234567893', image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=300' },
-  { id: 5, name: 'Hass Avocados (3pk)', price: 4200, unit: 'Pack of 3', barcode: '8901234567894', image: 'https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?w=300' },
-  { id: 6, name: 'Baby Spinach', price: 2800, unit: '250g', barcode: '8901234567895', image: 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=300' },
-];
-
-const INITIAL_TERMINALS: SellerTerminalSession[] = [
-  {
-    id: 'TERM-1',
-    name: 'Counter 1 (Main Register)',
-    customerName: 'Walk-in Customer',
-    customerMobile: '',
-    items: [
-      { id: 1, name: 'Organic Farm Broccoli', variant_title: '500g', price: 3500, quantity: 2, image: POS_PRODUCTS[0].image },
-      { id: 2, name: 'Red Crisp Apples', variant_title: '1kg', price: 4500, quantity: 1, image: POS_PRODUCTS[1].image },
-    ],
-  },
-  {
-    id: 'TERM-2',
-    name: 'Counter 2 (Hold Lane)',
-    customerName: 'Amina Bello',
-    customerMobile: '+234 803 111 2222',
-    items: [
-      { id: 5, name: 'Hass Avocados (3pk)', variant_title: 'Pack of 3', price: 4200, quantity: 1, image: POS_PRODUCTS[4].image },
-    ],
-  },
-];
-
 export default function PosTerminalPage() {
-  const [terminals, setTerminals] = useState<SellerTerminalSession[]>(INITIAL_TERMINALS);
+  const { seller } = useSellerAuth();
+  const sellerId = seller?.id || 1;
+
+  const [products, setProducts] = useState<PosProduct[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const [terminals, setTerminals] = useState<SellerTerminalSession[]>([
+    {
+      id: 'TERM-1',
+      name: 'Counter 1 (Main Register)',
+      customerName: 'Walk-in Customer',
+      customerMobile: '',
+      items: [],
+    },
+  ]);
   const [activeTerminalId, setActiveTerminalId] = useState<string>('TERM-1');
   const [barcodeInput, setBarcodeInput] = useState('');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [tenderedAmount, setTenderedAmount] = useState('20000');
   const [paymentSuccess, setPaymentSuccess] = useState(false);
-  const [paymentMode, setPaymentMode] = useState<'cash' | 'card' | 'paystack_qr'>('cash');
+  const [paymentMode, setPaymentMode] = useState<'CASH' | 'CARD' | 'WALLET'>('CASH');
+
+  const fetchSellerProducts = async () => {
+    try {
+      setLoadingProducts(true);
+      const res = await fetch(`/api/admin/pos/products?seller_id=${sellerId}`);
+      const data = await res.json();
+      if (data.success) {
+        setProducts(data.data || data.products || []);
+      }
+    } catch (err) {
+      console.error('Error fetching seller POS products:', err);
+    } finally {
+      setLoadingProducts(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSellerProducts();
+  }, [sellerId]);
 
   const activeTerminal = terminals.find((t) => t.id === activeTerminalId) || terminals[0];
 
@@ -107,9 +112,9 @@ export default function PosTerminalPage() {
     }
   };
 
-  const addToCart = (product: typeof POS_PRODUCTS[0]) => {
+  const addToCart = (product: PosProduct) => {
     updateActiveTerminal((term) => {
-      const idx = term.items.findIndex((item) => item.id === product.id);
+      const idx = term.items.findIndex((item) => String(item.product._id) === String(product._id));
       if (idx > -1) {
         const copy = [...term.items];
         copy[idx].quantity += 1;
@@ -117,27 +122,17 @@ export default function PosTerminalPage() {
       }
       return {
         ...term,
-        items: [
-          ...term.items,
-          {
-            id: product.id,
-            name: product.name,
-            variant_title: product.unit,
-            price: product.price,
-            quantity: 1,
-            image: product.image,
-          },
-        ],
+        items: [...term.items, { product, quantity: 1 }],
       };
     });
   };
 
-  const updateQty = (id: number, delta: number) => {
+  const updateQty = (productId: string, delta: number) => {
     updateActiveTerminal((term) => ({
       ...term,
       items: term.items
         .map((item) => {
-          if (item.id === id) {
+          if (String(item.product._id) === String(productId)) {
             const q = item.quantity + delta;
             return q > 0 ? { ...item, quantity: q } : null;
           }
@@ -150,7 +145,9 @@ export default function PosTerminalPage() {
   const handleScanBarcode = (e: React.FormEvent) => {
     e.preventDefault();
     if (!barcodeInput.trim()) return;
-    const prod = POS_PRODUCTS.find((p) => p.barcode === barcodeInput.trim());
+    const prod = products.find(
+      (p) => p.barcode === barcodeInput.trim() || p.name.toLowerCase().includes(barcodeInput.toLowerCase())
+    );
     if (prod) {
       addToCart(prod);
       setBarcodeInput('');
@@ -159,22 +156,55 @@ export default function PosTerminalPage() {
     }
   };
 
-  const subtotal = activeTerminal.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const subtotal = activeTerminal.items.reduce(
+    (sum, item) => sum + (item.product.special_price || item.product.price) * item.quantity,
+    0
+  );
   const tax = subtotal * 0.05;
   const total = subtotal + tax;
-  const change = Math.max(0, parseFloat(tenderedAmount || '0') - total);
 
-  const handleCompleteSale = () => {
-    setShowPaymentModal(false);
-    setPaymentSuccess(true);
-    updateActiveTerminal((term) => ({
-      ...term,
-      items: [],
-      customerName: 'Walk-in Customer',
-      customerMobile: '',
-    }));
-    setTimeout(() => setPaymentSuccess(false), 4000);
+  const handleCompleteSale = async () => {
+    try {
+      await fetch('/api/admin/pos/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          seller_id: sellerId,
+          customer_name: activeTerminal.customerName,
+          customer_mobile: activeTerminal.customerMobile,
+          payment_method: paymentMode,
+          items: activeTerminal.items.map((i) => ({
+            product_id: i.product._id,
+            product_name: i.product.name,
+            price: i.product.special_price || i.product.price,
+            quantity: i.quantity,
+          })),
+          subtotal,
+          tax,
+          final_total: total,
+        }),
+      });
+
+      setShowPaymentModal(false);
+      setPaymentSuccess(true);
+      updateActiveTerminal((term) => ({
+        ...term,
+        items: [],
+        customerName: 'Walk-in Customer',
+        customerMobile: '',
+      }));
+      setTimeout(() => setPaymentSuccess(false), 4000);
+      fetchSellerProducts();
+    } catch (err) {
+      console.error('Error completing seller POS sale:', err);
+    }
   };
+
+  const filteredProducts = products.filter(
+    (p) =>
+      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (p.barcode && p.barcode.includes(searchQuery))
+  );
 
   return (
     <div className="min-h-screen bg-[#121820] text-white flex flex-col justify-between">
@@ -186,7 +216,7 @@ export default function PosTerminalPage() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="text-2xl font-black flex items-center gap-2">
-                <Barcode size={24} className="text-[#0aad0a]" /> Store POS Counter Terminal
+                <Barcode size={24} className="text-[#0aad0a]" /> Store POS Counter Terminal ({seller?.storeName || 'Vendor Store'})
               </h1>
               <p className="text-xs text-gray-400 mt-0.5">
                 Physical counter checkout, barcode scanning, hold carts, and instant thermal receipts in Naira (₦)
@@ -243,41 +273,62 @@ export default function PosTerminalPage() {
             
             {/* Left: Product Catalog (7 cols) */}
             <div className="lg:col-span-7 space-y-4">
-              <form onSubmit={handleScanBarcode} className="relative">
-                <input
-                  type="text"
-                  value={barcodeInput}
-                  onChange={(e) => setBarcodeInput(e.target.value)}
-                  placeholder="Scan barcode (e.g. 8901234567890)..."
-                  className="w-full bg-[#1e2632] border border-gray-800 text-white rounded-2xl py-3 pl-11 pr-4 text-xs font-mono focus:outline-none focus:border-[#0aad0a]"
-                />
-                <Barcode size={18} className="absolute left-3.5 top-3.5 text-gray-400" />
-              </form>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <form onSubmit={handleScanBarcode} className="relative">
+                  <input
+                    type="text"
+                    value={barcodeInput}
+                    onChange={(e) => setBarcodeInput(e.target.value)}
+                    placeholder="Scan barcode..."
+                    className="w-full bg-[#1e2632] border border-gray-800 text-white rounded-2xl py-3 pl-11 pr-4 text-xs font-mono focus:outline-none focus:border-[#0aad0a]"
+                  />
+                  <Barcode size={18} className="absolute left-3.5 top-3.5 text-gray-400" />
+                </form>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {POS_PRODUCTS.map((prod) => (
-                  <div
-                    key={prod.id}
-                    onClick={() => addToCart(prod)}
-                    className="bg-[#1e2632] border border-gray-800 hover:border-[#0aad0a]/60 rounded-2xl p-3 flex flex-col justify-between space-y-2 cursor-pointer transition-all hover:scale-[1.02] group"
-                  >
-                    <img
-                      src={prod.image}
-                      alt={prod.name}
-                      className="w-full h-24 rounded-xl object-cover border border-gray-700 bg-gray-900"
-                    />
-                    <div className="space-y-1">
-                      <div className="font-bold text-white text-xs truncate group-hover:text-[#0aad0a] transition-colors">
-                        {prod.name}
-                      </div>
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="font-black text-[#0aad0a] font-mono">{formatNaira(prod.price)}</span>
-                        <span className="text-gray-400 font-mono text-[10px]">{prod.unit}</span>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search vendor products..."
+                    className="w-full bg-[#1e2632] border border-gray-800 text-white rounded-2xl py-3 pl-10 pr-4 text-xs focus:outline-none focus:border-[#0aad0a]"
+                  />
+                  <Search size={16} className="absolute left-3.5 top-3.5 text-gray-400" />
+                </div>
+              </div>
+
+              {loadingProducts ? (
+                <div className="text-center py-12 text-gray-400 text-xs">Loading store products...</div>
+              ) : filteredProducts.length === 0 ? (
+                <div className="text-center py-12 text-gray-400 text-xs">No vendor products found in stock.</div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {filteredProducts.map((prod) => (
+                    <div
+                      key={prod._id}
+                      onClick={() => addToCart(prod)}
+                      className="bg-[#1e2632] border border-gray-800 hover:border-[#0aad0a]/60 rounded-2xl p-3 flex flex-col justify-between space-y-2 cursor-pointer transition-all hover:scale-[1.02] group"
+                    >
+                      <img
+                        src={prod.image || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=300'}
+                        alt={prod.name}
+                        className="w-full h-24 rounded-xl object-cover border border-gray-700 bg-gray-900"
+                      />
+                      <div className="space-y-1">
+                        <div className="font-bold text-white text-xs truncate group-hover:text-[#0aad0a] transition-colors">
+                          {prod.name}
+                        </div>
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="font-black text-[#0aad0a] font-mono">
+                            {formatNaira(prod.special_price || prod.price)}
+                          </span>
+                          <span className="text-gray-400 font-mono text-[10px]">{prod.stock || 100} in stock</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Right: Cart & Tender (5 cols) */}
@@ -305,22 +356,24 @@ export default function PosTerminalPage() {
                     </div>
                   ) : (
                     activeTerminal.items.map((item) => (
-                      <div key={item.id} className="pt-2 first:pt-0 flex items-center justify-between gap-3 text-xs">
+                      <div key={item.product._id} className="pt-2 first:pt-0 flex items-center justify-between gap-3 text-xs">
                         <div className="truncate flex-1">
-                          <div className="font-bold text-white truncate">{item.name}</div>
-                          <span className="font-mono text-[#0aad0a] text-[11px]">{formatNaira(item.price)}</span>
+                          <div className="font-bold text-white truncate">{item.product.name}</div>
+                          <span className="font-mono text-[#0aad0a] text-[11px]">
+                            {formatNaira(item.product.special_price || item.product.price)}
+                          </span>
                         </div>
 
                         <div className="flex items-center gap-2">
                           <button
-                            onClick={() => updateQty(item.id, -1)}
+                            onClick={() => updateQty(item.product._id, -1)}
                             className="w-6 h-6 rounded-lg bg-gray-800 hover:bg-gray-700 flex items-center justify-center text-gray-300"
                           >
                             <Minus size={12} />
                           </button>
                           <span className="w-6 text-center font-mono font-bold">{item.quantity}</span>
                           <button
-                            onClick={() => updateQty(item.id, 1)}
+                            onClick={() => updateQty(item.product._id, 1)}
                             className="w-6 h-6 rounded-lg bg-gray-800 hover:bg-gray-700 flex items-center justify-center text-gray-300"
                           >
                             <Plus size={12} />
@@ -328,7 +381,7 @@ export default function PosTerminalPage() {
                         </div>
 
                         <div className="w-20 text-right font-mono font-black text-white">
-                          {formatNaira(item.price * item.quantity)}
+                          {formatNaira((item.product.special_price || item.product.price) * item.quantity)}
                         </div>
                       </div>
                     ))
@@ -389,9 +442,9 @@ export default function PosTerminalPage() {
               <label className="text-xs font-bold text-gray-300">Tender Method</label>
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { id: 'cash', label: 'Cash (Naira)', icon: DollarSign },
-                  { id: 'card', label: 'POS Terminal', icon: CreditCard },
-                  { id: 'paystack_qr', label: 'Paystack QR', icon: Smartphone },
+                  { id: 'CASH', label: 'Cash (Naira)', icon: DollarSign },
+                  { id: 'CARD', label: 'POS Terminal', icon: CreditCard },
+                  { id: 'WALLET', label: 'Store Wallet', icon: Smartphone },
                 ].map((m) => {
                   const Icon = m.icon;
                   return (

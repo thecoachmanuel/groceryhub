@@ -11,20 +11,20 @@ export async function GET(req: NextRequest) {
     const sellerId = searchParams.get('seller_id');
     const keyword = searchParams.get('keyword');
 
-    let query: any = { status: 1 };
-    if (sellerId) {
+    let query: any = { is_approved: true };
+    if (sellerId && sellerId !== 'all') {
       query.seller_id = Number(sellerId);
     }
     if (keyword) {
       query.$or = [
-        { product_name: { $regex: keyword, $options: 'i' } },
+        { name: { $regex: keyword, $options: 'i' } },
         { category: { $regex: keyword, $options: 'i' } },
         { barcode: { $regex: keyword, $options: 'i' } },
       ];
     }
 
-    const products = await Product.find(query).sort({ popular: -1, createdAt: -1 }).lean();
-    return NextResponse.json({ success: true, products });
+    const products = await Product.find(query).sort({ rating: -1, createdAt: -1 }).lean();
+    return NextResponse.json({ success: true, data: products, products });
   } catch (error: any) {
     return NextResponse.json({ success: false, message: error.message }, { status: 500 });
   }

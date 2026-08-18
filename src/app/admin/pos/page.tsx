@@ -10,7 +10,8 @@ import {
   DollarSign, 
   Smartphone, 
   Printer, 
-  X
+  X,
+  Store
 } from 'lucide-react';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import { formatNaira } from '@/lib/currency';
@@ -18,6 +19,7 @@ import { formatNaira } from '@/lib/currency';
 interface PosProduct {
   _id: string;
   name: string;
+  seller_id?: number;
   category_name?: string;
   price: number;
   special_price?: number;
@@ -42,6 +44,8 @@ interface PosSession {
 
 export default function AdminPosPage() {
   const [products, setProducts] = useState<PosProduct[]>([]);
+  const [sellers, setSellers] = useState<any[]>([]);
+  const [selectedSellerFilter, setSelectedSellerFilter] = useState<string>('all');
   const [loadingProducts, setLoadingProducts] = useState(true);
 
   const [sessions, setSessions] = useState<PosSession[]>([
@@ -68,13 +72,26 @@ export default function AdminPosPage() {
 
   const activeSession = sessions.find((s) => s.session_id === activeSessionId) || sessions[0];
 
-  const fetchProducts = async () => {
+  const fetchSellers = async () => {
+    try {
+      const res = await fetch('/api/admin/sellers');
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        setSellers(data.data);
+      }
+    } catch (err) {
+      console.error('Error fetching sellers list:', err);
+    }
+  };
+
+  const fetchProducts = async (sellerIdStr = 'all') => {
     try {
       setLoadingProducts(true);
-      const res = await fetch('/api/admin/pos/products');
+      const url = sellerIdStr !== 'all' ? `/api/admin/pos/products?seller_id=${sellerIdStr}` : '/api/admin/pos/products';
+      const res = await fetch(url);
       const data = await res.json();
       if (data.success) {
-        setProducts(data.data || []);
+        setProducts(data.data || data.products || []);
       }
     } catch (err) {
       console.error('Error fetching POS products:', err);
@@ -113,9 +130,15 @@ export default function AdminPosPage() {
   };
 
   useEffect(() => {
-    fetchProducts();
+    fetchSellers();
+    fetchProducts('all');
     fetchSessions();
   }, []);
+
+  const handleSellerFilterChange = (newSellerId: string) => {
+    setSelectedSellerFilter(newSellerId);
+    fetchProducts(newSellerId);
+  };
 
   const updateActiveSession = (updater: (prev: PosSession) => PosSession) => {
     setSessions((prev) => prev.map((s) => (s.session_id === activeSession.session_id ? updater(s) : s)));
@@ -221,11 +244,13 @@ export default function AdminPosPage() {
 
   const handleCheckout = async () => {
     try {
+      const sellerIdNum = selectedSellerFilter !== 'all' ? Number(selectedSellerFilter) : 1;
       const res = await fetch('/api/admin/pos/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           session_id: activeSession.session_id,
+          seller_id: sellerIdNum,
           customer_name: activeSession.customer_name,
           customer_mobile: activeSession.customer_mobile,
           payment_method: paymentMode,
@@ -254,7 +279,7 @@ export default function AdminPosPage() {
           customer_name: 'Walk-in Customer',
           customer_mobile: '',
         }));
-        fetchProducts();
+        fetchProducts(selectedSellerFilter);
       } else {
         alert(data.error || 'Checkout failed');
       }
@@ -285,8 +310,24 @@ export default function AdminPosPage() {
             </p>
           </div>
 
-          {/* Hold Tabs */}
+          {/* Hold Tabs & Vendor Filter */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1">
+            <div className="flex items-center gap-1.5 bg-[#1e2632] border border-gray-800 rounded-2xl px-3 py-1.5">
+              <Store size={14} className="text-[#0aad0a]" />
+              <select
+                value={selectedSellerFilter}
+                onChange={(e) => handleSellerFilterChange(e.target.value)}
+                className="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer"
+              >
+                <option value="all" className="bg-gray-900">All Vendor Stores</option>
+                {sellers.map((s) => (
+                  <option key={s._id || s.seller_id} value={s.seller_id || s._id} className="bg-gray-900">
+                    {s.store_name || s.name || `Store #${s.seller_id}`}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {sessions.map((sess) => (
               <div
                 key={sess.session_id}
@@ -359,7 +400,7 @@ export default function AdminPosPage() {
             {loadingProducts ? (
               <div className="text-center py-12 text-gray-400 text-xs">Loading live POS catalog...</div>
             ) : filteredProducts.length === 0 ? (
-              <div className="text-center py-12 text-gray-400 text-xs">No catalog products match search.</div>
+              <div className="text-center py-12 text-gray-400 text-xs">No catalog products match search for selected vendor.</div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {filteredProducts.map((product) => (

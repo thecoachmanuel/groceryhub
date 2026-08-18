@@ -14,10 +14,7 @@ import {
   ShieldCheck, 
   Truck, 
   Store, 
-  Sparkles,
-  CheckCircle2,
-  AlertCircle,
-  Lock
+  CheckCircle2
 } from 'lucide-react';
 import Header from '@/components/website/Header';
 import Footer from '@/components/website/Footer';
@@ -91,51 +88,69 @@ const INITIAL_CART_ITEMS: CartItem[] = [
 export default function CartPage() {
   const router = useRouter();
   const { isAuthenticated } = useAuth();
-  const [items, setItems] = useState<CartItem[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('groceryhub_cart_items');
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-        } catch {}
-      }
-    }
-    return INITIAL_CART_ITEMS;
-  });
+  const [items, setItems] = useState<CartItem[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
+
   const [couponCode, setCouponCode] = useState('');
   const [couponDiscount, setCouponDiscount] = useState(0);
   const [couponApplied, setCouponApplied] = useState(false);
   const [couponError, setCouponError] = useState('');
 
-  // Persist cart changes to localStorage
+  // Sync cart from localStorage on mount & storage events
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('groceryhub_cart_items');
+      if (saved !== null) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            setItems(parsed);
+            setIsLoaded(true);
+            return;
+          }
+        } catch (e) {
+          console.error('Error parsing cart localStorage:', e);
+        }
+      }
+      setItems(INITIAL_CART_ITEMS);
+      localStorage.setItem('groceryhub_cart_items', JSON.stringify(INITIAL_CART_ITEMS));
+      setIsLoaded(true);
+    }
+  }, []);
+
+  // Persist cart changes to localStorage once loaded
+  useEffect(() => {
+    if (isLoaded && typeof window !== 'undefined') {
       localStorage.setItem('groceryhub_cart_items', JSON.stringify(items));
     }
-  }, [items]);
+  }, [items, isLoaded]);
 
   const freeDeliveryThreshold = 15000.00; // ₦15,000
   const platformServiceFee = 500.00; // ₦500
   const taxRate = 0.05; // 5%
 
   const updateQuantity = (id: number, delta: number) => {
-    setItems(prev => prev.map(item => {
-      if (item.id === id) {
-        const newQty = item.quantity + delta;
-        return newQty > 0 ? { ...item, quantity: newQty } : item;
-      }
-      return item;
-    }));
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.id === id) {
+          const newQty = item.quantity + delta;
+          return newQty > 0 ? { ...item, quantity: newQty } : item;
+        }
+        return item;
+      })
+    );
   };
 
   const removeItem = (id: number) => {
-    setItems(prev => prev.filter(item => item.id !== id));
+    setItems((prev) => prev.filter((item) => item.id !== id));
   };
 
   const clearCart = () => {
     if (confirm('Are you sure you want to empty your cart?')) {
       setItems([]);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('groceryhub_cart_items', JSON.stringify([]));
+      }
     }
   };
 
@@ -156,7 +171,7 @@ export default function CartPage() {
   // Calculations
   const itemSubtotal = items.reduce((acc, item) => acc + item.price * item.quantity, 0);
   const isFreeDelivery = itemSubtotal >= freeDeliveryThreshold;
-  const deliveryCharge = isFreeDelivery ? 0.00 : 1500.00;
+  const deliveryCharge = isFreeDelivery || items.length === 0 ? 0.00 : 1500.00;
   const progressToFreeDelivery = Math.min(100, (itemSubtotal / freeDeliveryThreshold) * 100);
   const amountNeededForFreeDelivery = Math.max(0, freeDeliveryThreshold - itemSubtotal);
   const tax = itemSubtotal * taxRate;
