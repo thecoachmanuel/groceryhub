@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Store, Lock, Phone, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
@@ -8,11 +8,17 @@ import { useSellerAuth } from '@/context/AuthContext';
 
 export default function SellerLoginPage() {
   const router = useRouter();
-  const { sellerLogin } = useSellerAuth();
+  const { sellerLogin, isSellerAuthenticated } = useSellerAuth();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  useEffect(() => {
+    if (isSellerAuthenticated) {
+      router.replace('/seller/dashboard');
+    }
+  }, [isSellerAuthenticated, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

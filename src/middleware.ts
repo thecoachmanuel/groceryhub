@@ -3,9 +3,9 @@ import { NextRequest, NextResponse } from 'next/server';
 /**
  * GroceryHub Route Protection Middleware
  *
- * Reads `auth_token` and `user_role` cookies set at login.
- * Redirects unauthenticated users to the appropriate login page,
- * preserving the destination path as `?redirect=` for post-login redirect.
+ * Reads `auth_token` and `user_role` cookies set at login/registration.
+ * - Redirects unauthenticated users attempting to access protected routes to the appropriate login page.
+ * - Redirects already authenticated users away from login/register pages to their dashboard.
  */
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -70,7 +70,6 @@ export function middleware(req: NextRequest) {
     '/order-history',
     '/checkout',
     '/wallet',
-    '/cart',
   ];
 
   const isAdminRoute = adminRoutes.some((r) => pathname.startsWith(r));
@@ -80,7 +79,23 @@ export function middleware(req: NextRequest) {
     customerRoutes.some((r) => pathname.startsWith(r)) ||
     pathname.startsWith('/track/');
 
-  // ─── Already on login pages — allow through ─────────────────────────────────
+  // ─── Redirect Already Authenticated Users Away From Login Pages ─────────────
+  if (authToken && userRole) {
+    if (pathname === '/admin/login' && userRole === 'admin') {
+      return NextResponse.redirect(new URL('/admin/dashboard', req.url));
+    }
+    if (pathname === '/seller/login' && userRole === 'seller') {
+      return NextResponse.redirect(new URL('/seller/dashboard', req.url));
+    }
+    if (pathname === '/delivery/login' && userRole === 'delivery') {
+      return NextResponse.redirect(new URL('/delivery/dashboard', req.url));
+    }
+    if ((pathname === '/login' || pathname === '/register') && userRole === 'user') {
+      return NextResponse.redirect(new URL('/', req.url));
+    }
+  }
+
+  // ─── Login/Register Pages — allow through if not redirected above ─────────
   if (
     pathname === '/login' ||
     pathname === '/register' ||
@@ -139,12 +154,6 @@ export function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except:
-     * - API routes
-     * - Next.js internals (_next/static, _next/image, favicon.ico)
-     * - Public images and other static assets
-     */
     '/((?!api|_next/static|_next/image|favicon.ico|images|icons|uploads).*)',
   ],
 };

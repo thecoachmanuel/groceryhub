@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Truck, Lock, Phone, ArrowRight, UserPlus, AlertCircle } from 'lucide-react';
@@ -8,11 +8,17 @@ import { useRiderAuth } from '@/context/AuthContext';
 
 export default function DeliveryRiderLoginPage() {
   const router = useRouter();
-  const { riderLogin } = useRiderAuth();
+  const { riderLogin, isRiderAuthenticated } = useRiderAuth();
   const [mobile, setMobile] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  useEffect(() => {
+    if (isRiderAuthenticated) {
+      router.replace('/delivery/dashboard');
+    }
+  }, [isRiderAuthenticated, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

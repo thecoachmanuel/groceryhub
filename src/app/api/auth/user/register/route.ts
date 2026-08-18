@@ -1,6 +1,5 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { generateToken } from '@/lib/jwt';
-import { apiSuccess, apiError } from '@/lib/api-response';
 import { connectToDatabase } from '@/lib/mongodb';
 import User from '@/models/User';
 import { hashPassword, normalizePhone, getLocalPhone } from '@/lib/auth';
@@ -13,7 +12,10 @@ export async function POST(req: NextRequest) {
     const { name, email, mobile, password, referral_code } = body;
 
     if (!name || !mobile || !password) {
-      return apiError('Full name, mobile phone number, and password are required to register', 400);
+      return NextResponse.json(
+        { success: false, message: 'Full name, mobile phone number, and password are required to register' },
+        { status: 400 }
+      );
     }
 
     const cleanEmail = (email || '').trim().toLowerCase();
@@ -23,7 +25,7 @@ export async function POST(req: NextRequest) {
 
     await connectToDatabase();
 
-    // Check duplicate mobile (check raw, normalized, and local variations)
+    // Check duplicate mobile
     const existingMobile = await User.findOne({
       $or: [
         { mobile: rawMobile },
@@ -32,14 +34,20 @@ export async function POST(req: NextRequest) {
       ],
     });
     if (existingMobile) {
-      return apiError('An account with this mobile number already exists. Please log in.', 409);
+      return NextResponse.json(
+        { success: false, message: 'An account with this mobile number already exists. Please log in.' },
+        { status: 409 }
+      );
     }
 
     // Check duplicate email if provided
     if (cleanEmail) {
       const existingEmail = await User.findOne({ email: cleanEmail });
       if (existingEmail) {
-        return apiError('An account with this email address already exists. Please log in.', 409);
+        return NextResponse.json(
+          { success: false, message: 'An account with this email address already exists. Please log in.' },
+          { status: 409 }
+        );
       }
     }
 
@@ -53,7 +61,7 @@ export async function POST(req: NextRequest) {
       email: cleanEmail,
       mobile: normMobile || rawMobile,
       password: hashedPassword,
-      wallet_balance: referral_code ? 2000.00 : 0.00, // ₦2,000 welcome bonus if referral code used
+      wallet_balance: referral_code ? 2000.00 : 0.00,
       referral_code: myReferralCode,
       referred_by: referral_code || '',
       status: 'active',
@@ -66,8 +74,10 @@ export async function POST(req: NextRequest) {
       mobile: newUser.mobile,
     });
 
-    return apiSuccess(
-      {
+    const res = NextResponse.json({
+      success: true,
+      message: 'Account created successfully! Welcome to GroceryHub.',
+      data: {
         token,
         user: {
           id: newUser.user_id,
@@ -78,10 +88,18 @@ export async function POST(req: NextRequest) {
           referralCode: newUser.referral_code,
         },
       },
-      'Account created successfully! Welcome to GroceryHub.'
-    );
+    });
+
+    // Set HTTP Cookies on Response Header
+    res.cookies.set('auth_token', token, { path: '/', maxAge: 604800, sameSite: 'lax' });
+    res.cookies.set('user_role', 'user', { path: '/', maxAge: 604800, sameSite: 'lax' });
+
+    return res;
   } catch (error: any) {
     console.error('Customer registration error:', error);
-    return apiError(error?.message || 'Registration failed', 500);
+    return NextResponse.json(
+      { success: false, message: error?.message || 'Registration failed' },
+      { status: 500 }
+    );
   }
 }

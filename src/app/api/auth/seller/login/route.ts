@@ -1,6 +1,5 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { generateToken } from '@/lib/jwt';
-import { apiSuccess, apiError } from '@/lib/api-response';
 import { connectToDatabase } from '@/lib/mongodb';
 import Seller from '@/models/Seller';
 import { verifyPassword, normalizePhone, getLocalPhone } from '@/lib/auth';
@@ -14,7 +13,10 @@ export async function POST(req: NextRequest) {
 
     const rawInput = (email || mobile || '').trim();
     if (!rawInput || !password) {
-      return apiError('Email/Mobile and password are required', 400);
+      return NextResponse.json(
+        { success: false, message: 'Email/Mobile and password are required' },
+        { status: 400 }
+      );
     }
 
     const cleanInput = rawInput.toLowerCase();
@@ -33,20 +35,32 @@ export async function POST(req: NextRequest) {
     }).select('+password');
 
     if (!seller) {
-      return apiError('Vendor account not found. Please check your details or register as a vendor partner first.', 404);
+      return NextResponse.json(
+        { success: false, message: 'Vendor account not found. Please check your details or register as a vendor partner first.' },
+        { status: 404 }
+      );
     }
 
     if (seller.status === 'suspended' || seller.status === 'rejected') {
-      return apiError(`Your vendor account status is '${seller.status}'. Please contact vendor support.`, 403);
+      return NextResponse.json(
+        { success: false, message: `Your vendor account status is '${seller.status}'. Please contact vendor support.` },
+        { status: 403 }
+      );
     }
 
     if (!seller.password) {
-      return apiError('Password is not configured for this account. Please reset your password.', 401);
+      return NextResponse.json(
+        { success: false, message: 'Password is not configured for this account. Please reset your password.' },
+        { status: 401 }
+      );
     }
 
     const isMatch = await verifyPassword(password, seller.password);
     if (!isMatch) {
-      return apiError('Invalid vendor password. Please check your credentials and try again.', 401);
+      return NextResponse.json(
+        { success: false, message: 'Invalid vendor password. Please check your credentials and try again.' },
+        { status: 401 }
+      );
     }
 
     const token = generateToken({
@@ -56,8 +70,10 @@ export async function POST(req: NextRequest) {
       mobile: seller.mobile,
     });
 
-    return apiSuccess(
-      {
+    const res = NextResponse.json({
+      success: true,
+      message: 'Vendor authenticated successfully',
+      data: {
         token,
         seller: {
           id: seller.seller_id,
@@ -70,10 +86,18 @@ export async function POST(req: NextRequest) {
           status: seller.status,
         },
       },
-      'Vendor authenticated successfully'
-    );
+    });
+
+    // Set HTTP Cookies on Response Header
+    res.cookies.set('auth_token', token, { path: '/', maxAge: 604800, sameSite: 'lax' });
+    res.cookies.set('user_role', 'seller', { path: '/', maxAge: 604800, sameSite: 'lax' });
+
+    return res;
   } catch (error: any) {
     console.error('Seller login error:', error);
-    return apiError(error?.message || 'Vendor login failed', 500);
+    return NextResponse.json(
+      { success: false, message: error?.message || 'Vendor login failed' },
+      { status: 500 }
+    );
   }
 }

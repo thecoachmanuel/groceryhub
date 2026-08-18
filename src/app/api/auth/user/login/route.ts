@@ -1,6 +1,5 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { generateToken } from '@/lib/jwt';
-import { apiSuccess, apiError } from '@/lib/api-response';
 import { connectToDatabase } from '@/lib/mongodb';
 import User from '@/models/User';
 import { verifyPassword, normalizePhone, getLocalPhone } from '@/lib/auth';
@@ -14,7 +13,10 @@ export async function POST(req: NextRequest) {
 
     const rawInput = (email || mobile || '').trim();
     if (!rawInput) {
-      return apiError('Email or Mobile phone number is required', 400);
+      return NextResponse.json(
+        { success: false, message: 'Email or Mobile phone number is required' },
+        { status: 400 }
+      );
     }
 
     const cleanInput = rawInput.toLowerCase();
@@ -34,11 +36,17 @@ export async function POST(req: NextRequest) {
     }).select('+password');
 
     if (!user) {
-      return apiError('No account found with these credentials. Please check your details or register.', 404);
+      return NextResponse.json(
+        { success: false, message: 'No account found with these credentials. Please check your details or register.' },
+        { status: 404 }
+      );
     }
 
     if (user.status === 'suspended') {
-      return apiError('Your customer account is currently suspended. Please contact support.', 403);
+      return NextResponse.json(
+        { success: false, message: 'Your customer account is currently suspended. Please contact support.' },
+        { status: 403 }
+      );
     }
 
     // Password or OTP verification
@@ -46,20 +54,32 @@ export async function POST(req: NextRequest) {
       if (otp && otp.length === 4) {
         // OTP verified
       } else {
-        return apiError('Invalid OTP verification code. Please enter the 4-digit code sent to your phone.', 400);
+        return NextResponse.json(
+          { success: false, message: 'Invalid OTP verification code. Please enter the 4-digit code sent to your phone.' },
+          { status: 400 }
+        );
       }
     } else {
       if (!password) {
-        return apiError('Password is required', 400);
+        return NextResponse.json(
+          { success: false, message: 'Password is required' },
+          { status: 400 }
+        );
       }
 
       if (!user.password) {
-        return apiError('Account password is not set. Please log in via OTP or reset your password.', 401);
+        return NextResponse.json(
+          { success: false, message: 'Account password is not set. Please log in via OTP or reset your password.' },
+          { status: 401 }
+        );
       }
 
       const isMatch = await verifyPassword(password, user.password);
       if (!isMatch) {
-        return apiError('Invalid password. Please check your credentials and try again.', 401);
+        return NextResponse.json(
+          { success: false, message: 'Invalid password. Please check your credentials and try again.' },
+          { status: 401 }
+        );
       }
     }
 
@@ -70,8 +90,10 @@ export async function POST(req: NextRequest) {
       mobile: user.mobile,
     });
 
-    return apiSuccess(
-      {
+    const res = NextResponse.json({
+      success: true,
+      message: 'Customer authenticated successfully',
+      data: {
         token,
         user: {
           id: user.user_id,
@@ -82,10 +104,18 @@ export async function POST(req: NextRequest) {
           referralCode: user.referral_code,
         },
       },
-      'Customer authenticated successfully'
-    );
+    });
+
+    // Set HTTP Cookies on Response Header
+    res.cookies.set('auth_token', token, { path: '/', maxAge: 604800, sameSite: 'lax' });
+    res.cookies.set('user_role', 'user', { path: '/', maxAge: 604800, sameSite: 'lax' });
+
+    return res;
   } catch (error: any) {
     console.error('Customer login error:', error);
-    return apiError(error?.message || 'Login failed', 500);
+    return NextResponse.json(
+      { success: false, message: error?.message || 'Login failed' },
+      { status: 500 }
+    );
   }
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ShoppingBag, Lock, Mail, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
@@ -8,11 +8,17 @@ import { useAdminAuth } from '@/context/AuthContext';
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const { adminLogin } = useAdminAuth();
+  const { adminLogin, isAdminAuthenticated } = useAdminAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  useEffect(() => {
+    if (isAdminAuthenticated) {
+      router.replace('/admin/dashboard');
+    }
+  }, [isAdminAuthenticated, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,6 +38,8 @@ export default function AdminLoginPage() {
       if (!res.ok || !data.success) {
         return setErrorMsg(data.message || 'Invalid admin credentials.');
       }
+
+      adminLogin(data.data.token);
 
       const params = new URLSearchParams(window.location.search);
       const redirectTo = params.get('redirect') || '/admin/dashboard';

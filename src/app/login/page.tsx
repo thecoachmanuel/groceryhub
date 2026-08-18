@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ShoppingBag, Phone, Lock, ArrowRight, ShieldCheck, Mail, AlertCircle, CheckCircle2 } from 'lucide-react';
@@ -10,7 +10,7 @@ import { useAuth } from '@/context/AuthContext';
 
 export default function CustomerLoginPage() {
   const router = useRouter();
-  const { loginSession } = useAuth();
+  const { loginSession, isAuthenticated } = useAuth();
 
   const [authMode, setAuthMode] = useState<'password' | 'otp'>('password');
   const [identifier, setIdentifier] = useState('');
@@ -19,6 +19,12 @@ export default function CustomerLoginPage() {
   const [otpSent, setOtpSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.replace('/');
+    }
+  }, [isAuthenticated, router]);
 
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
