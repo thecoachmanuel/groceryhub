@@ -35,9 +35,33 @@ const POPULAR_PRODUCTS = PRODUCTS_CATALOG.slice(0, 8);
 
 
 const TOP_SELLERS = [
-  { id: 1, name: 'Green Valley Organic Farms', city: 'Downtown Zone', rating: 4.9, products: '240 Products', image: 'https://images.unsplash.com/photo-1500937386664-56d1dfef3854?w=400' },
-  { id: 2, name: 'Daily Dairy & Poultry Fresh', city: 'Westside Market', rating: 4.8, products: '180 Products', image: 'https://images.unsplash.com/photo-1528750997573-59b89d56f4f7?w=400' },
-  { id: 3, name: 'The Artisanal Bakery Co.', city: 'East Midtown', rating: 4.9, products: '95 Products', image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400' },
+  {
+    id: 1,
+    name: 'Green Valley Organic Farms',
+    city: 'Epe Industrial Estate, Lagos',
+    rating: 4.9,
+    slug: 'vegetables',
+    products: `${PRODUCTS_CATALOG.filter((p) => p.category === 'Vegetables' || p.category === 'Fruits').length} Products`,
+    image: 'https://images.unsplash.com/photo-1500937386664-56d1dfef3854?w=400',
+  },
+  {
+    id: 2,
+    name: 'Daily Dairy & Poultry Fresh',
+    city: 'Ikeja Wholesale Hub, Lagos',
+    rating: 4.8,
+    slug: 'dairy',
+    products: `${PRODUCTS_CATALOG.filter((p) => p.category === 'Dairy').length} Products`,
+    image: 'https://images.unsplash.com/photo-1528750997573-59b89d56f4f7?w=400',
+  },
+  {
+    id: 3,
+    name: 'The Artisanal Bakery Co.',
+    city: 'Victoria Island Central, Lagos',
+    rating: 4.9,
+    slug: 'bakery',
+    products: `${PRODUCTS_CATALOG.filter((p) => p.category === 'Bakery').length} Products`,
+    image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400',
+  },
 ];
 
 export default function HomePage() {
@@ -290,8 +314,9 @@ export default function HomePage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {TOP_SELLERS.map((store) => (
-              <div
+              <Link
                 key={store.id}
+                href={`/category?category=${store.slug}`}
                 className="group relative rounded-2xl bg-white dark:bg-[#1e2632] border border-gray-100 dark:border-gray-800 p-5 hover:shadow-xl hover:border-[#0aad0a]/40 transition-all duration-300 flex items-center gap-4"
               >
                 <div className="relative w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 bg-gray-100 dark:bg-gray-800">
@@ -312,7 +337,7 @@ export default function HomePage() {
                   </h4>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{store.city}</p>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </section>

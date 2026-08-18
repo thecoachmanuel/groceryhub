@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { ArrowLeft, Store, Star, MapPin, Sparkles, ChevronRight } from 'lucide-react';
 import Header from '@/components/website/Header';
 import Footer from '@/components/website/Footer';
+import { PRODUCTS_CATALOG } from '@/lib/catalog';
 
 const SELLERS = [
   {
@@ -13,7 +14,8 @@ const SELLERS = [
     city: 'Agro Industrial Estate, Epe, Lagos',
     rating: 4.9,
     ratingCount: 340,
-    products: '240 Products',
+    slug: 'vegetables',
+    products: `${PRODUCTS_CATALOG.filter((p) => p.category === 'Vegetables' || p.category === 'Fruits').length} Products`,
     deliveryTime: '25 Mins',
     image: 'https://images.unsplash.com/photo-1500937386664-56d1dfef3854?w=500',
     tags: ['Organic Certified', 'Fresh Veggies', 'Farm Direct'],
@@ -24,7 +26,8 @@ const SELLERS = [
     city: 'Ikeja GRA Wholesale Hub, Lagos',
     rating: 4.8,
     ratingCount: 210,
-    products: '180 Products',
+    slug: 'dairy',
+    products: `${PRODUCTS_CATALOG.filter((p) => p.category === 'Dairy').length} Products`,
     deliveryTime: '20 Mins',
     image: 'https://images.unsplash.com/photo-1528750997573-59b89d56f4f7?w=500',
     tags: ['Pure Whole Milk', 'Farm Eggs', 'Artisan Cheeses'],
@@ -35,7 +38,8 @@ const SELLERS = [
     city: 'Victoria Island Central, Lagos',
     rating: 4.9,
     ratingCount: 185,
-    products: '95 Products',
+    slug: 'bakery',
+    products: `${PRODUCTS_CATALOG.filter((p) => p.category === 'Bakery').length} Products`,
     deliveryTime: '30 Mins',
     image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=500',
     tags: ['Fresh Sourdough', 'Gluten Free', 'Artisan Pastries'],
@@ -46,7 +50,8 @@ const SELLERS = [
     city: 'Admiralty Way, Lekki Phase 1, Lagos',
     rating: 4.9,
     ratingCount: 290,
-    products: '120 Products',
+    slug: 'fruits',
+    products: `${PRODUCTS_CATALOG.filter((p) => p.category === 'Fruits').length} Products`,
     deliveryTime: '25 Mins',
     image: 'https://images.unsplash.com/photo-1619566636858-adf3ef46400b?w=500',
     tags: ['Imported Fruits', 'Local Apples', 'Berries & Melons'],
@@ -132,7 +137,7 @@ export default function SellersPage() {
 
                 <div className="pt-2">
                   <Link
-                    href={`/popular-products`}
+                    href={`/category?category=${store.slug}`}
                     className="inline-flex items-center gap-1 text-xs font-bold text-[#0aad0a] hover:underline"
                   >
                     <span>Visit Store Catalog ({store.products})</span>

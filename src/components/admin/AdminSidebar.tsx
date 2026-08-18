@@ -196,13 +196,19 @@ export default function AdminSidebar() {
         >
           <span>← Back to Customer Storefront</span>
         </Link>
-        <Link
-          href="/admin/login"
-          className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-red-400 hover:bg-red-950/30 rounded-xl transition-colors"
+        <button
+          onClick={() => {
+            const token = localStorage.getItem('groceryhub_admin_token');
+            localStorage.removeItem('groceryhub_admin_token');
+            document.cookie = 'auth_token=; path=/; max-age=0';
+            document.cookie = 'user_role=; path=/; max-age=0';
+            window.location.href = '/admin/login';
+          }}
+          className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-red-400 hover:bg-red-950/30 rounded-xl transition-colors text-left"
         >
           <LogOut size={16} />
           <span>Sign Out</span>
-        </Link>
+        </button>
       </div>
     </aside>
   );
