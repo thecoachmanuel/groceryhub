@@ -17,6 +17,7 @@ import Header from '@/components/website/Header';
 import Footer from '@/components/website/Footer';
 import ProductCard from '@/components/website/ProductCard';
 import CartDrawer, { CartItem } from '@/components/website/CartDrawer';
+import { PRODUCTS_CATALOG } from '@/lib/catalog';
 
 // Mock/Initial Display Data matching GroceryHub's database catalog
 const CATEGORIES = [
@@ -29,100 +30,9 @@ const CATEGORIES = [
   { id: 7, name: 'Pantry Staples', slug: 'pantry', icon: '🍚', count: '110+ Items', color: 'bg-teal-50 dark:bg-teal-950/40 text-teal-600' },
 ];
 
-const POPULAR_PRODUCTS = [
-  {
-    id: 1,
-    name: 'Fresh Organic Farm Broccoli',
-    slug: 'fresh-organic-broccoli',
-    image: 'https://images.unsplash.com/photo-1459411621453-7b03977f4bfc?w=500',
-    rating: 4.9,
-    rating_count: 145,
-    variants: [
-      { id: 101, title: '500 g', price: 4.99, discounted_price: 3.49, stock: 45, unit: '500 g' },
-      { id: 102, title: '1 kg', price: 8.99, discounted_price: 6.49, stock: 30, unit: '1 kg' },
-    ],
-  },
-  {
-    id: 2,
-    name: 'Red Sweet Crisp Apples (Washington)',
-    slug: 'red-sweet-apples',
-    image: 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=500',
-    rating: 4.8,
-    rating_count: 98,
-    variants: [
-      { id: 103, title: '1 kg', price: 5.99, discounted_price: 4.29, stock: 50, unit: '1 kg' },
-      { id: 104, title: '2 kg Pack', price: 10.99, discounted_price: 7.99, stock: 20, unit: '2 kg' },
-    ],
-  },
-  {
-    id: 3,
-    name: 'Farm Fresh Pure Whole Milk',
-    slug: 'farm-fresh-milk',
-    image: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=500',
-    rating: 4.9,
-    rating_count: 310,
-    variants: [
-      { id: 105, title: '1 Gallon', price: 4.49, discounted_price: 3.89, stock: 100, unit: '1 Gallon' },
-      { id: 106, title: '2 Gallons Bundle', price: 8.49, discounted_price: 6.99, stock: 40, unit: 'Bundle' },
-    ],
-  },
-  {
-    id: 4,
-    name: 'Artisan Sourdough Bakery Bread',
-    slug: 'artisan-sourdough-bread',
-    image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=500',
-    rating: 4.7,
-    rating_count: 84,
-    variants: [
-      { id: 107, title: 'Standard Loaf (400g)', price: 3.99, discounted_price: 2.99, stock: 15, unit: '400g' },
-    ],
-  },
-  {
-    id: 5,
-    name: 'Fresh Ripe Hass Avocados',
-    slug: 'fresh-hass-avocados',
-    image: 'https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?w=500',
-    rating: 5.0,
-    rating_count: 220,
-    variants: [
-      { id: 108, title: 'Pack of 3', price: 6.99, discounted_price: 4.99, stock: 35, unit: '3 pcs' },
-      { id: 109, title: 'Pack of 6', price: 12.99, discounted_price: 8.99, stock: 25, unit: '6 pcs' },
-    ],
-  },
-  {
-    id: 6,
-    name: 'Organic Baby Spinach (Pre-washed)',
-    slug: 'organic-baby-spinach',
-    image: 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=500',
-    rating: 4.8,
-    rating_count: 115,
-    variants: [
-      { id: 110, title: '250 g Tub', price: 3.49, discounted_price: 2.79, stock: 60, unit: '250 g' },
-    ],
-  },
-  {
-    id: 7,
-    name: 'Fresh Juicy Strawberries (Local Farm)',
-    slug: 'fresh-strawberries',
-    image: 'https://images.unsplash.com/photo-1464965911861-746a04b4bca6?w=500',
-    rating: 4.9,
-    rating_count: 190,
-    variants: [
-      { id: 111, title: '400 g Box', price: 5.49, discounted_price: 3.99, stock: 40, unit: '400 g' },
-    ],
-  },
-  {
-    id: 8,
-    name: 'Pure Cold Pressed Extra Virgin Olive Oil',
-    slug: 'extra-virgin-olive-oil',
-    image: 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=500',
-    rating: 4.9,
-    rating_count: 165,
-    variants: [
-      { id: 112, title: '500 ml Bottle', price: 14.99, discounted_price: 11.49, stock: 25, unit: '500 ml' },
-    ],
-  },
-];
+// Products sourced from shared catalog — see src/lib/catalog.ts
+const POPULAR_PRODUCTS = PRODUCTS_CATALOG.slice(0, 8);
+
 
 const TOP_SELLERS = [
   { id: 1, name: 'Green Valley Organic Farms', city: 'Downtown Zone', rating: 4.9, products: '240 Products', image: 'https://images.unsplash.com/photo-1500937386664-56d1dfef3854?w=400' },

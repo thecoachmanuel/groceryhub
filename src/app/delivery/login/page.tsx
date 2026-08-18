@@ -4,11 +4,13 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Truck, Lock, Phone, ArrowRight, UserPlus, AlertCircle } from 'lucide-react';
+import { useRiderAuth } from '@/context/AuthContext';
 
 export default function DeliveryRiderLoginPage() {
   const router = useRouter();
-  const [mobile, setMobile] = useState('+234 809 111 2233');
-  const [password, setPassword] = useState('RiderPassword2026!');
+  const { riderLogin } = useRiderAuth();
+  const [mobile, setMobile] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -34,11 +36,12 @@ export default function DeliveryRiderLoginPage() {
         return setErrorMsg(data.message || 'Courier login failed. Invalid credentials.');
       }
 
-      localStorage.setItem('groceryhub_rider_token', data.data.token);
-      localStorage.setItem('groceryhub_rider', JSON.stringify(data.data.delivery_boy));
-      document.cookie = `auth_token=${data.data.token}; path=/; max-age=604800; SameSite=Lax`;
+      // Store rider session via unified AuthContext
+      riderLogin(data.data.token, data.data.delivery_boy);
 
-      router.push('/delivery/dashboard');
+      const params = new URLSearchParams(window.location.search);
+      const redirectTo = params.get('redirect') || '/delivery/dashboard';
+      router.push(redirectTo);
     } catch (err) {
       setLoading(false);
       setErrorMsg('Network error occurred. Please try again.');

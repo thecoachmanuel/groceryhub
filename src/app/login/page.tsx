@@ -13,8 +13,8 @@ export default function CustomerLoginPage() {
   const { loginSession } = useAuth();
 
   const [authMode, setAuthMode] = useState<'password' | 'otp'>('password');
-  const [identifier, setIdentifier] = useState('customer@groceryhub.ng');
-  const [password, setPassword] = useState('CustomerPassword2026!');
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
   const [otp, setOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -48,7 +48,10 @@ export default function CustomerLoginPage() {
       }
 
       loginSession(data.data.token, data.data.user);
-      router.push('/');
+      // Redirect to ?redirect param or homepage
+      const params = new URLSearchParams(window.location.search);
+      const redirectTo = params.get('redirect') || '/';
+      router.push(redirectTo);
     } catch (err: any) {
       setLoading(false);
       setErrorMsg('Network or server error. Please try again.');
@@ -91,7 +94,9 @@ export default function CustomerLoginPage() {
       }
 
       loginSession(data.data.token, data.data.user);
-      router.push('/');
+      const params = new URLSearchParams(window.location.search);
+      const redirectTo = params.get('redirect') || '/';
+      router.push(redirectTo);
     } catch (err: any) {
       setLoading(false);
       setErrorMsg('Verification failed. Please try again.');

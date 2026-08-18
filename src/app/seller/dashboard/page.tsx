@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
   ShoppingBag, 
@@ -11,8 +13,19 @@ import {
 } from 'lucide-react';
 import SellerNav from '@/components/seller/SellerNav';
 import { formatNaira } from '@/lib/currency';
+import { useSellerAuth } from '@/context/AuthContext';
 
 export default function SellerDashboardPage() {
+  const router = useRouter();
+  const { isSellerAuthenticated } = useSellerAuth();
+
+  useEffect(() => {
+    if (!isSellerAuthenticated) {
+      router.replace('/seller/login');
+    }
+  }, [isSellerAuthenticated, router]);
+
+  if (!isSellerAuthenticated) return null;
   return (
     <div className="min-h-screen bg-[#121820] text-white flex flex-col justify-between">
       <div>

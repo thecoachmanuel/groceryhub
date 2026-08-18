@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import { 
   Star, 
   ShoppingBag, 
@@ -17,12 +18,14 @@ import {
   Share2,
   MessageSquare,
   X,
-  ThumbsUp
+  AlertCircle,
+  Package
 } from 'lucide-react';
 import Header from '@/components/website/Header';
 import Footer from '@/components/website/Footer';
 import CartDrawer, { CartItem } from '@/components/website/CartDrawer';
 import { formatNaira } from '@/lib/currency';
+import { getProductById, PRODUCTS_CATALOG } from '@/lib/catalog';
 
 interface ReviewItem {
   id: number;
@@ -65,6 +68,10 @@ const INITIAL_REVIEWS: ReviewItem[] = [
 ];
 
 export default function ProductDetailPage() {
+  const params = useParams();
+  const productId = Number(params?.id);
+  const product = getProductById(productId);
+
   const [selectedVariant, setSelectedVariant] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [isWishlisted, setIsWishlisted] = useState(false);
@@ -79,50 +86,64 @@ export default function ProductDetailPage() {
   const [reviewComment, setReviewComment] = useState('');
   const [reviewSuccess, setReviewSuccess] = useState(false);
 
-  const product = {
-    id: 1,
-    name: 'Fresh Organic Farm Broccoli (Certified Non-GMO)',
-    brand: 'Green Valley Organic Farms',
-    category: 'Vegetables',
-    rating: 4.9,
-    ratingCount: 145,
-    images: [
-      'https://images.unsplash.com/photo-1459411621453-7b03977f4bfc?w=800',
-      'https://images.unsplash.com/photo-1584270354949-c26b0d5b4a0c?w=800',
-    ],
-    variants: [
-      { id: 101, title: '500 g Pack', price: 4500, discounted_price: 3500, stock: 45 },
-      { id: 102, title: '1 kg Family Pack', price: 8500, discounted_price: 6500, stock: 30 },
-      { id: 103, title: '2 kg Bulk Box', price: 16000, discounted_price: 12500, stock: 12 },
-    ],
-    description:
-      'Hand-picked daily from certified organic local growers. Our farm-fresh broccoli is crisp, rich in vitamins C & K, dietary fiber, and powerful antioxidants. Ideal for steaming, roasting, stir-frying, or fresh salads.',
-    nutrition: [
-      { label: 'Calories', value: '34 kcal' },
-      { label: 'Protein', value: '2.8 g' },
-      { label: 'Dietary Fiber', value: '2.6 g' },
-      { label: 'Vitamin C', value: '89 mg (148% DV)' },
-    ],
-  };
+  // Related products — same category, exclude current
+  const relatedProducts = product
+    ? PRODUCTS_CATALOG.filter((p) => p.category === product.category && p.id !== product.id).slice(0, 3)
+    : [];
+
+  // Product not found
+  if (!product) {
+    return (
+      <div className="min-h-screen flex flex-col justify-between bg-gray-50 dark:bg-[#121820]">
+        <Header />
+        <main className="max-w-md mx-auto px-4 py-24 text-center space-y-4">
+          <Package size={48} className="mx-auto text-gray-300 dark:text-gray-700" />
+          <h1 className="text-2xl font-black text-gray-900 dark:text-white">Product Not Found</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            We couldn&apos;t find the product you&apos;re looking for. It may have been removed or the URL is incorrect.
+          </p>
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 bg-[#0aad0a] text-white font-black px-6 py-3 rounded-2xl shadow-lg mt-4 transition-all hover:bg-[#088f08]"
+          >
+            <ArrowLeft size={16} />
+            Back to Store
+          </Link>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   const currentVariant = product.variants[selectedVariant];
-  const discountPercent = Math.round(
-    ((currentVariant.price - currentVariant.discounted_price) / currentVariant.price) * 100
-  );
+  const discountPercent = currentVariant.price > currentVariant.discounted_price && currentVariant.discounted_price > 0
+    ? Math.round(((currentVariant.price - currentVariant.discounted_price) / currentVariant.price) * 100)
+    : 0;
+
+  const effectivePrice = currentVariant.discounted_price > 0 ? currentVariant.discounted_price : currentVariant.price;
 
   const handleAddToCart = () => {
-    setCartItems([
-      {
-        id: Date.now(),
-        product_id: product.id,
-        variant_id: currentVariant.id,
-        name: product.name,
-        variant_title: currentVariant.title,
-        image: product.images[0],
-        price: currentVariant.discounted_price,
-        quantity,
-      },
-    ]);
+    setCartItems((prev) => {
+      const existingIndex = prev.findIndex((item) => item.variant_id === currentVariant.id);
+      if (existingIndex > -1) {
+        const updated = [...prev];
+        updated[existingIndex].quantity += quantity;
+        return updated;
+      }
+      return [
+        ...prev,
+        {
+          id: Date.now(),
+          product_id: product.id,
+          variant_id: currentVariant.id,
+          name: product.name,
+          variant_title: currentVariant.title,
+          image: product.image,
+          price: effectivePrice,
+          quantity,
+        },
+      ];
+    });
     setIsCartOpen(true);
   };
 
@@ -159,7 +180,7 @@ export default function ProductDetailPage() {
             <ArrowLeft size={14} /> Back to Store
           </Link>
           <span>/</span>
-          <Link href="/category/vegetables" className="hover:text-[#0aad0a]">{product.category}</Link>
+          <Link href={`/category/${product.category}`} className="hover:text-[#0aad0a] capitalize">{product.category}</Link>
           <span>/</span>
           <span className="text-gray-900 dark:text-white truncate max-w-xs">{product.name}</span>
         </div>
@@ -171,7 +192,7 @@ export default function ProductDetailPage() {
           <div className="space-y-4">
             <div className="relative w-full h-80 sm:h-96 rounded-2xl overflow-hidden bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700">
               <Image
-                src={product.images[0]}
+                src={product.image}
                 alt={product.name}
                 fill
                 priority
@@ -183,12 +204,35 @@ export default function ProductDetailPage() {
                 </span>
               )}
             </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setIsWishlisted(!isWishlisted)}
+                className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-2xl border text-xs font-bold transition-all ${
+                  isWishlisted
+                    ? 'border-red-500 bg-red-50 dark:bg-red-950/40 text-red-500'
+                    : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-red-500 hover:text-red-500'
+                }`}
+              >
+                <Heart size={16} fill={isWishlisted ? 'currentColor' : 'none'} />
+                {isWishlisted ? 'Wishlisted' : 'Add to Wishlist'}
+              </button>
+              <button
+                onClick={() => navigator.share?.({ title: product.name, url: window.location.href })}
+                className="flex items-center gap-2 py-3 px-4 rounded-2xl border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-[#0aad0a] hover:text-[#0aad0a] text-xs font-bold transition-all"
+              >
+                <Share2 size={16} /> Share
+              </button>
+            </div>
           </div>
 
           {/* Right: Details & Purchase */}
           <div className="space-y-6">
             <div>
-              <span className="text-xs font-bold text-[#0aad0a] uppercase tracking-wider">{product.brand}</span>
+              {product.brand && (
+                <span className="text-xs font-bold text-[#0aad0a] uppercase tracking-wider">{product.brand}</span>
+              )}
               <h1 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white mt-1">
                 {product.name}
               </h1>
@@ -199,7 +243,7 @@ export default function ProductDetailPage() {
                   <Star size={16} fill="currentColor" />
                   <span>{product.rating}</span>
                 </div>
-                <span className="text-gray-400">({product.ratingCount} verified customer reviews)</span>
+                <span className="text-gray-400">({product.rating_count} verified customer reviews)</span>
                 <span className="text-emerald-500 font-bold">● In Stock ({currentVariant.stock} units)</span>
               </div>
             </div>
@@ -207,9 +251,9 @@ export default function ProductDetailPage() {
             {/* Price in Naira */}
             <div className="flex items-baseline gap-3">
               <span className="text-3xl font-black text-[#0aad0a] font-mono">
-                {formatNaira(currentVariant.discounted_price)}
+                {formatNaira(effectivePrice)}
               </span>
-              {currentVariant.price > currentVariant.discounted_price && (
+              {currentVariant.discounted_price > 0 && currentVariant.price > currentVariant.discounted_price && (
                 <span className="text-sm text-gray-400 line-through font-mono">
                   {formatNaira(currentVariant.price)}
                 </span>
@@ -231,7 +275,9 @@ export default function ProductDetailPage() {
                     }`}
                   >
                     <div className="font-black">{v.title}</div>
-                    <div className="font-mono text-[11px] mt-0.5">{formatNaira(v.discounted_price)}</div>
+                    <div className="font-mono text-[11px] mt-0.5">
+                      {formatNaira(v.discounted_price > 0 ? v.discounted_price : v.price)}
+                    </div>
                   </button>
                 ))}
               </div>
@@ -262,7 +308,7 @@ export default function ProductDetailPage() {
                 className="flex-1 bg-[#0aad0a] hover:bg-[#088f08] text-white font-black py-4 px-8 rounded-2xl flex items-center justify-center gap-2 shadow-xl shadow-[#0aad0a]/30 transition-all active:scale-[0.98]"
               >
                 <ShoppingBag size={20} />
-                <span>Add to Cart • {formatNaira(currentVariant.discounted_price * quantity)}</span>
+                <span>Add to Cart • {formatNaira(effectivePrice * quantity)}</span>
               </button>
             </div>
 
@@ -282,6 +328,28 @@ export default function ProductDetailPage() {
               </div>
             </div>
 
+            {/* Description */}
+            {product.description && (
+              <div className="pt-2 border-t border-gray-100 dark:border-gray-800 space-y-2">
+                <h4 className="text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-wider">About This Product</h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">{product.description}</p>
+              </div>
+            )}
+
+            {/* Nutritional Info */}
+            {product.nutrition && product.nutrition.length > 0 && (
+              <div className="bg-gray-50 dark:bg-gray-900/50 rounded-2xl p-4 space-y-3 border border-gray-100 dark:border-gray-800">
+                <h4 className="text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-wider">Nutritional Highlights</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  {product.nutrition.map((n, i) => (
+                    <div key={i} className="flex items-center justify-between text-xs bg-white dark:bg-gray-800 rounded-xl px-3 py-2">
+                      <span className="text-gray-500 dark:text-gray-400 font-semibold">{n.label}</span>
+                      <span className="font-black text-gray-900 dark:text-white">{n.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -317,22 +385,22 @@ export default function ProductDetailPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center bg-gray-50 dark:bg-gray-900/60 p-6 rounded-3xl border border-gray-100 dark:border-gray-800">
             {/* Overall Score */}
             <div className="text-center space-y-1">
-              <div className="text-5xl font-black text-gray-900 dark:text-white font-mono">4.9</div>
+              <div className="text-5xl font-black text-gray-900 dark:text-white font-mono">{product.rating}</div>
               <div className="flex items-center justify-center gap-1 text-amber-400">
                 {[...Array(5)].map((_, i) => (
-                  <Star key={i} size={18} fill="currentColor" />
+                  <Star key={i} size={18} fill={i < Math.round(product.rating) ? 'currentColor' : 'none'} />
                 ))}
               </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">{reviews.length + 142} Verified Reviews</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">{reviews.length + product.rating_count - 3} Verified Reviews</div>
             </div>
 
             {/* Distribution Bars */}
             <div className="md:col-span-2 space-y-2">
               {[
-                { stars: '5 Stars', pct: 86, count: 124 },
-                { stars: '4 Stars', pct: 10, count: 15 },
-                { stars: '3 Stars', pct: 2, count: 3 },
-                { stars: '2 Stars', pct: 1, count: 2 },
+                { stars: '5 Stars', pct: 82, count: 119 },
+                { stars: '4 Stars', pct: 12, count: 17 },
+                { stars: '3 Stars', pct: 3, count: 5 },
+                { stars: '2 Stars', pct: 2, count: 3 },
                 { stars: '1 Star', pct: 1, count: 1 },
               ].map((bar, idx) => (
                 <div key={idx} className="flex items-center gap-3 text-xs">
@@ -359,7 +427,7 @@ export default function ProductDetailPage() {
                       <div className="font-bold text-xs text-gray-900 dark:text-white flex items-center gap-1.5">
                         <span>{r.userName}</span>
                         {r.verified && (
-                          <span className="bg-emerald-100 dark:bg-emerald-950/60 text-[#0aad0a] text-[10px] font-black px-1.5 py-0.2 rounded-md">
+                          <span className="bg-emerald-100 dark:bg-emerald-950/60 text-[#0aad0a] text-[10px] font-black px-1.5 py-0.5 rounded-md">
                             ✓ Verified Buyer
                           </span>
                         )}
@@ -380,8 +448,37 @@ export default function ProductDetailPage() {
               </div>
             ))}
           </div>
-
         </div>
+
+        {/* Related Products */}
+        {relatedProducts.length > 0 && (
+          <section className="space-y-5">
+            <h3 className="text-xl font-black text-gray-900 dark:text-white">You May Also Like</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+              {relatedProducts.map((rp) => (
+                <Link
+                  key={rp.id}
+                  href={`/product/${rp.id}`}
+                  className="group flex gap-4 bg-white dark:bg-[#1e2632] rounded-2xl p-4 border border-gray-100 dark:border-gray-800 hover:border-[#0aad0a]/40 hover:shadow-lg transition-all"
+                >
+                  <div className="relative w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 bg-gray-50 dark:bg-gray-800">
+                    <Image src={rp.image} alt={rp.name} fill className="object-cover group-hover:scale-105 transition-transform" />
+                  </div>
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <h4 className="text-xs font-bold text-gray-800 dark:text-gray-100 line-clamp-2 group-hover:text-[#0aad0a] transition-colors">{rp.name}</h4>
+                    <div className="flex items-center gap-1 text-amber-400 text-xs">
+                      <Star size={11} fill="currentColor" />
+                      <span className="font-bold text-gray-600 dark:text-gray-400">{rp.rating}</span>
+                    </div>
+                    <div className="text-sm font-black text-gray-900 dark:text-white font-mono">
+                      {formatNaira(rp.variants[0].discounted_price > 0 ? rp.variants[0].discounted_price : rp.variants[0].price)}
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
       </main>
 
       {/* Write Review Modal */}

@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
   Truck, 
@@ -15,8 +17,19 @@ import {
 } from 'lucide-react';
 import DeliveryNav from '@/components/delivery/DeliveryNav';
 import { formatNaira } from '@/lib/currency';
+import { useRiderAuth } from '@/context/AuthContext';
 
 export default function DeliveryDashboardPage() {
+  const router = useRouter();
+  const { isRiderAuthenticated } = useRiderAuth();
+
+  useEffect(() => {
+    if (!isRiderAuthenticated) {
+      router.replace('/delivery/login');
+    }
+  }, [isRiderAuthenticated, router]);
+
+  if (!isRiderAuthenticated) return null;
   return (
     <div className="min-h-screen bg-[#121820] text-white flex flex-col justify-between">
       <div>

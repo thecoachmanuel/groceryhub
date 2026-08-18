@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
   DollarSign, 
@@ -14,8 +16,19 @@ import {
 } from 'lucide-react';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import { formatNaira } from '@/lib/currency';
+import { useAdminAuth } from '@/context/AuthContext';
 
 export default function AdminDashboardPage() {
+  const router = useRouter();
+  const { isAdminAuthenticated } = useAdminAuth();
+
+  useEffect(() => {
+    if (!isAdminAuthenticated) {
+      router.replace('/admin/login');
+    }
+  }, [isAdminAuthenticated, router]);
+
+  if (!isAdminAuthenticated) return null;
   return (
     <div className="flex bg-[#121820] text-white min-h-screen">
       <AdminSidebar />

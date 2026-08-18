@@ -15,6 +15,7 @@ import Footer from '@/components/website/Footer';
 import ProductCard from '@/components/website/ProductCard';
 import CartDrawer, { CartItem } from '@/components/website/CartDrawer';
 import { formatNaira } from '@/lib/currency';
+import { PRODUCTS_CATALOG } from '@/lib/catalog';
 
 const CATEGORY_MAP: Record<string, { title: string; desc: string; icon: string }> = {
   vegetables: {
@@ -54,108 +55,8 @@ const CATEGORY_MAP: Record<string, { title: string; desc: string; icon: string }
   },
 };
 
-const ALL_CATEGORY_PRODUCTS = [
-  {
-    id: 1,
-    name: 'Fresh Organic Farm Broccoli',
-    slug: 'fresh-organic-broccoli',
-    category: 'vegetables',
-    image: 'https://images.unsplash.com/photo-1459411621453-7b03977f4bfc?w=500',
-    rating: 4.9,
-    rating_count: 145,
-    variants: [
-      { id: 101, title: '500 g', price: 4500, discounted_price: 3500, stock: 45, unit: '500 g' },
-      { id: 102, title: '1 kg', price: 8500, discounted_price: 6500, stock: 30, unit: '1 kg' },
-    ],
-  },
-  {
-    id: 6,
-    name: 'Organic Baby Spinach (Pre-washed)',
-    slug: 'organic-baby-spinach',
-    category: 'vegetables',
-    image: 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=500',
-    rating: 4.8,
-    rating_count: 115,
-    variants: [
-      { id: 110, title: '250 g Tub', price: 3400, discounted_price: 2800, stock: 60, unit: '250 g' },
-    ],
-  },
-  {
-    id: 2,
-    name: 'Red Sweet Crisp Apples (1kg Pack)',
-    slug: 'red-sweet-apples',
-    category: 'fruits',
-    image: 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=500',
-    rating: 4.8,
-    rating_count: 98,
-    variants: [
-      { id: 103, title: '1 kg', price: 5500, discounted_price: 4500, stock: 50, unit: '1 kg' },
-      { id: 104, title: '2 kg Pack', price: 10500, discounted_price: 8500, stock: 20, unit: '2 kg' },
-    ],
-  },
-  {
-    id: 5,
-    name: 'Fresh Ripe Hass Avocados (Pack of 4)',
-    slug: 'fresh-hass-avocados',
-    category: 'fruits',
-    image: 'https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?w=500',
-    rating: 5.0,
-    rating_count: 220,
-    variants: [
-      { id: 108, title: 'Pack of 4', price: 4800, discounted_price: 3800, stock: 35, unit: '4 pcs' },
-      { id: 109, title: 'Pack of 8 Box', price: 9500, discounted_price: 7200, stock: 25, unit: '8 pcs' },
-    ],
-  },
-  {
-    id: 7,
-    name: 'Fresh Juicy Strawberries (Local Farm)',
-    slug: 'fresh-strawberries',
-    category: 'fruits',
-    image: 'https://images.unsplash.com/photo-1464965911861-746a04b4bca6?w=500',
-    rating: 4.9,
-    rating_count: 190,
-    variants: [
-      { id: 111, title: '400 g Box', price: 5500, discounted_price: 4200, stock: 40, unit: '400 g' },
-    ],
-  },
-  {
-    id: 3,
-    name: 'Farm Fresh Pure Whole Milk (1L)',
-    slug: 'farm-fresh-milk',
-    category: 'dairy',
-    image: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=500',
-    rating: 4.9,
-    rating_count: 310,
-    variants: [
-      { id: 105, title: '1 Litre', price: 4200, discounted_price: 3800, stock: 100, unit: '1 Litre' },
-      { id: 106, title: '2 Litres Bundle', price: 8000, discounted_price: 7200, stock: 40, unit: 'Bundle' },
-    ],
-  },
-  {
-    id: 4,
-    name: 'Artisan Sourdough Bakery Bread (750g)',
-    slug: 'artisan-sourdough-bread',
-    category: 'bakery',
-    image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=500',
-    rating: 4.7,
-    rating_count: 84,
-    variants: [
-      { id: 107, title: 'Standard Loaf (750g)', price: 3800, discounted_price: 3200, stock: 15, unit: '750g' },
-    ],
-  },
-  {
-    id: 8,
-    name: 'Pure Cold Pressed Extra Virgin Olive Oil (500ml)',
-    slug: 'extra-virgin-olive-oil',
-    category: 'pantry',
-    image: 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=500',
-    rating: 4.9,
-    rating_count: 165,
-    variants: [
-      { id: 112, title: '500 ml Bottle', price: 11500, discounted_price: 9500, stock: 25, unit: '500 ml' },
-    ],
-  },
-];
+// Products sourced from the shared catalog — see src/lib/catalog.ts
+
 
 export default function CategoryDetailsPage({ params }: { params?: { slug?: string } }) {
   const routerParams = useParams();
@@ -176,7 +77,7 @@ export default function CategoryDetailsPage({ params }: { params?: { slug?: stri
     let matchedProduct: any = null;
     let matchedVariant: any = null;
 
-    for (const p of ALL_CATEGORY_PRODUCTS) {
+    for (const p of PRODUCTS_CATALOG) {
       const v = p.variants.find((item) => item.id === variantId);
       if (v) {
         matchedProduct = p;
@@ -215,7 +116,7 @@ export default function CategoryDetailsPage({ params }: { params?: { slug?: stri
     setIsCartOpen(true);
   };
 
-  const filteredProducts = ALL_CATEGORY_PRODUCTS.filter((p) => {
+  const filteredProducts = PRODUCTS_CATALOG.filter((p) => {
     if (slug === 'all') return true;
     return p.category === slug;
   }).sort((a, b) => {

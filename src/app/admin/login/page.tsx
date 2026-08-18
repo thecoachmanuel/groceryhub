@@ -4,11 +4,13 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ShoppingBag, Lock, Mail, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
+import { useAdminAuth } from '@/context/AuthContext';
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('admin@groceryhub.ng');
-  const [password, setPassword] = useState('AdminPassword2026!');
+  const { adminLogin } = useAdminAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -31,11 +33,11 @@ export default function AdminLoginPage() {
         return setErrorMsg(data.message || 'Invalid admin credentials.');
       }
 
-      localStorage.setItem('groceryhub_admin_token', data.data.token);
-      localStorage.setItem('groceryhub_admin', JSON.stringify(data.data.user));
-      document.cookie = `auth_token=${data.data.token}; path=/; max-age=604800; SameSite=Lax`;
+      adminLogin(data.data.token);
 
-      router.push('/admin/dashboard');
+      const params = new URLSearchParams(window.location.search);
+      const redirectTo = params.get('redirect') || '/admin/dashboard';
+      router.push(redirectTo);
     } catch (err) {
       setLoading(false);
       setErrorMsg('Network error occurred. Please try again.');

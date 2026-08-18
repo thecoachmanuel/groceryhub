@@ -4,11 +4,13 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Store, Lock, Phone, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
+import { useSellerAuth } from '@/context/AuthContext';
 
 export default function SellerLoginPage() {
   const router = useRouter();
-  const [identifier, setIdentifier] = useState('vendor@groceryhub.ng');
-  const [password, setPassword] = useState('VendorPassword2026!');
+  const { sellerLogin } = useSellerAuth();
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -35,12 +37,12 @@ export default function SellerLoginPage() {
         return setErrorMsg(data.message || 'Vendor login failed. Invalid credentials.');
       }
 
-      // Store seller session
-      localStorage.setItem('groceryhub_seller_token', data.data.token);
-      localStorage.setItem('groceryhub_seller', JSON.stringify(data.data.seller));
-      document.cookie = `auth_token=${data.data.token}; path=/; max-age=604800; SameSite=Lax`;
+      // Store seller session via unified AuthContext
+      sellerLogin(data.data.token, data.data.seller);
 
-      router.push('/seller/dashboard');
+      const params = new URLSearchParams(window.location.search);
+      const redirectTo = params.get('redirect') || '/seller/dashboard';
+      router.push(redirectTo);
     } catch (err) {
       setLoading(false);
       setErrorMsg('Network error occurred. Please try again.');

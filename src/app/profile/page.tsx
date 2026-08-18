@@ -54,7 +54,8 @@ export default function CustomerProfilePage() {
     e.preventDefault();
     if (user) {
       const updated = { ...user, name, email, mobile };
-      loginSession(user.token || 'user_jwt', updated);
+      const currentToken = (typeof window !== 'undefined' ? localStorage.getItem('groceryhub_token') : null) || '';
+      loginSession(currentToken, updated);
     }
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 2500);

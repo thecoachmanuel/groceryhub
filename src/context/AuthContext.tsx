@@ -3,57 +3,129 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-export interface UserProfile {
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export interface CustomerProfile {
   id: number;
   name: string;
   email: string;
   mobile: string;
-  token?: string;
   walletBalance: number;
   avatar?: string;
   referralCode?: string;
-  role?: string;
+  role: 'user';
 }
 
+export interface SellerProfile {
+  id: number;
+  name: string;
+  email: string;
+  mobile: string;
+  storeName: string;
+  storeCity?: string;
+  walletBalance: number;
+  role: 'seller';
+}
+
+export interface RiderProfile {
+  id: number;
+  name: string;
+  mobile: string;
+  vehicle: string;
+  cashInHand: number;
+  role: 'delivery';
+}
+
+// ─── Context Shape ─────────────────────────────────────────────────────────────
+
 interface AuthContextType {
-  user: UserProfile | null;
+  // Customer
+  user: CustomerProfile | null;
   isAuthenticated: boolean;
-  loginSession: (token: string, userData: UserProfile) => void;
+  loginSession: (token: string, userData: Omit<CustomerProfile, 'role'>) => void;
   logout: () => void;
   updateWallet: (newBalance: number) => void;
+
+  // Seller
+  seller: SellerProfile | null;
+  isSellerAuthenticated: boolean;
+  sellerLogin: (token: string, sellerData: Omit<SellerProfile, 'role'>) => void;
+  sellerLogout: () => void;
+
+  // Rider / Delivery
+  rider: RiderProfile | null;
+  isRiderAuthenticated: boolean;
+  riderLogin: (token: string, riderData: Omit<RiderProfile, 'role'>) => void;
+  riderLogout: () => void;
+
+  // Admin
+  isAdminAuthenticated: boolean;
+  adminLogin: (token: string) => void;
+  adminLogout: () => void;
 }
+
+// ─── Context Creation ──────────────────────────────────────────────────────────
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// ─── Provider ─────────────────────────────────────────────────────────────────
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<UserProfile | null>(null);
+  const [user, setUser] = useState<CustomerProfile | null>(null);
+  const [seller, setSeller] = useState<SellerProfile | null>(null);
+  const [rider, setRider] = useState<RiderProfile | null>(null);
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
   const router = useRouter();
 
+  // Restore all sessions from localStorage on mount
   useEffect(() => {
-    // Restore session from localStorage if present
-    if (typeof window !== 'undefined') {
+    if (typeof window === 'undefined') return;
+
+    // Customer
+    try {
       const savedUser = localStorage.getItem('groceryhub_user');
       const savedToken = localStorage.getItem('groceryhub_token');
       if (savedUser && savedToken) {
-        try {
-          const parsed = JSON.parse(savedUser);
-          setUser({ ...parsed, token: savedToken });
-        } catch (e) {
-          localStorage.removeItem('groceryhub_user');
-          localStorage.removeItem('groceryhub_token');
-        }
+        const parsed = JSON.parse(savedUser);
+        setUser({ ...parsed, role: 'user', token: savedToken });
       }
-    }
+    } catch { localStorage.removeItem('groceryhub_user'); localStorage.removeItem('groceryhub_token'); }
+
+    // Seller
+    try {
+      const savedSeller = localStorage.getItem('groceryhub_seller');
+      const savedSellerToken = localStorage.getItem('groceryhub_seller_token');
+      if (savedSeller && savedSellerToken) {
+        const parsed = JSON.parse(savedSeller);
+        setSeller({ ...parsed, role: 'seller' });
+      }
+    } catch { localStorage.removeItem('groceryhub_seller'); localStorage.removeItem('groceryhub_seller_token'); }
+
+    // Rider
+    try {
+      const savedRider = localStorage.getItem('groceryhub_rider');
+      const savedRiderToken = localStorage.getItem('groceryhub_rider_token');
+      if (savedRider && savedRiderToken) {
+        const parsed = JSON.parse(savedRider);
+        setRider({ ...parsed, role: 'delivery' });
+      }
+    } catch { localStorage.removeItem('groceryhub_rider'); localStorage.removeItem('groceryhub_rider_token'); }
+
+    // Admin
+    const adminToken = localStorage.getItem('groceryhub_admin_token');
+    if (adminToken) setIsAdminAuthenticated(true);
   }, []);
 
-  const loginSession = (token: string, userData: UserProfile) => {
-    const activeUser = { ...userData, token };
+  // ─── Customer Session ───────────────────────────────────────────────────────
+
+  const loginSession = (token: string, userData: Omit<CustomerProfile, 'role'>) => {
+    const activeUser: CustomerProfile = { ...userData, role: 'user' };
     setUser(activeUser);
     if (typeof window !== 'undefined') {
       localStorage.setItem('groceryhub_token', token);
       localStorage.setItem('groceryhub_user', JSON.stringify(activeUser));
-      // Also set standard auth cookie for server-side auth guard
       document.cookie = `auth_token=${token}; path=/; max-age=604800; SameSite=Lax`;
+      document.cookie = `user_role=user; path=/; max-age=604800; SameSite=Lax`;
     }
   };
 
@@ -63,8 +135,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem('groceryhub_user');
       localStorage.removeItem('groceryhub_token');
       document.cookie = 'auth_token=; path=/; max-age=0';
+      document.cookie = 'user_role=; path=/; max-age=0';
     }
-    router.push('/');
+    router.push('/login');
   };
 
   const updateWallet = (newBalance: number) => {
@@ -77,6 +150,75 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // ─── Seller Session ─────────────────────────────────────────────────────────
+
+  const sellerLogin = (token: string, sellerData: Omit<SellerProfile, 'role'>) => {
+    const activeSeller: SellerProfile = { ...sellerData, role: 'seller' };
+    setSeller(activeSeller);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('groceryhub_seller_token', token);
+      localStorage.setItem('groceryhub_seller', JSON.stringify(activeSeller));
+      document.cookie = `auth_token=${token}; path=/; max-age=604800; SameSite=Lax`;
+      document.cookie = `user_role=seller; path=/; max-age=604800; SameSite=Lax`;
+    }
+  };
+
+  const sellerLogout = () => {
+    setSeller(null);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('groceryhub_seller');
+      localStorage.removeItem('groceryhub_seller_token');
+      document.cookie = 'auth_token=; path=/; max-age=0';
+      document.cookie = 'user_role=; path=/; max-age=0';
+    }
+    router.push('/seller/login');
+  };
+
+  // ─── Rider Session ──────────────────────────────────────────────────────────
+
+  const riderLogin = (token: string, riderData: Omit<RiderProfile, 'role'>) => {
+    const activeRider: RiderProfile = { ...riderData, role: 'delivery' };
+    setRider(activeRider);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('groceryhub_rider_token', token);
+      localStorage.setItem('groceryhub_rider', JSON.stringify(activeRider));
+      document.cookie = `auth_token=${token}; path=/; max-age=604800; SameSite=Lax`;
+      document.cookie = `user_role=delivery; path=/; max-age=604800; SameSite=Lax`;
+    }
+  };
+
+  const riderLogout = () => {
+    setRider(null);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('groceryhub_rider');
+      localStorage.removeItem('groceryhub_rider_token');
+      document.cookie = 'auth_token=; path=/; max-age=0';
+      document.cookie = 'user_role=; path=/; max-age=0';
+    }
+    router.push('/delivery/login');
+  };
+
+  // ─── Admin Session ──────────────────────────────────────────────────────────
+
+  const adminLogin = (token: string) => {
+    setIsAdminAuthenticated(true);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('groceryhub_admin_token', token);
+      document.cookie = `auth_token=${token}; path=/; max-age=604800; SameSite=Lax`;
+      document.cookie = `user_role=admin; path=/; max-age=604800; SameSite=Lax`;
+    }
+  };
+
+  const adminLogout = () => {
+    setIsAdminAuthenticated(false);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('groceryhub_admin_token');
+      document.cookie = 'auth_token=; path=/; max-age=0';
+      document.cookie = 'user_role=; path=/; max-age=0';
+    }
+    router.push('/admin/login');
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -85,6 +227,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loginSession,
         logout,
         updateWallet,
+        seller,
+        isSellerAuthenticated: !!seller,
+        sellerLogin,
+        sellerLogout,
+        rider,
+        isRiderAuthenticated: !!rider,
+        riderLogin,
+        riderLogout,
+        isAdminAuthenticated,
+        adminLogin,
+        adminLogout,
       }}
     >
       {children}
@@ -92,10 +245,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+// ─── Hooks ─────────────────────────────────────────────────────────────────────
+
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 }
+
+export function useSellerAuth() {
+  const { seller, isSellerAuthenticated, sellerLogin, sellerLogout } = useAuth();
+  return { seller, isSellerAuthenticated, sellerLogin, sellerLogout };
+}
+
+export function useRiderAuth() {
+  const { rider, isRiderAuthenticated, riderLogin, riderLogout } = useAuth();
+  return { rider, isRiderAuthenticated, riderLogin, riderLogout };
+}
+
+export function useAdminAuth() {
+  const { isAdminAuthenticated, adminLogin, adminLogout } = useAuth();
+  return { isAdminAuthenticated, adminLogin, adminLogout };
+}
+
+// Legacy type alias for backwards compatibility
+export type UserProfile = CustomerProfile;

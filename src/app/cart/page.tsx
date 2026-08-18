@@ -16,11 +16,13 @@ import {
   Store, 
   Sparkles,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Lock
 } from 'lucide-react';
 import Header from '@/components/website/Header';
 import Footer from '@/components/website/Footer';
 import { formatNaira } from '@/lib/currency';
+import { useAuth } from '@/context/AuthContext';
 
 interface CartItem {
   id: number;
@@ -88,6 +90,7 @@ const INITIAL_CART_ITEMS: CartItem[] = [
 
 export default function CartPage() {
   const router = useRouter();
+  const { isAuthenticated } = useAuth();
   const [items, setItems] = useState<CartItem[]>(INITIAL_CART_ITEMS);
   const [couponCode, setCouponCode] = useState('');
   const [couponDiscount, setCouponDiscount] = useState(0);
