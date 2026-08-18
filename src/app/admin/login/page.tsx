@@ -33,11 +33,9 @@ export default function AdminLoginPage() {
         return setErrorMsg(data.message || 'Invalid admin credentials.');
       }
 
-      adminLogin(data.data.token);
-
       const params = new URLSearchParams(window.location.search);
       const redirectTo = params.get('redirect') || '/admin/dashboard';
-      router.push(redirectTo);
+      window.location.href = redirectTo;
     } catch (err) {
       setLoading(false);
       setErrorMsg('Network error occurred. Please try again.');

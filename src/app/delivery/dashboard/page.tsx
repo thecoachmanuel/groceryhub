@@ -21,15 +21,26 @@ import { useRiderAuth } from '@/context/AuthContext';
 
 export default function DeliveryDashboardPage() {
   const router = useRouter();
-  const { isRiderAuthenticated } = useRiderAuth();
+  const { isRiderAuthenticated, isInitialized } = useRiderAuth();
 
   useEffect(() => {
-    if (!isRiderAuthenticated) {
+    if (!isInitialized) return;
+    const hasRiderToken = typeof window !== 'undefined' && !!localStorage.getItem('groceryhub_rider_token');
+    if (!isRiderAuthenticated && !hasRiderToken) {
       router.replace('/delivery/login');
     }
-  }, [isRiderAuthenticated, router]);
+  }, [isInitialized, isRiderAuthenticated, router]);
 
-  if (!isRiderAuthenticated) return null;
+  if (!isInitialized) {
+    return (
+      <div className="min-h-screen bg-[#121820] text-white flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500" />
+      </div>
+    );
+  }
+
+  const hasRiderToken = typeof window !== 'undefined' && !!localStorage.getItem('groceryhub_rider_token');
+  if (!isRiderAuthenticated && !hasRiderToken) return null;
   return (
     <div className="min-h-screen bg-[#121820] text-white flex flex-col justify-between">
       <div>

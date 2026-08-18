@@ -51,7 +51,7 @@ export default function CustomerLoginPage() {
       // Redirect to ?redirect param or homepage
       const params = new URLSearchParams(window.location.search);
       const redirectTo = params.get('redirect') || '/';
-      router.push(redirectTo);
+      window.location.href = redirectTo;
     } catch (err: any) {
       setLoading(false);
       setErrorMsg('Network or server error. Please try again.');
@@ -96,7 +96,7 @@ export default function CustomerLoginPage() {
       loginSession(data.data.token, data.data.user);
       const params = new URLSearchParams(window.location.search);
       const redirectTo = params.get('redirect') || '/';
-      router.push(redirectTo);
+      window.location.href = redirectTo;
     } catch (err: any) {
       setLoading(false);
       setErrorMsg('Verification failed. Please try again.');

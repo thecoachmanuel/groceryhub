@@ -48,7 +48,7 @@ export default function CustomerRegisterPage() {
       }
 
       loginSession(data.data.token, data.data.user);
-      router.push('/');
+      window.location.href = '/';
     } catch (err: any) {
       setLoading(false);
       setErrorMsg('Network error occurred. Please try again.');

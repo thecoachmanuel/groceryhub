@@ -3,7 +3,7 @@ import { generateToken } from '@/lib/jwt';
 import { apiSuccess, apiError } from '@/lib/api-response';
 import { connectToDatabase } from '@/lib/mongodb';
 import User from '@/models/User';
-import { verifyPassword } from '@/lib/auth';
+import { verifyPassword, normalizePhone, getLocalPhone } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,20 +12,29 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const { email, mobile, password, auth_mode, otp } = body;
 
-    const identifier = (email || mobile || '').trim().toLowerCase();
-    if (!identifier) {
+    const rawInput = (email || mobile || '').trim();
+    if (!rawInput) {
       return apiError('Email or Mobile phone number is required', 400);
     }
 
+    const cleanInput = rawInput.toLowerCase();
+    const normPhone = normalizePhone(rawInput);
+    const localPhone = getLocalPhone(rawInput);
+
     await connectToDatabase();
 
-    // Look up user in MongoDB User collection
+    // Flexible query searching email, raw mobile, normalized international phone, or local phone format
     const user = await User.findOne({
-      $or: [{ email: identifier }, { mobile: identifier }],
+      $or: [
+        { email: cleanInput },
+        { mobile: rawInput },
+        { mobile: normPhone },
+        { mobile: localPhone },
+      ],
     }).select('+password');
 
     if (!user) {
-      return apiError('No account found with these credentials. Please register first.', 404);
+      return apiError('No account found with these credentials. Please check your details or register.', 404);
     }
 
     if (user.status === 'suspended') {
@@ -34,7 +43,6 @@ export async function POST(req: NextRequest) {
 
     // Password or OTP verification
     if (auth_mode === 'otp') {
-      // In OTP mode, verify OTP code (accept demo OTP '1234' or valid 4-digit token)
       if (otp && otp.length === 4) {
         // OTP verified
       } else {

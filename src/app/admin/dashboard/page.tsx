@@ -20,15 +20,26 @@ import { useAdminAuth } from '@/context/AuthContext';
 
 export default function AdminDashboardPage() {
   const router = useRouter();
-  const { isAdminAuthenticated } = useAdminAuth();
+  const { isAdminAuthenticated, isInitialized } = useAdminAuth();
 
   useEffect(() => {
-    if (!isAdminAuthenticated) {
+    if (!isInitialized) return;
+    const hasAdminToken = typeof window !== 'undefined' && !!localStorage.getItem('groceryhub_admin_token');
+    if (!isAdminAuthenticated && !hasAdminToken) {
       router.replace('/admin/login');
     }
-  }, [isAdminAuthenticated, router]);
+  }, [isInitialized, isAdminAuthenticated, router]);
 
-  if (!isAdminAuthenticated) return null;
+  if (!isInitialized) {
+    return (
+      <div className="min-h-screen bg-[#121820] text-white flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0aad0a]" />
+      </div>
+    );
+  }
+
+  const hasAdminToken = typeof window !== 'undefined' && !!localStorage.getItem('groceryhub_admin_token');
+  if (!isAdminAuthenticated && !hasAdminToken) return null;
   return (
     <div className="flex bg-[#121820] text-white min-h-screen">
       <AdminSidebar />

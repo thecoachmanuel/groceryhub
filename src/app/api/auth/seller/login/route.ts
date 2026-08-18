@@ -3,7 +3,7 @@ import { generateToken } from '@/lib/jwt';
 import { apiSuccess, apiError } from '@/lib/api-response';
 import { connectToDatabase } from '@/lib/mongodb';
 import Seller from '@/models/Seller';
-import { verifyPassword } from '@/lib/auth';
+import { verifyPassword, normalizePhone, getLocalPhone } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,19 +12,28 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const { email, mobile, password } = body;
 
-    const identifier = (email || mobile || '').trim().toLowerCase();
-    if (!identifier || !password) {
+    const rawInput = (email || mobile || '').trim();
+    if (!rawInput || !password) {
       return apiError('Email/Mobile and password are required', 400);
     }
+
+    const cleanInput = rawInput.toLowerCase();
+    const normPhone = normalizePhone(rawInput);
+    const localPhone = getLocalPhone(rawInput);
 
     await connectToDatabase();
 
     const seller = await Seller.findOne({
-      $or: [{ email: identifier }, { mobile: identifier }],
+      $or: [
+        { email: cleanInput },
+        { mobile: rawInput },
+        { mobile: normPhone },
+        { mobile: localPhone },
+      ],
     }).select('+password');
 
     if (!seller) {
-      return apiError('Vendor account not found. Please register as a vendor partner first.', 404);
+      return apiError('Vendor account not found. Please check your details or register as a vendor partner first.', 404);
     }
 
     if (seller.status === 'suspended' || seller.status === 'rejected') {

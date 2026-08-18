@@ -41,7 +41,7 @@ export default function DeliveryRiderLoginPage() {
 
       const params = new URLSearchParams(window.location.search);
       const redirectTo = params.get('redirect') || '/delivery/dashboard';
-      router.push(redirectTo);
+      window.location.href = redirectTo;
     } catch (err) {
       setLoading(false);
       setErrorMsg('Network error occurred. Please try again.');

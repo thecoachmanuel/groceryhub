@@ -3,7 +3,7 @@ import { generateToken } from '@/lib/jwt';
 import { apiSuccess, apiError } from '@/lib/api-response';
 import { connectToDatabase } from '@/lib/mongodb';
 import User from '@/models/User';
-import { hashPassword } from '@/lib/auth';
+import { hashPassword, normalizePhone, getLocalPhone } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,12 +17,20 @@ export async function POST(req: NextRequest) {
     }
 
     const cleanEmail = (email || '').trim().toLowerCase();
-    const cleanMobile = mobile.trim();
+    const rawMobile = mobile.trim();
+    const normMobile = normalizePhone(rawMobile);
+    const localMobile = getLocalPhone(rawMobile);
 
     await connectToDatabase();
 
-    // Check duplicate mobile
-    const existingMobile = await User.findOne({ mobile: cleanMobile });
+    // Check duplicate mobile (check raw, normalized, and local variations)
+    const existingMobile = await User.findOne({
+      $or: [
+        { mobile: rawMobile },
+        { mobile: normMobile },
+        { mobile: localMobile },
+      ],
+    });
     if (existingMobile) {
       return apiError('An account with this mobile number already exists. Please log in.', 409);
     }
@@ -43,7 +51,7 @@ export async function POST(req: NextRequest) {
       user_id: userId,
       name: name.trim(),
       email: cleanEmail,
-      mobile: cleanMobile,
+      mobile: normMobile || rawMobile,
       password: hashedPassword,
       wallet_balance: referral_code ? 2000.00 : 0.00, // ₦2,000 welcome bonus if referral code used
       referral_code: myReferralCode,

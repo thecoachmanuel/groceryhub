@@ -3,7 +3,7 @@ import { generateToken } from '@/lib/jwt';
 import { apiSuccess, apiError } from '@/lib/api-response';
 import { connectToDatabase } from '@/lib/mongodb';
 import DeliveryBoy from '@/models/DeliveryBoy';
-import { verifyPassword } from '@/lib/auth';
+import { verifyPassword, normalizePhone, getLocalPhone } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,13 +12,23 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const { mobile, password } = body;
 
-    if (!mobile || !password) {
+    const rawInput = (mobile || '').trim();
+    if (!rawInput || !password) {
       return apiError('Mobile phone number and password are required', 400);
     }
 
+    const normPhone = normalizePhone(rawInput);
+    const localPhone = getLocalPhone(rawInput);
+
     await connectToDatabase();
 
-    const rider = await DeliveryBoy.findOne({ mobile: mobile.trim() }).select('+password');
+    const rider = await DeliveryBoy.findOne({
+      $or: [
+        { mobile: rawInput },
+        { mobile: normPhone },
+        { mobile: localPhone },
+      ],
+    }).select('+password');
 
     if (!rider) {
       return apiError('Courier partner account not found. Please register as a delivery rider first.', 404);

@@ -39,6 +39,8 @@ export interface RiderProfile {
 // ─── Context Shape ─────────────────────────────────────────────────────────────
 
 interface AuthContextType {
+  isInitialized: boolean;
+
   // Customer
   user: CustomerProfile | null;
   isAuthenticated: boolean;
@@ -71,6 +73,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [isInitialized, setIsInitialized] = useState(false);
   const [user, setUser] = useState<CustomerProfile | null>(null);
   const [seller, setSeller] = useState<SellerProfile | null>(null);
   const [rider, setRider] = useState<RiderProfile | null>(null);
@@ -87,7 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const savedToken = localStorage.getItem('groceryhub_token');
       if (savedUser && savedToken) {
         const parsed = JSON.parse(savedUser);
-        setUser({ ...parsed, role: 'user', token: savedToken });
+        setUser({ ...parsed, role: 'user' });
       }
     } catch { localStorage.removeItem('groceryhub_user'); localStorage.removeItem('groceryhub_token'); }
 
@@ -114,6 +117,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Admin
     const adminToken = localStorage.getItem('groceryhub_admin_token');
     if (adminToken) setIsAdminAuthenticated(true);
+
+    setIsInitialized(true);
   }, []);
 
   // ─── Customer Session ───────────────────────────────────────────────────────
@@ -222,6 +227,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <AuthContext.Provider
       value={{
+        isInitialized,
         user,
         isAuthenticated: !!user,
         loginSession,
@@ -254,18 +260,18 @@ export function useAuth() {
 }
 
 export function useSellerAuth() {
-  const { seller, isSellerAuthenticated, sellerLogin, sellerLogout } = useAuth();
-  return { seller, isSellerAuthenticated, sellerLogin, sellerLogout };
+  const { seller, isSellerAuthenticated, isInitialized, sellerLogin, sellerLogout } = useAuth();
+  return { seller, isSellerAuthenticated, isInitialized, sellerLogin, sellerLogout };
 }
 
 export function useRiderAuth() {
-  const { rider, isRiderAuthenticated, riderLogin, riderLogout } = useAuth();
-  return { rider, isRiderAuthenticated, riderLogin, riderLogout };
+  const { rider, isRiderAuthenticated, isInitialized, riderLogin, riderLogout } = useAuth();
+  return { rider, isRiderAuthenticated, isInitialized, riderLogin, riderLogout };
 }
 
 export function useAdminAuth() {
-  const { isAdminAuthenticated, adminLogin, adminLogout } = useAuth();
-  return { isAdminAuthenticated, adminLogin, adminLogout };
+  const { isAdminAuthenticated, isInitialized, adminLogin, adminLogout } = useAuth();
+  return { isAdminAuthenticated, isInitialized, adminLogin, adminLogout };
 }
 
 // Legacy type alias for backwards compatibility

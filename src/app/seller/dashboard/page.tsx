@@ -17,15 +17,26 @@ import { useSellerAuth } from '@/context/AuthContext';
 
 export default function SellerDashboardPage() {
   const router = useRouter();
-  const { isSellerAuthenticated } = useSellerAuth();
+  const { isSellerAuthenticated, isInitialized } = useSellerAuth();
 
   useEffect(() => {
-    if (!isSellerAuthenticated) {
+    if (!isInitialized) return;
+    const hasSellerToken = typeof window !== 'undefined' && !!localStorage.getItem('groceryhub_seller_token');
+    if (!isSellerAuthenticated && !hasSellerToken) {
       router.replace('/seller/login');
     }
-  }, [isSellerAuthenticated, router]);
+  }, [isInitialized, isSellerAuthenticated, router]);
 
-  if (!isSellerAuthenticated) return null;
+  if (!isInitialized) {
+    return (
+      <div className="min-h-screen bg-[#121820] text-white flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0aad0a]" />
+      </div>
+    );
+  }
+
+  const hasSellerToken = typeof window !== 'undefined' && !!localStorage.getItem('groceryhub_seller_token');
+  if (!isSellerAuthenticated && !hasSellerToken) return null;
   return (
     <div className="min-h-screen bg-[#121820] text-white flex flex-col justify-between">
       <div>
