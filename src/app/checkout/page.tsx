@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
@@ -14,17 +14,43 @@ import {
   ShieldCheck, 
   ArrowLeft,
   Plus,
-  Percent,
-  Smartphone,
-  Building
+  X,
+  Home,
+  Briefcase
 } from 'lucide-react';
 import Header from '@/components/website/Header';
 import Footer from '@/components/website/Footer';
 import { formatNaira } from '@/lib/currency';
+import { useAuth } from '@/context/AuthContext';
+
+interface SavedAddress {
+  id: number;
+  type: 'Home' | 'Work' | 'Other';
+  name: string;
+  mobile: string;
+  flat: string;
+  area: string;
+  city: string;
+  pincode: string;
+  isDefault: boolean;
+}
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const [selectedAddress, setSelectedAddress] = useState(1);
+  const { user } = useAuth();
+
+  const [addresses, setAddresses] = useState<SavedAddress[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
+  const [showAddAddressModal, setShowAddAddressModal] = useState(false);
+
+  // Address modal form states
+  const [modalType, setModalType] = useState<'Home' | 'Work' | 'Other'>('Home');
+  const [modalFlat, setModalFlat] = useState('');
+  const [modalArea, setModalArea] = useState('');
+  const [modalCity, setModalCity] = useState('Lagos');
+  const [modalPhone, setModalPhone] = useState('');
+
+  // Timeslot & Payment States
   const [selectedTimeslot, setSelectedTimeslot] = useState('Express (30 Mins)');
   const [paymentMethod, setPaymentMethod] = useState<'paystack' | 'cod' | 'wallet'>('paystack');
   const [useWallet, setUseWallet] = useState(false);
@@ -34,10 +60,70 @@ export default function CheckoutPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderPlacedSuccess, setOrderPlacedSuccess] = useState(false);
 
-  const walletBalance = 12500.00; // ₦12,500
+  // Load user saved addresses from localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (user?.mobile) setModalPhone(user.mobile);
+      
+      const savedKey = user?.id ? `groceryhub_addresses_${user.id}` : 'groceryhub_guest_addresses';
+      const saved = localStorage.getItem(savedKey);
+      if (saved) {
+        try {
+          const parsed: SavedAddress[] = JSON.parse(saved);
+          setAddresses(parsed);
+          if (parsed.length > 0) {
+            const defaultAddr = parsed.find(a => a.isDefault) || parsed[0];
+            setSelectedAddressId(defaultAddr.id);
+          }
+        } catch {}
+      } else if (user?.email === 'customer@groceryhub.ng') {
+        const demoAddrs: SavedAddress[] = [
+          { id: 1, type: 'Home', name: user.name || 'Chinedu Okafor', mobile: user.mobile || '+234 802 345 6789', flat: 'Flat 4B, Oceanview Towers', area: 'Plot 14, Adeola Odeku St, VI', city: 'Lagos', pincode: '101241', isDefault: true },
+          { id: 2, type: 'Work', name: user.name || 'Chinedu Okafor', mobile: user.mobile || '+234 802 345 6789', flat: 'Suite 204, Tech Park', area: '12 Admiralty Way, Lekki Phase 1', city: 'Lagos', pincode: '105102', isDefault: false },
+        ];
+        setAddresses(demoAddrs);
+        setSelectedAddressId(1);
+      }
+    }
+  }, [user]);
+
+  const handleAddAddressSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!modalFlat || !modalArea) {
+      alert('Please enter your flat/building number and street area.');
+      return;
+    }
+
+    const newAddr: SavedAddress = {
+      id: Date.now(),
+      type: modalType,
+      name: user?.name || 'Valued Customer',
+      mobile: modalPhone || user?.mobile || '+234 800 000 0000',
+      flat: modalFlat,
+      area: modalArea,
+      city: modalCity,
+      pincode: '101241',
+      isDefault: addresses.length === 0,
+    };
+
+    const updated = [...addresses, newAddr];
+    setAddresses(updated);
+    setSelectedAddressId(newAddr.id);
+
+    if (typeof window !== 'undefined') {
+      const savedKey = user?.id ? `groceryhub_addresses_${user.id}` : 'groceryhub_guest_addresses';
+      localStorage.setItem(savedKey, JSON.stringify(updated));
+    }
+
+    setShowAddAddressModal(false);
+    setModalFlat('');
+    setModalArea('');
+  };
+
+  const walletBalance = user?.walletBalance ?? 0.00;
   const itemSubtotal = 18500.00; // ₦18,500
   const deliveryFee = 0.00; // Free above ₦15,000
-  const platformServiceFee = 500.00; // ₦500 hyper-local service charge
+  const platformServiceFee = 500.00; // ₦500 platform service charge
   const tax = itemSubtotal * 0.05; // 5% VAT (₦925)
   
   const discountFromWallet = useWallet ? Math.min(walletBalance, itemSubtotal + platformServiceFee + tax - couponDiscount) : 0;
@@ -54,6 +140,14 @@ export default function CheckoutPage() {
   };
 
   const handlePlaceOrder = async () => {
+    if (addresses.length === 0 || !selectedAddressId) {
+      alert('Please add or select a delivery address before proceeding.');
+      setShowAddAddressModal(true);
+      return;
+    }
+
+    const activeAddress = addresses.find(a => a.id === selectedAddressId) || addresses[0];
+
     setIsSubmitting(true);
     try {
       if (paymentMethod === 'paystack') {
@@ -61,32 +155,74 @@ export default function CheckoutPage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            email: 'customer@groceryhub.ng',
+            email: user?.email || 'customer@groceryhub.ng',
             amount: grandTotal,
             reference: `ORD_NG_${Date.now()}`,
           }),
         });
         const resData = await initRes.json();
         if (resData.success && resData.data?.authorization_url) {
-          // If in test/live mode, redirect to Paystack checkout URL
           window.location.href = resData.data.authorization_url;
           return;
         }
       }
 
-      // COD or Wallet Direct Checkout
+      // COD or Wallet Direct Checkout via API
+      const orderRes = await fetch('/api/v1_6/customer/placeCODOrder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: user?.id || Date.now(),
+          seller_id: 1,
+          total_amount: grandTotal,
+          payment_method: paymentMethod,
+          delivery_timeslot: selectedTimeslot,
+          delivery_address: activeAddress,
+        }),
+      });
+
+      const orderJson = await orderRes.json();
+      const placedOrderId = orderJson?.data?.order_id || `ORD-${Math.floor(10000 + Math.random() * 90000)}`;
+
+      // Save order to user's localStorage order history
+      if (typeof window !== 'undefined' && user?.id) {
+        const userOrdersKey = `groceryhub_orders_${user.id}`;
+        const existingOrders = JSON.parse(localStorage.getItem(userOrdersKey) || '[]');
+        const newOrderObj = {
+          id: placedOrderId,
+          date: 'Just Now',
+          status: 'Out for Delivery',
+          statusStep: 3,
+          total: grandTotal,
+          itemsCount: 4,
+          deliverySlot: selectedTimeslot,
+          deliveryAddress: `${activeAddress.flat}, ${activeAddress.area}, ${activeAddress.city}`,
+          driver: {
+            name: 'Marcus Vance',
+            phone: '+234 809 111 2233',
+            vehicle: 'Honda Super Cub 125cc (LAG-8492)',
+          },
+          items: [
+            { name: 'Fresh Organic Farm Broccoli (500g)', qty: 2, price: 3500 },
+            { name: 'Red Sweet Crisp Apples (1kg Pack)', qty: 1, price: 4500 },
+            { name: 'Farm Fresh Pure Whole Milk (1L)', qty: 2, price: 3800 },
+          ],
+        };
+        localStorage.setItem(userOrdersKey, JSON.stringify([newOrderObj, ...existingOrders]));
+      }
+
+      setIsSubmitting(false);
+      setOrderPlacedSuccess(true);
       setTimeout(() => {
-        setIsSubmitting(false);
-        setOrderPlacedSuccess(true);
-        setTimeout(() => {
-          router.push('/order-history');
-        }, 2000);
-      }, 1000);
+        router.push('/order-history');
+      }, 2000);
     } catch (error) {
       setIsSubmitting(false);
       alert('Order placement failed. Please try again.');
     }
   };
+
+  const selectedAddressObj = addresses.find(a => a.id === selectedAddressId);
 
   return (
     <div className="min-h-screen flex flex-col justify-between bg-gray-50 dark:bg-[#121820]">
@@ -130,35 +266,57 @@ export default function CheckoutPage() {
                       <MapPin size={18} className="text-[#0aad0a]" /> Delivery Address
                     </h2>
                   </div>
-                  <button className="text-xs font-black text-[#0aad0a] hover:underline flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddAddressModal(true)}
+                    className="text-xs font-black text-[#0aad0a] hover:underline flex items-center gap-1"
+                  >
                     <Plus size={14} /> Add Address
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                  {[
-                    { id: 1, title: 'Home', address: 'Plot 14, Adeola Odeku Street, Victoria Island', city: 'Lagos, Nigeria', phone: '+234 802 345 6789' },
-                    { id: 2, title: 'Office', address: '12 Admiralty Way, Lekki Phase 1', city: 'Lagos, Nigeria', phone: '+234 803 987 6543' },
-                  ].map((addr) => (
-                    <div
-                      key={addr.id}
-                      onClick={() => setSelectedAddress(addr.id)}
-                      className={`p-4 rounded-2xl border-2 cursor-pointer transition-all space-y-1 ${
-                        selectedAddress === addr.id
-                          ? 'border-[#0aad0a] bg-[#0aad0a]/5 dark:bg-[#0aad0a]/10'
-                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
-                      }`}
+                {addresses.length === 0 ? (
+                  <div className="border border-dashed border-gray-300 dark:border-gray-700 rounded-2xl p-6 text-center space-y-3">
+                    <MapPin size={32} className="mx-auto text-gray-400" />
+                    <h4 className="text-sm font-bold text-gray-900 dark:text-white">No delivery addresses saved</h4>
+                    <p className="text-xs text-gray-500 max-w-sm mx-auto">
+                      Add your primary home or office delivery address to complete your order.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddAddressModal(true)}
+                      className="inline-flex items-center gap-1.5 bg-[#0aad0a] text-white text-xs font-bold px-4 py-2 rounded-xl shadow-md"
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-black text-gray-900 dark:text-white">{addr.title}</span>
-                        {selectedAddress === addr.id && <CheckCircle2 size={16} className="text-[#0aad0a]" />}
+                      <Plus size={14} /> Add Delivery Address
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                    {addresses.map((addr) => (
+                      <div
+                        key={addr.id}
+                        onClick={() => setSelectedAddressId(addr.id)}
+                        className={`p-4 rounded-2xl border-2 cursor-pointer transition-all space-y-1 ${
+                          selectedAddressId === addr.id
+                            ? 'border-[#0aad0a] bg-[#0aad0a]/5 dark:bg-[#0aad0a]/10'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-black text-gray-900 dark:text-white flex items-center gap-1">
+                            {addr.type === 'Home' ? <Home size={13} className="text-[#0aad0a]" /> : <Briefcase size={13} className="text-blue-400" />}
+                            {addr.type}
+                          </span>
+                          {selectedAddressId === addr.id && <CheckCircle2 size={16} className="text-[#0aad0a]" />}
+                        </div>
+                        <p className="text-xs font-bold text-gray-800 dark:text-gray-200">{addr.name}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{addr.flat}, {addr.area}</p>
+                        <p className="text-[11px] text-gray-400">{addr.city}</p>
+                        <p className="text-[11px] font-mono text-gray-500">{addr.mobile}</p>
                       </div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">{addr.address}</p>
-                      <p className="text-[11px] text-gray-400">{addr.city}</p>
-                      <p className="text-[11px] font-mono text-gray-500">{addr.phone}</p>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Step 2: Delivery Schedule */}
@@ -223,6 +381,7 @@ export default function CheckoutPage() {
                   <button
                     type="button"
                     onClick={() => setUseWallet(!useWallet)}
+                    disabled={walletBalance <= 0}
                     className={`text-xs font-black px-4 py-2 rounded-xl transition-all ${
                       useWallet
                         ? 'bg-amber-500 text-white'
@@ -305,6 +464,15 @@ export default function CheckoutPage() {
                   )}
                 </form>
 
+                {/* Selected Address Preview */}
+                {selectedAddressObj && (
+                  <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-2xl border border-gray-100 dark:border-gray-800 space-y-1">
+                    <span className="text-[10px] font-black uppercase text-[#0aad0a] block">Delivering To</span>
+                    <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{selectedAddressObj.flat}, {selectedAddressObj.area}</p>
+                    <p className="text-[11px] text-gray-500">{selectedAddressObj.city} &bull; {selectedAddressObj.mobile}</p>
+                  </div>
+                )}
+
                 {/* Line Items Bill Breakdown in Naira */}
                 <div className="space-y-3 text-xs text-gray-600 dark:text-gray-400 pt-2 border-t border-gray-100 dark:border-gray-800">
                   <div className="flex justify-between">
@@ -361,6 +529,101 @@ export default function CheckoutPage() {
           </div>
         )}
       </main>
+
+      {/* Add New Delivery Address Modal */}
+      {showAddAddressModal && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#1e2632] w-full max-w-md rounded-3xl p-6 sm:p-8 border border-gray-100 dark:border-gray-800 space-y-5 relative shadow-2xl animate-scale-up">
+            <button
+              type="button"
+              onClick={() => setShowAddAddressModal(false)}
+              className="absolute right-5 top-5 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400"
+            >
+              <X size={20} />
+            </button>
+
+            <div>
+              <h3 className="text-xl font-black text-gray-900 dark:text-white">Add Delivery Address</h3>
+              <p className="text-xs text-gray-400 mt-0.5">Enter your doorstep address details for fast express delivery</p>
+            </div>
+
+            <form onSubmit={handleAddAddressSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-700 dark:text-gray-300">Address Label</label>
+                <div className="flex gap-2">
+                  {(['Home', 'Work', 'Other'] as const).map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setModalType(t)}
+                      className={`flex-1 py-2 rounded-xl text-xs font-bold border transition-all ${
+                        modalType === t ? 'border-[#0aad0a] bg-[#0aad0a]/10 text-[#0aad0a]' : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400'
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-700 dark:text-gray-300">House / Flat / Building No.</label>
+                <input
+                  type="text"
+                  value={modalFlat}
+                  onChange={(e) => setModalFlat(e.target.value)}
+                  placeholder="e.g. Flat 4B, Oceanview Towers"
+                  className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-700 dark:text-gray-300">Street Address &amp; Area</label>
+                <input
+                  type="text"
+                  value={modalArea}
+                  onChange={(e) => setModalArea(e.target.value)}
+                  placeholder="e.g. Plot 14, Adeola Odeku Street, Victoria Island"
+                  className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-700 dark:text-gray-300">City</label>
+                  <input
+                    type="text"
+                    value={modalCity}
+                    onChange={(e) => setModalCity(e.target.value)}
+                    className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-700 dark:text-gray-300">Phone Number</label>
+                  <input
+                    type="text"
+                    value={modalPhone}
+                    onChange={(e) => setModalPhone(e.target.value)}
+                    placeholder="+234..."
+                    className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
+                    required
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full bg-[#0aad0a] hover:bg-[#088f08] text-white font-black py-3.5 rounded-xl text-xs shadow-lg shadow-[#0aad0a]/30 transition-all active:scale-95 mt-2"
+              >
+                Save &amp; Select Address
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </div>
