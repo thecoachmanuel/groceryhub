@@ -228,9 +228,13 @@ export default function Header({ cartCount = 0, onOpenCart }: HeaderProps) {
             ) : (
               <Link
                 href="/login"
-                className="bg-[#0aad0a] hover:bg-[#088f08] text-white text-xs font-bold px-4 py-2 rounded-full transition-all shadow-md shadow-[#0aad0a]/20"
+                className="flex items-center gap-1.5 bg-[#0aad0a] hover:bg-[#088f08] text-white text-xs font-bold p-2 sm:px-4 sm:py-2 rounded-full transition-all shadow-md shadow-[#0aad0a]/20"
+                title="Sign In"
               >
-                Sign In
+                <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
+                  <User size={14} />
+                </div>
+                <span className="hidden sm:inline">Sign In</span>
               </Link>
             )}
 
