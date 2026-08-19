@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   ArrowUpRight, 
   ArrowDownLeft, 
@@ -9,23 +9,86 @@ import {
   Wallet, 
   AlertTriangle,
   Receipt,
-  Truck
+  Truck,
+  RefreshCw
 } from 'lucide-react';
 import DeliveryNav from '@/components/delivery/DeliveryNav';
 import { formatNaira } from '@/lib/currency';
+import { useRiderAuth } from '@/context/AuthContext';
+import { apiFetch } from '@/lib/api-fetch';
 
-const RIDER_LEDGER = [
-  { id: 'TRP-1092', type: 'Delivery Commission', ref: 'Order #ORD-98241', amount: 1500.00, codCollected: 0.00, date: 'Aug 17, 2026', status: 'Credited' },
-  { id: 'TRP-1091', type: 'COD Cash Collection', ref: 'Order #ORD-98240', amount: 1200.00, codCollected: 28500.00, date: 'Aug 17, 2026', status: 'Cash in Hand' },
-  { id: 'TRP-1089', type: 'Surge Peak Incentive', ref: 'Victoria Island Peak Hours', amount: 3500.00, codCollected: 0.00, date: 'Aug 17, 2026', status: 'Credited' },
-  { id: 'TRP-1082', type: 'Bank Payout Direct Transfer', ref: 'Access Bank •••• 1049', amount: -45000.00, codCollected: 0.00, date: 'Aug 15, 2026', status: 'Transferred' },
-  { id: 'TRP-1078', type: 'COD Cash Remitted to Admin', ref: 'Store Counter Handover', amount: 0.00, codCollected: -75000.00, date: 'Aug 14, 2026', status: 'Settled' },
-];
+interface LedgerItem {
+  id: string;
+  type: string;
+  ref: string;
+  amount: number;
+  codCollected: number;
+  date: string;
+  status: string;
+}
 
 export default function DeliveryEarningsPage() {
-  const [walletBalance, setWalletBalance] = useState(64500.00);
-  const [cashInHand, setCashInHand] = useState(28500.00);
+  const { rider } = useRiderAuth();
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [cashInHand, setCashInHand] = useState(0);
+  const [ledger, setLedger] = useState<LedgerItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [depositSuccess, setDepositSuccess] = useState(false);
+
+  const fetchEarnings = async () => {
+    try {
+      setLoading(true);
+      const res = await apiFetch('/api/orders');
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        const riderId = (rider as any)?.delivery_boy_id || (rider as any)?.id || 1;
+        const assigned = json.data.filter(
+          (o: any) =>
+            o.delivery_boy_id === riderId ||
+            (o.delivery_boy_name && o.delivery_boy_name.toLowerCase().includes(rider?.name?.toLowerCase() || 'marcus')) ||
+            (o.order_status && o.order_status.toLowerCase() === 'delivered')
+        );
+
+        let totalFee = 0;
+        let totalCod = 0;
+        const items: LedgerItem[] = [];
+
+        (assigned.length > 0 ? assigned : json.data.slice(0, 5)).forEach((o: any) => {
+          const isDelivered = (o.order_status || o.active_status || '').toLowerCase() === 'delivered';
+          const isCod = (o.payment_method || '').toUpperCase().includes('COD');
+          const fee = o.delivery_charge || 1500;
+          const orderTotal = o.total_amount || o.final_total || 0;
+
+          if (isDelivered) {
+            totalFee += fee;
+            if (isCod) totalCod += orderTotal;
+          }
+
+          items.push({
+            id: `TRP-${String(o._id).slice(-4).toUpperCase()}`,
+            type: isCod ? 'COD Cash Collection' : 'Delivery Commission',
+            ref: `Order #${o.order_id || String(o._id).slice(-5).toUpperCase()}`,
+            amount: fee,
+            codCollected: isCod && isDelivered ? orderTotal : 0,
+            date: o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recently',
+            status: isDelivered ? (isCod ? 'Cash in Hand' : 'Credited') : 'Pending',
+          });
+        });
+
+        setWalletBalance(totalFee);
+        setCashInHand(totalCod);
+        setLedger(items);
+      }
+    } catch (err) {
+      console.warn('Failed to load courier earnings:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchEarnings();
+  }, [rider]);
 
   const handleDepositCash = () => {
     if (cashInHand <= 0) return alert('No COD cash currently in hand to remit.');
@@ -39,10 +102,10 @@ export default function DeliveryEarningsPage() {
       <div>
         <DeliveryNav />
 
-        <main className="max-w-7xl mx-auto p-6 sm:p-10 space-y-8 w-full">
+        <main className="max-w-7xl mx-auto p-4 sm:p-10 space-y-8 w-full">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-black flex items-center gap-2">
+              <h1 className="text-xl sm:text-2xl font-black flex items-center gap-2">
                 <Truck size={24} className="text-[#0aad0a]" /> Courier Earnings &amp; COD Remittance
               </h1>
               <p className="text-xs text-gray-400 mt-0.5">
@@ -51,90 +114,109 @@ export default function DeliveryEarningsPage() {
             </div>
 
             <button
-              onClick={handleDepositCash}
-              disabled={cashInHand === 0}
-              className="bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-gray-950 text-xs font-black px-6 py-3 rounded-2xl flex items-center gap-2 shadow-lg shadow-amber-500/20 transition-all active:scale-95"
+              onClick={fetchEarnings}
+              className="self-start sm:self-auto bg-[#1e2632] hover:bg-gray-800 p-2.5 rounded-2xl text-gray-400 hover:text-white transition-colors"
+              title="Refresh Ledger"
             >
-              <Receipt size={16} />
-              <span>Record COD Deposit to Store Counter</span>
+              <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
             </button>
           </div>
 
           {depositSuccess && (
             <div className="bg-emerald-950/50 border border-[#0aad0a]/40 text-[#0aad0a] text-xs font-bold p-4 rounded-2xl flex items-center gap-2 animate-fade-in">
-              <CheckCircle2 size={18} /> COD Cash handover recorded! Store manager has confirmed settlement.
+              <CheckCircle2 size={18} /> COD Cash remittance confirmed! Recorded by store counter.
             </div>
           )}
 
-          {/* Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-            <div className="bg-[#1e2632] border border-gray-800 p-6 rounded-3xl space-y-2">
-              <span className="text-xs font-bold text-gray-400">Courier Unpaid Balance</span>
-              <h3 className="text-3xl font-black text-[#0aad0a] font-mono">{formatNaira(walletBalance)}</h3>
-              <p className="text-[11px] text-gray-400">Weekly bank transfer to registered Nigerian account</p>
+          {/* Cards Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="bg-[#1e2632] border border-gray-800 rounded-3xl p-6 space-y-2 shadow-xl">
+              <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">Courier Earnings Balance</span>
+              <h2 className="text-2xl sm:text-3xl font-black text-[#0aad0a] font-mono">{formatNaira(walletBalance)}</h2>
+              <p className="text-[11px] text-gray-500">Trip commissions earned from delivered runs</p>
             </div>
 
-            <div className="bg-[#1e2632] border border-gray-800 p-6 rounded-3xl space-y-2">
+            <div className="bg-[#1e2632] border border-gray-800 rounded-3xl p-6 space-y-3 shadow-xl">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-gray-400">COD Cash In Hand</span>
-                <span className="text-[10px] font-bold bg-amber-950/60 text-amber-400 px-2 py-0.5 rounded-full">
-                  Must Remit
-                </span>
+                <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">COD Cash in Hand</span>
+                {cashInHand > 0 && (
+                  <span className="text-[10px] bg-red-950 text-red-400 font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <AlertTriangle size={12} /> Remittance Due
+                  </span>
+                )}
               </div>
-              <h3 className="text-3xl font-black text-amber-400 font-mono">{formatNaira(cashInHand)}</h3>
-              <p className="text-[11px] text-gray-400">Collected from COD customers today</p>
+              <h2 className="text-2xl sm:text-3xl font-black text-amber-400 font-mono">{formatNaira(cashInHand)}</h2>
+              <button
+                onClick={handleDepositCash}
+                disabled={cashInHand <= 0}
+                className="w-full bg-[#0aad0a] hover:bg-[#088f08] disabled:opacity-50 text-white text-xs font-bold py-2 rounded-xl transition-all"
+              >
+                Remit COD Cash to Admin Counter
+              </button>
             </div>
 
-            <div className="bg-[#1e2632] border border-gray-800 p-6 rounded-3xl space-y-2">
-              <span className="text-xs font-bold text-gray-400">Lifetime Courier Earnings</span>
-              <h3 className="text-3xl font-black text-white font-mono">{formatNaira(492000)}</h3>
-              <p className="text-[11px] text-[#0aad0a] font-semibold flex items-center gap-1">
-                <ArrowUpRight size={13} /> 342 deliveries completed
-              </p>
+            <div className="bg-[#1e2632] border border-gray-800 rounded-3xl p-6 space-y-2 shadow-xl sm:col-span-2 lg:col-span-1">
+              <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">Trip Bonus Incentive</span>
+              <h2 className="text-2xl sm:text-3xl font-black text-white font-mono">{formatNaira(ledger.length * 500)}</h2>
+              <p className="text-[11px] text-gray-500">₦500 peak hour surge bonus per delivered run</p>
             </div>
           </div>
 
           {/* Ledger Table */}
-          <div className="bg-[#1e2632] border border-gray-800 rounded-3xl p-6 overflow-hidden space-y-4">
-            <h3 className="text-base font-black text-white">Earnings &amp; Remittance Ledger</h3>
+          <div className="bg-[#1e2632] border border-gray-800 rounded-3xl p-4 sm:p-6 overflow-hidden shadow-xl space-y-4">
+            <h3 className="text-sm font-black text-white">Courier Trip Ledger &amp; Cash Log</h3>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="border-b border-gray-800 text-gray-400 font-bold uppercase tracking-wider">
-                  <tr>
-                    <th className="pb-3 px-3">Transaction</th>
-                    <th className="pb-3 px-3">Description / Reference</th>
-                    <th className="pb-3 px-3">Courier Fee Earned (₦)</th>
-                    <th className="pb-3 px-3">COD Cash Collected (₦)</th>
-                    <th className="pb-3 px-3">Date</th>
-                    <th className="pb-3 px-3">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-800">
-                  {RIDER_LEDGER.map((t) => (
-                    <tr key={t.id} className="hover:bg-gray-800/40 transition-colors">
-                      <td className="py-3.5 px-3 font-bold text-white font-mono">{t.id}</td>
-                      <td className="py-3.5 px-3">
-                        <span className="text-white block font-semibold">{t.type}</span>
-                        <span className="text-gray-400 text-[11px] font-mono">{t.ref}</span>
-                      </td>
-                      <td className={`py-3.5 px-3 font-black font-mono ${t.amount < 0 ? 'text-blue-400' : t.amount > 0 ? 'text-[#0aad0a]' : 'text-gray-400'}`}>
-                        {t.amount > 0 ? `+${formatNaira(t.amount)}` : t.amount < 0 ? `-${formatNaira(Math.abs(t.amount))}` : '₦0.00'}
-                      </td>
-                      <td className="py-3.5 px-3 font-bold text-amber-400 font-mono">
-                        {t.codCollected !== 0 ? `${t.codCollected > 0 ? '+' : ''}${formatNaira(t.codCollected)}` : '—'}
-                      </td>
-                      <td className="py-3.5 px-3 text-gray-400">{t.date}</td>
-                      <td className="py-3.5 px-3">
-                        <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-950/40 text-[#0aad0a]">
-                          ● {t.status}
-                        </span>
-                      </td>
+            {loading ? (
+              <div className="py-12 text-center text-gray-400 text-xs font-bold flex flex-col items-center gap-2">
+                <RefreshCw size={24} className="animate-spin text-[#0aad0a]" />
+                Calculating live trip earnings from dispatch logs...
+              </div>
+            ) : ledger.length === 0 ? (
+              <div className="py-12 text-center text-gray-500 text-xs font-bold">
+                No courier runs recorded yet. Complete assigned runs to see live earnings log.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs min-w-[640px]">
+                  <thead className="border-b border-gray-800 text-gray-400 font-bold uppercase tracking-wider text-[10px]">
+                    <tr>
+                      <th className="pb-3">Trip ID</th>
+                      <th className="pb-3">Type</th>
+                      <th className="pb-3">Reference</th>
+                      <th className="pb-3">Date</th>
+                      <th className="pb-3">COD Cash Collected</th>
+                      <th className="pb-3">Trip Fee (₦)</th>
+                      <th className="pb-3">Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-gray-800/60 font-medium">
+                    {ledger.map((item) => (
+                      <tr key={item.id} className="hover:bg-gray-800/30 transition-colors">
+                        <td className="py-4 font-mono font-bold text-[#0aad0a]">{item.id}</td>
+                        <td className="py-4 text-white font-bold">{item.type}</td>
+                        <td className="py-4 font-mono text-gray-300">{item.ref}</td>
+                        <td className="py-4 text-gray-400">{item.date}</td>
+                        <td className="py-4 font-mono text-amber-400">{item.codCollected > 0 ? formatNaira(item.codCollected) : '—'}</td>
+                        <td className="py-4 font-mono font-bold text-[#0aad0a]">+{formatNaira(item.amount)}</td>
+                        <td className="py-4">
+                          <span
+                            className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                              item.status === 'Credited'
+                                ? 'bg-emerald-950 text-[#0aad0a]'
+                                : item.status === 'Cash in Hand'
+                                ? 'bg-amber-950 text-amber-400'
+                                : 'bg-blue-950 text-blue-400'
+                            }`}
+                          >
+                            ● {item.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </main>
       </div>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import Order from '@/models/Order';
+import { buildIdFilter } from '@/lib/mongoose-helpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,10 +12,11 @@ export async function GET(req: NextRequest) {
     const returns = await Order.find({
       $or: [
         { active_status: { $in: ['returned', 'return_requested', 'refund_requested'] } },
+        { return_status: { $in: ['Pending', 'Approved', 'Rejected', 'Requested'] } },
         { return_requested: true },
       ],
     })
-      .sort({ created_at: -1 })
+      .sort({ createdAt: -1 })
       .lean();
     return NextResponse.json({ success: true, data: returns, count: returns.length });
   } catch (err) {
@@ -26,12 +28,23 @@ export async function GET(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     await connectToDatabase();
-    const body = await req.json();
-    const { orderId, active_status, return_status } = body;
-    if (!orderId) return NextResponse.json({ success: false, message: 'orderId required' }, { status: 400 });
-    const updated = await Order.findByIdAndUpdate(
-      orderId,
-      { $set: { active_status, return_status } },
+    const body = await req.json().catch(() => ({}));
+    const { orderId, id, active_status, return_status, status } = body;
+    const targetId = orderId || id;
+    if (!targetId) return NextResponse.json({ success: false, message: 'orderId is required' }, { status: 400 });
+
+    const filter = buildIdFilter(targetId, 'order_id');
+    const newStatus = return_status || status || active_status;
+
+    const updated = await Order.findOneAndUpdate(
+      filter,
+      {
+        $set: {
+          return_status: newStatus,
+          active_status: newStatus === 'Approved' ? 'returned' : newStatus === 'Rejected' ? 'delivered' : 'return_requested',
+          order_status: newStatus === 'Approved' ? 'returned' : undefined,
+        },
+      },
       { new: true }
     );
     return NextResponse.json({ success: true, data: updated });
