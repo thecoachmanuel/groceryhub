@@ -15,10 +15,12 @@ import {
   Phone,
   MapPin,
   Lock,
-  RefreshCw
+  RefreshCw,
+  AlertCircle
 } from 'lucide-react';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import LocalImageUploader from '@/components/common/LocalImageUploader';
+import { apiFetch } from '@/lib/api-fetch';
 import { formatNaira } from '@/lib/currency';
 
 export default function AdminSettingsPage() {
@@ -127,7 +129,7 @@ export default function AdminSettingsPage() {
         paystackSecretKey,
       };
 
-      const res = await fetch('/api/admin/settings', {
+      const res = await apiFetch('/api/admin/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import Order from '@/models/Order';
 import Seller from '@/models/Seller';
+import { buildIdFilter } from '@/lib/mongoose-helpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,20 +56,23 @@ export async function GET(req: NextRequest) {
   }
 }
 
-
 export async function PUT(req: NextRequest) {
   try {
     await connectToDatabase();
     const body = await req.json().catch(() => ({}));
-    const { orderId, active_status } = body;
+    const { orderId, id, active_status, order_status } = body;
+    const targetId = orderId || id;
 
-    if (!orderId) {
+    if (!targetId) {
       return NextResponse.json({ success: false, message: 'orderId is required' }, { status: 400 });
     }
 
+    const filter = buildIdFilter(targetId, 'order_id');
+    const updateStatus = active_status || order_status;
+
     const updated = await Order.findOneAndUpdate(
-      { $or: [{ order_id: orderId }, { _id: orderId }] },
-      { $set: { active_status } },
+      filter,
+      { $set: { active_status: updateStatus, order_status: updateStatus } },
       { new: true }
     );
 

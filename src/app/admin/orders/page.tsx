@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import { formatNaira } from '@/lib/currency';
+import { apiFetch } from '@/lib/api-fetch';
 
 interface OrderItem {
   name: string;
@@ -103,7 +104,7 @@ export default function AdminOrdersPage() {
 
   const handleUpdateStatus = async (id: string, newStatus: string) => {
     try {
-      await fetch(`/api/orders/${id}`, {
+      await apiFetch(`/api/orders/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ order_status: newStatus }),
@@ -122,7 +123,7 @@ export default function AdminOrdersPage() {
   const handleAssignDriver = async (id: string, riderName: string) => {
     const selectedRiderObj = riders.find((r) => r.name === riderName);
     try {
-      await fetch(`/api/orders/${id}`, {
+      await apiFetch(`/api/orders/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

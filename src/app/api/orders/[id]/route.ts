@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import Order from '@/models/Order';
+import { buildIdFilter } from '@/lib/mongoose-helpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,10 +11,12 @@ export async function GET(
 ) {
   try {
     await connectToDatabase();
-    const order = await Order.findOne({
-      $or: [{ _id: params.id }, { order_id: params.id }],
-    }).lean();
+    const filter = buildIdFilter(params.id, 'order_id');
+    if (!filter) {
+      return NextResponse.json({ success: false, message: 'Invalid order ID' }, { status: 400 });
+    }
 
+    const order = await Order.findOne(filter).lean();
     if (!order) {
       return NextResponse.json({ success: false, message: 'Order not found' }, { status: 404 });
     }
@@ -30,13 +33,15 @@ export async function PATCH(
 ) {
   try {
     await connectToDatabase();
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
     const { order_status, payment_status, delivery_boy_id, delivery_boy_name, delivery_boy_phone, delivery_pin_verify } = body;
 
-    const existingOrder = await Order.findOne({
-      $or: [{ _id: params.id }, { order_id: params.id }],
-    });
+    const filter = buildIdFilter(params.id, 'order_id');
+    if (!filter) {
+      return NextResponse.json({ success: false, message: 'Invalid order ID' }, { status: 400 });
+    }
 
+    const existingOrder = await Order.findOne(filter);
     if (!existingOrder) {
       return NextResponse.json({ success: false, message: 'Order not found' }, { status: 404 });
     }
@@ -44,7 +49,7 @@ export async function PATCH(
     // PIN Verification for Delivery Handover
     if (delivery_pin_verify !== undefined) {
       const pinStr = String(delivery_pin_verify).trim();
-      const expectedPin = String(existingOrder.delivery_pin).trim();
+      const expectedPin = String(existingOrder.delivery_pin || '').trim();
       if (pinStr !== expectedPin) {
         return NextResponse.json(
           { success: false, message: `Invalid Delivery PIN code (${pinStr}). Please ask customer for the 4-digit PIN on their order screen.` },
@@ -69,7 +74,7 @@ export async function PATCH(
     if (delivery_boy_phone) updateFields.delivery_boy_phone = delivery_boy_phone;
 
     const updated = await Order.findOneAndUpdate(
-      { $or: [{ _id: params.id }, { order_id: params.id }] },
+      filter,
       { $set: updateFields },
       { new: true }
     );
