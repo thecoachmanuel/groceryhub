@@ -203,289 +203,279 @@ export default function AdminSettingsPage() {
 
         <form onSubmit={handleSave} className="bg-[#1e2632] border border-gray-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-xl">
           {/* General Identity */}
-          {activeTab === 'general' && (
-            <div className="space-y-5">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">App Name / Brand Title</label>
-                  <input
-                    type="text"
-                    value={appName}
-                    onChange={(e) => setAppName(e.target.value)}
-                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Support Phone (+234)</label>
-                  <input
-                    type="text"
-                    value={supportPhone}
-                    onChange={(e) => setSupportPhone(e.target.value)}
-                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                  />
-                </div>
-              </div>
-
+          <div className={activeTab === 'general' ? 'space-y-5 block' : 'hidden'}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-300">Platform Tagline</label>
+                <label className="text-xs font-bold text-gray-300">App Name / Brand Title</label>
                 <input
                   type="text"
-                  value={appDescription}
-                  onChange={(e) => setAppDescription(e.target.value)}
+                  value={appName}
+                  onChange={(e) => setAppName(e.target.value)}
                   className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Customer Support Email</label>
-                  <input
-                    type="email"
-                    value={supportEmail}
-                    onChange={(e) => setSupportEmail(e.target.value)}
-                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Physical Store / HQ Address</label>
-                  <input
-                    type="text"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                  />
-                </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-300">Support Phone (+234)</label>
+                <input
+                  type="text"
+                  value={supportPhone}
+                  onChange={(e) => setSupportPhone(e.target.value)}
+                  className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
+                />
               </div>
+            </div>
 
-              <LocalImageUploader
-                label="Store Header Logo (Local Storage)"
-                folder="settings"
-                value={storeLogoUrl}
-                onChange={setStoreLogoUrl}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-gray-300">Platform Tagline</label>
+              <input
+                type="text"
+                value={appDescription}
+                onChange={(e) => setAppDescription(e.target.value)}
+                className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
               />
             </div>
-          )}
 
-          {/* Localization */}
-          {activeTab === 'localization' && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Currency Symbol</label>
-                  <input
-                    type="text"
-                    value={currencySymbol}
-                    onChange={(e) => setCurrencySymbol(e.target.value)}
-                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs font-bold focus:outline-none focus:border-[#0aad0a]"
-                  />
-                </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-300">Customer Support Email</label>
+                <input
+                  type="email"
+                  value={supportEmail}
+                  onChange={(e) => setSupportEmail(e.target.value)}
+                  className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
+                />
+              </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Currency Code (ISO)</label>
-                  <input
-                    type="text"
-                    value={currencyCode}
-                    onChange={(e) => setCurrencyCode(e.target.value)}
-                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs font-mono font-bold focus:outline-none focus:border-[#0aad0a]"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Store Timezone</label>
-                  <select
-                    value={timezone}
-                    onChange={(e) => setTimezone(e.target.value)}
-                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                  >
-                    <option value="Africa/Lagos (WAT)">Africa/Lagos (WAT - West Africa Time)</option>
-                    <option value="Europe/London (GMT)">Europe/London (GMT)</option>
-                    <option value="America/New_York (EST)">America/New_York (EST)</option>
-                  </select>
-                </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-300">Physical Store / HQ Address</label>
+                <input
+                  type="text"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
+                />
               </div>
             </div>
-          )}
+
+            <LocalImageUploader
+              label="Store Header Logo (Local Storage)"
+              folder="settings"
+              value={storeLogoUrl}
+              onChange={setStoreLogoUrl}
+            />
+          </div>
+
+          {/* Localization */}
+          <div className={activeTab === 'localization' ? 'space-y-4 block' : 'hidden'}>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-300">Currency Symbol</label>
+                <input
+                  type="text"
+                  value={currencySymbol}
+                  onChange={(e) => setCurrencySymbol(e.target.value)}
+                  className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs font-bold focus:outline-none focus:border-[#0aad0a]"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-300">Currency Code (ISO)</label>
+                <input
+                  type="text"
+                  value={currencyCode}
+                  onChange={(e) => setCurrencyCode(e.target.value)}
+                  className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs font-mono font-bold focus:outline-none focus:border-[#0aad0a]"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-300">Store Timezone</label>
+                <select
+                  value={timezone}
+                  onChange={(e) => setTimezone(e.target.value)}
+                  className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
+                >
+                  <option value="Africa/Lagos (WAT)">Africa/Lagos (WAT - West Africa Time)</option>
+                  <option value="Europe/London (GMT)">Europe/London (GMT)</option>
+                  <option value="America/New_York (EST)">America/New_York (EST)</option>
+                </select>
+              </div>
+            </div>
+          </div>
 
           {/* Orders & Dispatch Rules */}
-          {activeTab === 'orders' && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className={activeTab === 'orders' ? 'space-y-4 block' : 'hidden'}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-300">Order ID Prefix</label>
+                <input
+                  type="text"
+                  value={orderPrefix}
+                  onChange={(e) => setOrderPrefix(e.target.value)}
+                  className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs font-mono font-bold focus:outline-none focus:border-[#0aad0a]"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-300">Default Delivery Radius (km)</label>
+                <input
+                  type="number"
+                  step="0.5"
+                  value={defaultRadius}
+                  onChange={(e) => setDefaultRadius(e.target.value)}
+                  className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-300">Minimum Order Spend (₦)</label>
+                <input
+                  type="number"
+                  step="100"
+                  value={minOrderSpend}
+                  onChange={(e) => setMinOrderSpend(e.target.value)}
+                  className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-300">Free Delivery Threshold (₦)</label>
+                <input
+                  type="number"
+                  step="500"
+                  value={freeDeliveryThreshold}
+                  onChange={(e) => setFreeDeliveryThreshold(e.target.value)}
+                  className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
+                />
+              </div>
+            </div>
+
+            {/* Delivery Fee, Platform Fee, VAT */}
+            <div className="p-4 bg-emerald-950/30 border border-emerald-800/40 rounded-2xl space-y-4">
+              <h3 className="text-xs font-black text-emerald-400 flex items-center gap-2">
+                <Truck size={14} /> Checkout Fees & Tax (Live on Storefront)
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Order ID Prefix</label>
+                  <label className="text-xs font-bold text-gray-300">Delivery Charge (₦)</label>
                   <input
-                    type="text"
-                    value={orderPrefix}
-                    onChange={(e) => setOrderPrefix(e.target.value)}
-                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs font-mono font-bold focus:outline-none focus:border-[#0aad0a]"
+                    type="number"
+                    step="50"
+                    min="0"
+                    value={deliveryFee}
+                    onChange={(e) => setDeliveryFee(e.target.value)}
+                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
                   />
+                  <p className="text-[10px] text-gray-500">Applied when order is below free-delivery threshold</p>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Default Delivery Radius (km)</label>
+                  <label className="text-xs font-bold text-gray-300">Platform Service Fee (₦)</label>
+                  <input
+                    type="number"
+                    step="50"
+                    min="0"
+                    value={platformServiceFee}
+                    onChange={(e) => setPlatformServiceFee(e.target.value)}
+                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
+                  />
+                  <p className="text-[10px] text-gray-500">Fixed platform handling fee per order</p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-300">VAT / Tax Rate (%)</label>
                   <input
                     type="number"
                     step="0.5"
-                    value={defaultRadius}
-                    onChange={(e) => setDefaultRadius(e.target.value)}
+                    min="0"
+                    max="100"
+                    value={taxRate}
+                    onChange={(e) => setTaxRate(e.target.value)}
                     className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
                   />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Minimum Order Spend (₦)</label>
-                  <input
-                    type="number"
-                    step="100"
-                    value={minOrderSpend}
-                    onChange={(e) => setMinOrderSpend(e.target.value)}
-                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Free Delivery Threshold (₦)</label>
-                  <input
-                    type="number"
-                    step="500"
-                    value={freeDeliveryThreshold}
-                    onChange={(e) => setFreeDeliveryThreshold(e.target.value)}
-                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                  />
-                </div>
-              </div>
-
-              {/* Delivery Fee, Platform Fee, VAT */}
-              <div className="p-4 bg-emerald-950/30 border border-emerald-800/40 rounded-2xl space-y-4">
-                <h3 className="text-xs font-black text-emerald-400 flex items-center gap-2">
-                  <Truck size={14} /> Checkout Fees & Tax (Live on Storefront)
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-gray-300">Delivery Charge (₦)</label>
-                    <input
-                      type="number"
-                      step="50"
-                      min="0"
-                      value={deliveryFee}
-                      onChange={(e) => setDeliveryFee(e.target.value)}
-                      className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                    />
-                    <p className="text-[10px] text-gray-500">Applied when order is below free-delivery threshold</p>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-gray-300">Platform Service Fee (₦)</label>
-                    <input
-                      type="number"
-                      step="50"
-                      min="0"
-                      value={platformServiceFee}
-                      onChange={(e) => setPlatformServiceFee(e.target.value)}
-                      className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                    />
-                    <p className="text-[10px] text-gray-500">Fixed platform handling fee per order</p>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-gray-300">VAT / Tax Rate (%)</label>
-                    <input
-                      type="number"
-                      step="0.5"
-                      min="0"
-                      max="100"
-                      value={taxRate}
-                      onChange={(e) => setTaxRate(e.target.value)}
-                      className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                    />
-                    <p className="text-[10px] text-gray-500">Percentage applied on subtotal (e.g. 7.5 for 7.5%)</p>
-                  </div>
+                  <p className="text-[10px] text-gray-500">Percentage applied on subtotal (e.g. 7.5 for 7.5%)</p>
                 </div>
               </div>
             </div>
-          )}
+          </div>
 
           {/* Payment Gateway */}
-          {activeTab === 'payment' && (
-            <div className="space-y-5">
-              <div className="p-4 bg-blue-950/30 border border-blue-800/40 rounded-2xl">
-                <h3 className="text-xs font-black text-blue-400 mb-1">Paystack Payment Gateway</h3>
-                <p className="text-[11px] text-gray-400 mb-4">Live/test keys from your Paystack dashboard (dashboard.paystack.com). Leave blank to use keys from environment variables.</p>
-                <div className="space-y-3">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-gray-300">Paystack Public Key (pk_...)</label>
-                    <input
-                      type="text"
-                      value={paystackPublicKey}
-                      onChange={(e) => setPaystackPublicKey(e.target.value)}
-                      placeholder="pk_live_... or pk_test_..."
-                      className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs font-mono focus:outline-none focus:border-[#0aad0a]"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-gray-300">Paystack Secret Key (sk_...)</label>
-                    <input
-                      type="password"
-                      value={paystackSecretKey}
-                      onChange={(e) => setPaystackSecretKey(e.target.value)}
-                      placeholder="sk_live_... or sk_test_..."
-                      className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs font-mono focus:outline-none focus:border-[#0aad0a]"
-                    />
-                    <p className="text-[10px] text-red-400">⚠️ Never share your secret key. Stored securely in MongoDB, never exposed to frontend.</p>
-                  </div>
+          <div className={activeTab === 'payment' ? 'space-y-5 block' : 'hidden'}>
+            <div className="p-4 bg-blue-950/30 border border-blue-800/40 rounded-2xl">
+              <h3 className="text-xs font-black text-blue-400 mb-1">Paystack Payment Gateway</h3>
+              <p className="text-[11px] text-gray-400 mb-4">Live/test keys from your Paystack dashboard (dashboard.paystack.com). Leave blank to use keys from environment variables.</p>
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-300">Paystack Public Key (pk_...)</label>
+                  <input
+                    type="text"
+                    value={paystackPublicKey}
+                    onChange={(e) => setPaystackPublicKey(e.target.value)}
+                    placeholder="pk_live_... or pk_test_..."
+                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs font-mono focus:outline-none focus:border-[#0aad0a]"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-300">Paystack Secret Key (sk_...)</label>
+                  <input
+                    type="password"
+                    value={paystackSecretKey}
+                    onChange={(e) => setPaystackSecretKey(e.target.value)}
+                    placeholder="sk_live_... or sk_test_..."
+                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs font-mono focus:outline-none focus:border-[#0aad0a]"
+                  />
+                  <p className="text-[10px] text-red-400">⚠️ Never share your secret key. Stored securely in MongoDB, never exposed to frontend.</p>
                 </div>
               </div>
             </div>
-          )}
+          </div>
 
           {/* Security & Maintenance */}
-          {activeTab === 'security' && (
-            <div className="space-y-5">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">OTP Validity Expiration (Seconds)</label>
-                  <input
-                    type="number"
-                    value={otpExpirationSec}
-                    onChange={(e) => setOtpExpirationSec(e.target.value)}
-                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Max Failed Login Attempts</label>
-                  <input
-                    type="number"
-                    value={maxLoginAttempts}
-                    onChange={(e) => setMaxLoginAttempts(e.target.value)}
-                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                  />
-                </div>
+          <div className={activeTab === 'security' ? 'space-y-5 block' : 'hidden'}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-300">OTP Validity Expiration (Seconds)</label>
+                <input
+                  type="number"
+                  value={otpExpirationSec}
+                  onChange={(e) => setOtpExpirationSec(e.target.value)}
+                  className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
+                />
               </div>
 
-              <div className="p-4 bg-gray-900/60 border border-gray-800 rounded-2xl flex items-center justify-between">
-                <div>
-                  <h4 className="text-xs font-bold text-white">Platform Maintenance Lockdown</h4>
-                  <p className="text-[11px] text-gray-400">Temporarily pause customer checkout while updating database indexes</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setMaintenanceMode(!maintenanceMode)}
-                  className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${
-                    maintenanceMode ? 'bg-red-500 text-white' : 'bg-gray-800 text-gray-400'
-                  }`}
-                >
-                  {maintenanceMode ? 'Lockdown ACTIVE' : 'Normal Operation'}
-                </button>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-300">Max Failed Login Attempts</label>
+                <input
+                  type="number"
+                  value={maxLoginAttempts}
+                  onChange={(e) => setMaxLoginAttempts(e.target.value)}
+                  className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
+                />
               </div>
             </div>
-          )}
+
+            <div className="p-4 bg-gray-900/60 border border-gray-800 rounded-2xl flex items-center justify-between">
+              <div>
+                <h4 className="text-xs font-bold text-white">Platform Maintenance Lockdown</h4>
+                <p className="text-[11px] text-gray-400">Temporarily pause customer checkout while updating database indexes</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMaintenanceMode(!maintenanceMode)}
+                className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${
+                  maintenanceMode ? 'bg-red-500 text-white' : 'bg-gray-800 text-gray-400'
+                }`}
+              >
+                {maintenanceMode ? 'Lockdown ACTIVE' : 'Normal Operation'}
+              </button>
+            </div>
+          </div>
 
           {/* Mobile App Store Links */}
-          {activeTab === 'mobile' && (
+          <div className={activeTab === 'mobile' ? 'space-y-4 block' : 'hidden'}>
             <div className="space-y-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-gray-300">Google Play Store URL</label>
@@ -507,7 +497,7 @@ export default function AdminSettingsPage() {
                 />
               </div>
             </div>
-          )}
+          </div>
 
           <div className="flex justify-end pt-4 border-t border-gray-800">
             <button
