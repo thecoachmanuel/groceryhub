@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import SystemSettings from '@/models/SystemSettings';
 import { apiSuccess, apiError } from '@/lib/api-response';
@@ -12,7 +12,7 @@ const DEFAULT_SETTINGS = {
   supportEmail: 'support@groceryhub.ng',
   address: 'Plot 14, Adeola Odeku St, Victoria Island, Lagos, Nigeria',
   storeLogoUrl: '',
-  currencySymbol: '₦',
+  currencySymbol: '\u20a6',
   currencyCode: 'NGN',
   timezone: 'Africa/Lagos (WAT)',
   orderPrefix: 'ORD-',
@@ -21,10 +21,13 @@ const DEFAULT_SETTINGS = {
   freeDeliveryThreshold: 15000,
   deliveryFee: 1500,
   platformServiceFee: 500,
-  announcementText: '⚡ 30-Minute Express Grocery Delivery across Lagos! Free shipping over ₦15,000',
+  taxRate: 7.5,
+  announcementText: '\u26a1 30-Minute Express Grocery Delivery across Lagos! Free shipping over \u20a615,000',
   maintenanceMode: false,
   playStoreUrl: 'https://play.google.com/store/apps/details?id=com.groceryhub.customer',
   appStoreUrl: 'https://apps.apple.com/app/groceryhub-delivery/id159023481',
+  paystackPublicKey: '',
+  paystackSecretKey: '',
 };
 
 export async function GET() {
@@ -32,6 +35,7 @@ export async function GET() {
     await connectToDatabase();
     let settings = await SystemSettings.findOne().lean();
     if (!settings) {
+      // Seed defaults on first run
       settings = await SystemSettings.create(DEFAULT_SETTINGS);
     }
     return apiSuccess(settings, 'System settings loaded');
@@ -46,15 +50,21 @@ export async function POST(req: NextRequest) {
     await connectToDatabase();
     const body = await req.json().catch(() => ({}));
 
-    let settings = await SystemSettings.findOne();
-    if (settings) {
-      Object.assign(settings, body);
-      await settings.save();
-    } else {
-      settings = await SystemSettings.create({ ...DEFAULT_SETTINGS, ...body });
-    }
+    // Use findOneAndUpdate with $set for reliable atomic write.
+    // Object.assign + save() doesn't reliably mark all Mongoose fields as
+    // modified, causing silent no-ops on certain field types.
+    const updated = await SystemSettings.findOneAndUpdate(
+      {},           // match the single settings document
+      { $set: body },
+      {
+        new: true,        // return the updated document
+        upsert: true,     // create if it doesn't exist yet
+        runValidators: true,
+        lean: true,
+      }
+    );
 
-    return apiSuccess(settings, 'System settings updated successfully');
+    return apiSuccess(updated, 'System settings updated successfully');
   } catch (error: any) {
     console.error('POST /api/admin/settings error:', error);
     return apiError(error?.message || 'Failed to update system settings', 500);
