@@ -24,9 +24,10 @@ function CustomerLoginPageContent() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      router.replace('/');
+      const redirectTarget = searchParams?.get('redirect') || '/';
+      router.replace(redirectTarget);
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, searchParams, router]);
 
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -127,9 +127,9 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Set HTTP Cookies on Response Header
-    res.cookies.set('auth_token', token, { path: '/', maxAge: 604800, sameSite: 'lax' });
-    res.cookies.set('user_role', 'user', { path: '/', maxAge: 604800, sameSite: 'lax' });
+    // Set HTTP Cookies on Response Header (1 year maxAge)
+    res.cookies.set('auth_token', token, { path: '/', maxAge: 31536000, sameSite: 'lax' });
+    res.cookies.set('user_role', 'user', { path: '/', maxAge: 31536000, sameSite: 'lax' });
 
     return res;
   } catch (error: any) {

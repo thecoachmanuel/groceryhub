@@ -68,7 +68,6 @@ export function middleware(req: NextRequest) {
   const customerRoutes = [
     '/profile',
     '/order-history',
-    '/checkout',
     '/wallet',
   ];
 
