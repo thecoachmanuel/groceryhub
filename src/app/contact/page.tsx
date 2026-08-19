@@ -6,7 +6,10 @@ import { Mail, Phone, MapPin, Clock, Send, CheckCircle2, ArrowLeft, MessageSquar
 import Header from '@/components/website/Header';
 import Footer from '@/components/website/Footer';
 
+import { useSystemSettings } from '@/context/SystemSettingsContext';
+
 export default function ContactUsPage() {
+  const { settings } = useSystemSettings();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [subject, setSubject] = useState('');
@@ -48,7 +51,7 @@ export default function ContactUsPage() {
                 <Phone size={20} />
               </div>
               <h4 className="font-bold text-sm text-gray-900 dark:text-white">Phone Support</h4>
-              <p className="text-xs text-gray-500 dark:text-gray-400">+1 (800) 123-4567</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{settings.supportPhone || '+234 (800) 123-4567'}</p>
               <span className="text-[11px] text-[#0aad0a] font-bold">Mon - Sun (8:00 AM - 10:00 PM)</span>
             </div>
 
@@ -57,7 +60,7 @@ export default function ContactUsPage() {
                 <Mail size={20} />
               </div>
               <h4 className="font-bold text-sm text-gray-900 dark:text-white">Email Inquiries</h4>
-              <p className="text-xs text-gray-500 dark:text-gray-400">support@groceryhub.com</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{settings.supportEmail || 'support@groceryhub.ng'}</p>
               <span className="text-[11px] text-gray-400">Average response time: &lt; 15 mins</span>
             </div>
 
@@ -67,7 +70,7 @@ export default function ContactUsPage() {
               </div>
               <h4 className="font-bold text-sm text-gray-900 dark:text-white">Headquarters</h4>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                124 Market Square, Downtown Zone, New York, NY 10001
+                {settings.address || 'Plot 14, Adeola Odeku St, Victoria Island, Lagos, Nigeria'}
               </p>
             </div>
           </div>

@@ -71,6 +71,13 @@ export default function Header({ cartCount, onOpenCart }: HeaderProps) {
 
   return (
     <header className="sticky top-0 z-40 bg-white dark:bg-[#1e2632] border-b border-gray-200 dark:border-gray-800 transition-colors shadow-sm">
+      {/* Platform Maintenance Banner */}
+      {settings.maintenanceMode && (
+        <div className="bg-red-600 text-white text-xs py-2 px-4 text-center font-bold flex items-center justify-center gap-2 shadow-md">
+          <span>⚠️ PLATFORM MAINTENANCE LOCKDOWN ACTIVE — Admin is updating backend database indexes. Checkout is temporarily paused.</span>
+        </div>
+      )}
+
       {/* Top Notification Bar */}
       <div className="bg-[#0aad0a] text-white text-xs py-1.5 px-4 hidden md:block">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
@@ -119,10 +126,14 @@ export default function Header({ cartCount, onOpenCart }: HeaderProps) {
           {/* Logo & City Selector */}
           <div className="flex items-center gap-6">
             <Link href="/" className="flex items-center gap-2 text-2xl font-black text-gray-900 dark:text-white tracking-tight">
-              <div className="w-10 h-10 rounded-xl bg-[#0aad0a] flex items-center justify-center text-white shadow-md shadow-[#0aad0a]/30">
-                <ShoppingBag size={22} className="stroke-[2.5]" />
-              </div>
-              <span>Grocery<span className="text-[#0aad0a]">Hub</span></span>
+              {settings.storeLogoUrl ? (
+                <img src={settings.storeLogoUrl} alt={settings.appName} className="h-10 w-auto object-contain rounded-lg" />
+              ) : (
+                <div className="w-10 h-10 rounded-xl bg-[#0aad0a] flex items-center justify-center text-white shadow-md shadow-[#0aad0a]/30">
+                  <ShoppingBag size={22} className="stroke-[2.5]" />
+                </div>
+              )}
+              <span>{settings.appName || 'GroceryHub'}</span>
             </Link>
 
             {/* City Location Picker */}

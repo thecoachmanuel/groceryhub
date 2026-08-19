@@ -64,26 +64,30 @@ export default function Footer() {
           {/* Brand & About */}
           <div className="lg:col-span-2 space-y-4">
             <Link href="/" className="flex items-center gap-2 text-2xl font-black text-gray-900 dark:text-white">
-              <div className="w-10 h-10 rounded-xl bg-[#0aad0a] flex items-center justify-center text-white shadow-md shadow-[#0aad0a]/30">
-                <ShoppingBag size={22} className="stroke-[2.5]" />
-              </div>
-              <span>Grocery<span className="text-[#0aad0a]">Hub</span></span>
+              {settings.storeLogoUrl ? (
+                <img src={settings.storeLogoUrl} alt={settings.appName} className="h-10 w-auto object-contain rounded-lg" />
+              ) : (
+                <div className="w-10 h-10 rounded-xl bg-[#0aad0a] flex items-center justify-center text-white shadow-md shadow-[#0aad0a]/30">
+                  <ShoppingBag size={22} className="stroke-[2.5]" />
+                </div>
+              )}
+              <span>{settings.appName || 'GroceryHub'}</span>
             </Link>
             <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed max-w-sm">
-              Your one-stop destination for fresh farm produce, organic groceries, dairy, bakery, and everyday pantry essentials delivered right to your doorstep.
+              {settings.appDescription || 'Your one-stop destination for fresh farm produce, organic groceries, dairy, bakery, and everyday pantry essentials delivered right to your doorstep.'}
             </p>
             <div className="space-y-2 text-sm text-gray-600 dark:text-gray-300">
               <div className="flex items-center gap-2">
-                <MapPin size={16} className="text-[#0aad0a]" />
+                <MapPin size={16} className="text-[#0aad0a] flex-shrink-0" />
                 <span>{settings.address || 'Plot 14, Adeola Odeku St, Victoria Island, Lagos, Nigeria'}</span>
               </div>
               <div className="flex items-center gap-2">
-                <Phone size={16} className="text-[#0aad0a]" />
-                <span>{settings.supportPhone}</span>
+                <Phone size={16} className="text-[#0aad0a] flex-shrink-0" />
+                <span>{settings.supportPhone || '+234 (800) 123-4567'}</span>
               </div>
               <div className="flex items-center gap-2">
-                <Mail size={16} className="text-[#0aad0a]" />
-                <span>{settings.supportEmail}</span>
+                <Mail size={16} className="text-[#0aad0a] flex-shrink-0" />
+                <span>{settings.supportEmail || 'support@groceryhub.ng'}</span>
               </div>
             </div>
           </div>
@@ -137,7 +141,7 @@ export default function Footer() {
         </div>
 
         <div className="border-t border-gray-100 dark:border-gray-800 mt-12 pt-8 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-          <p>© {new Date().getFullYear()} GroceryHub Inc. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} {settings.appName || 'GroceryHub'} Inc. All rights reserved.</p>
           <div className="flex items-center gap-4">
             <span>Powered by Next.js 14 & Cloudinary</span>
           </div>
