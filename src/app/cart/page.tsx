@@ -102,7 +102,7 @@ export default function CartPage() {
   const freeDeliveryThreshold = settings?.freeDeliveryThreshold ?? 15000;
   const baseDeliveryFee = settings?.deliveryFee ?? 1500;
   const platformServiceFee = items.length > 0 ? (settings?.platformServiceFee ?? 500) : 0;
-  const taxRate = ((settings as any)?.taxRate ?? 7.5) / 100;
+  const taxRate = (settings?.taxRate ?? 7.5) / 100;
 
   const updateQuantity = (id: number | string, delta: number) => {
     const current = items.find(i => String(i.id) === String(id));

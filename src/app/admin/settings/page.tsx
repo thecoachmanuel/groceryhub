@@ -22,7 +22,7 @@ import LocalImageUploader from '@/components/common/LocalImageUploader';
 import { formatNaira } from '@/lib/currency';
 
 export default function AdminSettingsPage() {
-  const [activeTab, setActiveTab] = useState<'general' | 'localization' | 'orders' | 'security' | 'mobile'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'localization' | 'orders' | 'security' | 'mobile' | 'payment'>('general');
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   // General Identity
@@ -41,8 +41,11 @@ export default function AdminSettingsPage() {
   // Orders & Logistics Defaults
   const [orderPrefix, setOrderPrefix] = useState('ORD-');
   const [defaultRadius, setDefaultRadius] = useState('15');
-  const [minOrderSpend, setMinOrderSpend] = useState('2000.00');
-  const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState('15000.00');
+  const [minOrderSpend, setMinOrderSpend] = useState('2000');
+  const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState('15000');
+  const [deliveryFee, setDeliveryFee] = useState('1500');
+  const [platformServiceFee, setPlatformServiceFee] = useState('500');
+  const [taxRate, setTaxRate] = useState('7.5');
   const [autoAssignDrivers, setAutoAssignDrivers] = useState(true);
 
   // Security & Auth
@@ -53,6 +56,10 @@ export default function AdminSettingsPage() {
   // Mobile App Links
   const [playStoreUrl, setPlayStoreUrl] = useState('https://play.google.com/store/apps/details?id=com.groceryhub.customer');
   const [appStoreUrl, setAppStoreUrl] = useState('https://apps.apple.com/app/groceryhub-delivery/id159023481');
+
+  // Payment Gateway
+  const [paystackPublicKey, setPaystackPublicKey] = useState('');
+  const [paystackSecretKey, setPaystackSecretKey] = useState('');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -73,12 +80,17 @@ export default function AdminSettingsPage() {
           if (s.currencyCode) setCurrencyCode(s.currencyCode);
           if (s.timezone) setTimezone(s.timezone);
           if (s.orderPrefix) setOrderPrefix(s.orderPrefix);
-          if (s.defaultRadius) setDefaultRadius(String(s.defaultRadius));
-          if (s.minOrderSpend) setMinOrderSpend(String(s.minOrderSpend));
-          if (s.freeDeliveryThreshold) setFreeDeliveryThreshold(String(s.freeDeliveryThreshold));
+          if (s.defaultRadius !== undefined) setDefaultRadius(String(s.defaultRadius));
+          if (s.minOrderSpend !== undefined) setMinOrderSpend(String(s.minOrderSpend));
+          if (s.freeDeliveryThreshold !== undefined) setFreeDeliveryThreshold(String(s.freeDeliveryThreshold));
+          if (s.deliveryFee !== undefined) setDeliveryFee(String(s.deliveryFee));
+          if (s.platformServiceFee !== undefined) setPlatformServiceFee(String(s.platformServiceFee));
+          if (s.taxRate !== undefined) setTaxRate(String(s.taxRate));
           if (s.maintenanceMode !== undefined) setMaintenanceMode(s.maintenanceMode);
           if (s.playStoreUrl) setPlayStoreUrl(s.playStoreUrl);
           if (s.appStoreUrl) setAppStoreUrl(s.appStoreUrl);
+          if (s.paystackPublicKey) setPaystackPublicKey(s.paystackPublicKey);
+          if (s.paystackSecretKey) setPaystackSecretKey(s.paystackSecretKey);
         }
       } catch (err) {
         console.warn('Failed to load admin settings:', err);
@@ -105,9 +117,14 @@ export default function AdminSettingsPage() {
         defaultRadius: Number(defaultRadius),
         minOrderSpend: Number(minOrderSpend),
         freeDeliveryThreshold: Number(freeDeliveryThreshold),
+        deliveryFee: Number(deliveryFee),
+        platformServiceFee: Number(platformServiceFee),
+        taxRate: Number(taxRate),
         maintenanceMode,
         playStoreUrl,
         appStoreUrl,
+        paystackPublicKey,
+        paystackSecretKey,
       };
 
       const res = await fetch('/api/admin/settings', {
@@ -160,9 +177,10 @@ export default function AdminSettingsPage() {
           {[
             { id: 'general', label: 'Store Identity', icon: Settings },
             { id: 'localization', label: 'Currency & Timezone', icon: Globe },
-            { id: 'orders', label: 'Orders & Dispatch', icon: Truck },
-            { id: 'security', label: 'Security & Maintenance', icon: ShieldCheck },
-            { id: 'mobile', label: 'Mobile App Store Links', icon: Smartphone },
+            { id: 'orders', label: 'Orders & Fees', icon: Truck },
+            { id: 'payment', label: 'Payment Gateway', icon: ShieldCheck },
+            { id: 'security', label: 'Security & Maintenance', icon: Lock },
+            { id: 'mobile', label: 'Mobile App Links', icon: Smartphone },
           ].map((t) => {
             const Icon = t.icon;
             return (
@@ -347,6 +365,87 @@ export default function AdminSettingsPage() {
                     className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
                     required
                   />
+                </div>
+              </div>
+
+              {/* Delivery Fee, Platform Fee, VAT */}
+              <div className="p-4 bg-emerald-950/30 border border-emerald-800/40 rounded-2xl space-y-4">
+                <h3 className="text-xs font-black text-emerald-400 flex items-center gap-2">
+                  <Truck size={14} /> Checkout Fees & Tax (Live on Storefront)
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-gray-300">Delivery Charge (₦)</label>
+                    <input
+                      type="number"
+                      step="50"
+                      min="0"
+                      value={deliveryFee}
+                      onChange={(e) => setDeliveryFee(e.target.value)}
+                      className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
+                    />
+                    <p className="text-[10px] text-gray-500">Applied when order is below free-delivery threshold</p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-gray-300">Platform Service Fee (₦)</label>
+                    <input
+                      type="number"
+                      step="50"
+                      min="0"
+                      value={platformServiceFee}
+                      onChange={(e) => setPlatformServiceFee(e.target.value)}
+                      className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
+                    />
+                    <p className="text-[10px] text-gray-500">Fixed platform handling fee per order</p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-gray-300">VAT / Tax Rate (%)</label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="0"
+                      max="100"
+                      value={taxRate}
+                      onChange={(e) => setTaxRate(e.target.value)}
+                      className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
+                    />
+                    <p className="text-[10px] text-gray-500">Percentage applied on subtotal (e.g. 7.5 for 7.5%)</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Payment Gateway */}
+          {activeTab === 'payment' && (
+            <div className="space-y-5">
+              <div className="p-4 bg-blue-950/30 border border-blue-800/40 rounded-2xl">
+                <h3 className="text-xs font-black text-blue-400 mb-1">Paystack Payment Gateway</h3>
+                <p className="text-[11px] text-gray-400 mb-4">Live/test keys from your Paystack dashboard (dashboard.paystack.com). Leave blank to use keys from environment variables.</p>
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-gray-300">Paystack Public Key (pk_...)</label>
+                    <input
+                      type="text"
+                      value={paystackPublicKey}
+                      onChange={(e) => setPaystackPublicKey(e.target.value)}
+                      placeholder="pk_live_... or pk_test_..."
+                      className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs font-mono focus:outline-none focus:border-[#0aad0a]"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-gray-300">Paystack Secret Key (sk_...)</label>
+                    <input
+                      type="password"
+                      value={paystackSecretKey}
+                      onChange={(e) => setPaystackSecretKey(e.target.value)}
+                      placeholder="sk_live_... or sk_test_..."
+                      className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs font-mono focus:outline-none focus:border-[#0aad0a]"
+                    />
+                    <p className="text-[10px] text-red-400">⚠️ Never share your secret key. Stored securely in MongoDB, never exposed to frontend.</p>
+                  </div>
                 </div>
               </div>
             </div>

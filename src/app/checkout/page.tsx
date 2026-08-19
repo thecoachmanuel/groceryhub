@@ -156,7 +156,7 @@ export default function CheckoutPage() {
   const freeDeliveryThreshold = settings?.freeDeliveryThreshold ?? 15000;
   const baseDeliveryFee = settings?.deliveryFee ?? 1500;
   const serviceFeeAmount = settings?.platformServiceFee ?? 500;
-  const taxRate = (settings as any)?.taxRate ?? 7.5;
+  const taxRate = settings?.taxRate ?? 7.5;
 
   const isFreeDelivery = itemSubtotal >= freeDeliveryThreshold || itemSubtotal === 0;
   const deliveryFee = isFreeDelivery ? 0.00 : baseDeliveryFee;

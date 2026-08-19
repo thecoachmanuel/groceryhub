@@ -19,11 +19,12 @@ export async function POST(req: NextRequest) {
         ? email.trim()
         : 'customer@groceryhub.ng';
 
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000';
     const paystackRes = await initializePaystackTransaction({
       email: cleanEmail,
       amount: numAmount,
       reference: reference || `ORD_NG_${Date.now()}`,
-      callback_url: callback_url || `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/order-history`,
+      callback_url: callback_url || `${baseUrl}/order-history`,
       metadata,
       currency: 'NGN',
     });
