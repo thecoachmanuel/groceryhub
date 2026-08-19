@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   DollarSign, 
@@ -15,10 +15,12 @@ import {
   CreditCard,
   Building,
   Calendar,
-  Filter
+  Filter,
+  RefreshCw
 } from 'lucide-react';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import { formatNaira } from '@/lib/currency';
+import { apiFetch } from '@/lib/api-fetch';
 
 interface PaymentRecord {
   id: number;
@@ -81,57 +83,123 @@ const INITIAL_PAYMENTS: PaymentRecord[] = [
 ];
 
 export default function AdminSellerPaymentHistoryPage() {
-  const [payments, setPayments] = useState<PaymentRecord[]>(INITIAL_PAYMENTS);
+  const [payments, setPayments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [sellersList, setSellersList] = useState<any[]>([]);
 
   // Modal Form
-  const [sellerName, setSellerName] = useState('Fresh Harvest Organics');
-  const [amount, setAmount] = useState(500.00);
-  const [commissionRate, setCommissionRate] = useState(5);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentRecord['payment_method']>('ACH Direct Deposit');
-  const [bankAccount, setBankAccount] = useState('Chase Bank •••• 4891');
+  const [selectedSellerId, setSelectedSellerId] = useState<number>(1);
+  const [amount, setAmount] = useState('50000');
+  const [bankName, setBankName] = useState('Zenith Bank PLC');
+  const [accountNumber, setAccountNumber] = useState('0123456789');
+  const [accountName, setAccountName] = useState('');
+  const [transferRef, setTransferRef] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const openModal = () => {
-    setSellerName('Fresh Harvest Organics');
-    setAmount(500.00);
-    setCommissionRate(5);
-    setPaymentMethod('ACH Direct Deposit');
-    setBankAccount('Chase Bank •••• 4891');
-    setIsModalOpen(true);
+  const fetchWithdrawals = async () => {
+    try {
+      setLoading(true);
+      const res = await apiFetch('/api/admin/withdrawals?type=seller');
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        setPayments(json.data);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch seller settlements:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleRecordPayout = (e: React.FormEvent) => {
+  const fetchSellers = async () => {
+    try {
+      const res = await apiFetch('/api/admin/sellers');
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        setSellersList(json.data);
+      }
+    } catch (err) { console.warn(err); }
+  };
+
+  useEffect(() => {
+    fetchWithdrawals();
+    fetchSellers();
+  }, []);
+
+  const handleApprove = async (requestId: string) => {
+    const ref = prompt('Enter Bank NIP Transfer Reference Number:', `NIP-${Math.floor(100000 + Math.random() * 900000)}`);
+    if (!ref) return;
+    try {
+      const res = await apiFetch('/api/admin/withdrawals', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ request_id: requestId, status: 'transferred', transfer_reference: ref }),
+      });
+      const json = await res.json();
+      if (json.success) fetchWithdrawals();
+      else alert(json.message || 'Failed to approve');
+    } catch (err) { alert('Error updating withdrawal'); }
+  };
+
+  const handleReject = async (requestId: string) => {
+    const reason = prompt('Enter rejection reason for vendor:', 'Bank details invalid or insufficient balance');
+    if (!reason) return;
+    try {
+      const res = await apiFetch('/api/admin/withdrawals', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ request_id: requestId, status: 'rejected', rejection_reason: reason }),
+      });
+      const json = await res.json();
+      if (json.success) fetchWithdrawals();
+      else alert(json.message || 'Failed to reject');
+    } catch (err) { alert('Error updating withdrawal'); }
+  };
+
+  const handleRecordPayout = async (e: React.FormEvent) => {
     e.preventDefault();
-    const comm = (amount * commissionRate) / 100;
-    const net = amount - comm;
+    const val = parseFloat(amount || '0');
+    if (val <= 0) return alert('Enter valid payout amount');
 
-    const newPay: PaymentRecord = {
-      id: Date.now(),
-      seller_id: 1,
-      seller_name: sellerName,
-      store_name: sellerName + ' Store',
-      txn_id: `TXN-PAY-${Math.floor(10000 + Math.random() * 90000)}`,
-      amount,
-      commission_deducted: comm,
-      net_payout: net,
-      bank_account: bankAccount,
-      payout_date: new Date().toISOString().replace('T', ' ').slice(0, 16),
-      payment_method: paymentMethod,
-      status: 'Completed'
-    };
-
-    setPayments([newPay, ...payments]);
-    setIsModalOpen(false);
+    const sellerObj = sellersList.find((s) => (s.id || s.seller_id) === selectedSellerId) || {};
+    setSubmitting(true);
+    try {
+      const res = await apiFetch('/api/admin/withdrawals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requester_type: 'seller',
+          requester_id: selectedSellerId,
+          requester_name: sellerObj.store_name || sellerObj.name || 'Vendor',
+          amount: val,
+          bank_name: bankName,
+          account_number: accountNumber,
+          account_name: accountName || sellerObj.name || 'Vendor',
+          transfer_reference: transferRef || `NIP-${Math.floor(100000 + Math.random() * 900000)}`,
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setIsModalOpen(false);
+        fetchWithdrawals();
+      } else alert(json.message || 'Failed to record payout');
+    } catch (err) { alert('Error recording payout'); }
+    finally { setSubmitting(false); }
   };
 
-  const totalDisbursed = payments.reduce((acc, p) => acc + p.net_payout, 0);
-  const totalCommissionEarned = payments.reduce((acc, p) => acc + p.commission_deducted, 0);
+  const totalDisbursed = payments
+    .filter((p) => p.status === 'transferred' || p.status === 'approved')
+    .reduce((acc, p) => acc + (p.amount || 0), 0);
+  const pendingAmount = payments
+    .filter((p) => p.status === 'pending')
+    .reduce((acc, p) => acc + (p.amount || 0), 0);
 
-  const filtered = payments.filter(p => 
-    p.seller_name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    p.txn_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.bank_account.toLowerCase().includes(searchQuery.toLowerCase())
+  const filtered = payments.filter((p) =>
+    (p.requester_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (p.request_id || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (p.bank_name || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -157,7 +225,7 @@ export default function AdminSellerPaymentHistoryPage() {
 
           <div className="flex items-center gap-2">
             <button
-              onClick={openModal}
+              onClick={() => setIsModalOpen(true)}
               className="bg-[#0aad0a] hover:bg-[#088f08] text-white text-xs font-black px-5 py-2.5 rounded-2xl flex items-center gap-2 shadow-lg shadow-[#0aad0a]/30 transition-all active:scale-95"
             >
               <Plus size={16} />
@@ -179,27 +247,29 @@ export default function AdminSellerPaymentHistoryPage() {
         {/* Financial Stat Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-[#1e2632] border border-gray-800 rounded-3xl p-6 space-y-1">
-            <span className="text-xs font-bold text-gray-400">Total Net Disbursed</span>
-            <div className="text-2xl font-black text-white font-mono">
+            <span className="text-xs font-bold text-gray-400">Total Disbursed (Transferred)</span>
+            <div className="text-2xl font-black text-[#0aad0a] font-mono">
               {formatNaira(totalDisbursed)}
             </div>
-            <span className="text-[11px] text-[#0aad0a] font-semibold">Processed to partner Nigerian banks</span>
+            <span className="text-[11px] text-gray-400 font-semibold">Processed payouts to vendor bank accounts</span>
           </div>
 
           <div className="bg-[#1e2632] border border-gray-800 rounded-3xl p-6 space-y-1">
-            <span className="text-xs font-bold text-gray-400">Platform Commission Retained</span>
+            <span className="text-xs font-bold text-gray-400">Pending Payout Requests</span>
             <div className="text-2xl font-black text-amber-400 font-mono">
-              {formatNaira(totalCommissionEarned)}
+              {formatNaira(pendingAmount)}
             </div>
-            <span className="text-[11px] text-gray-400 font-semibold">Net platform profit share (5%)</span>
+            <span className="text-[11px] text-amber-400 font-semibold">
+              {payments.filter((p) => p.status === 'pending').length} request(s) awaiting approval
+            </span>
           </div>
 
           <div className="bg-[#1e2632] border border-gray-800 rounded-3xl p-6 space-y-1">
-            <span className="text-xs font-bold text-gray-400">Total Settlements</span>
+            <span className="text-xs font-bold text-gray-400">Total Settlement Requests</span>
             <div className="text-2xl font-black text-blue-400 font-mono">
-              {payments.length} Runs
+              {payments.length} Records
             </div>
-            <span className="text-[11px] text-gray-400 font-semibold">Zero failed disbursements</span>
+            <span className="text-[11px] text-gray-400 font-semibold">Live MongoDB audit log</span>
           </div>
         </div>
 
@@ -210,73 +280,111 @@ export default function AdminSellerPaymentHistoryPage() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by vendor name, TXN ID, or bank..."
+              placeholder="Search by vendor name, Request ID, or bank..."
               className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl py-2 pl-9 pr-3 text-xs focus:outline-none focus:border-[#0aad0a]"
             />
             <Search size={16} className="absolute left-3 top-2.5 text-gray-400" />
           </div>
+          <button
+            onClick={fetchWithdrawals}
+            className="p-2.5 bg-gray-800 hover:bg-gray-700 rounded-xl text-gray-300 transition-colors"
+            title="Refresh settlements"
+          >
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+          </button>
         </div>
 
         {/* Table */}
         <div className="bg-[#1e2632] border border-gray-800 rounded-3xl p-6 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-gray-800 text-gray-400 font-bold uppercase tracking-wider">
-                <tr>
-                  <th className="pb-3 px-3">Transaction ID</th>
-                  <th className="pb-3 px-3">Vendor / Store</th>
-                  <th className="pb-3 px-3">Gross Order Total (₦)</th>
-                  <th className="pb-3 px-3">Commission Cut (5%)</th>
-                  <th className="pb-3 px-3">Net Payout Transferred (₦)</th>
-                  <th className="pb-3 px-3">Disbursement Method</th>
-                  <th className="pb-3 px-3">Date</th>
-                  <th className="pb-3 px-3 text-right">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-800/60 font-medium text-gray-300">
-                {filtered.map((p) => (
-                  <tr key={p.id} className="hover:bg-gray-800/40 transition-colors">
-                    <td className="py-3.5 px-3 font-mono font-bold text-white">
-                      {p.txn_id}
-                    </td>
-                    <td className="py-3.5 px-3">
-                      <div className="font-bold text-white text-sm">{p.seller_name}</div>
-                      <span className="text-[11px] text-gray-400">{p.bank_account}</span>
-                    </td>
-                    <td className="py-3.5 px-3 text-gray-300 font-mono font-bold">
-                      {formatNaira(p.amount)}
-                    </td>
-                    <td className="py-3.5 px-3 text-amber-400 font-mono font-bold">
-                      -{formatNaira(p.commission_deducted)}
-                    </td>
-                    <td className="py-3.5 px-3 text-[#0aad0a] font-mono font-black text-sm">
-                      {formatNaira(p.net_payout)}
-                    </td>
-                    <td className="py-3.5 px-3">
-                      <span className="bg-gray-900 border border-gray-700 px-2.5 py-1 rounded-lg text-gray-300 font-medium text-[11px]">
-                        {p.payment_method}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-3 text-gray-400 text-[11px]">
-                      {p.payout_date}
-                    </td>
-                    <td className="py-3.5 px-3 text-right">
-                      <span className="bg-emerald-950/40 text-[#0aad0a] border border-[#0aad0a]/30 font-bold px-2.5 py-1 rounded-full text-[10px]">
-                        ✓ {p.status}
-                      </span>
-                    </td>
+          {loading ? (
+            <div className="text-center py-10 text-xs text-gray-400">Loading vendor settlements...</div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-10 text-xs text-gray-400">No vendor settlement records found.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="border-b border-gray-800 text-gray-400 font-bold uppercase tracking-wider">
+                  <tr>
+                    <th className="pb-3 px-3">Request ID</th>
+                    <th className="pb-3 px-3">Vendor / Store</th>
+                    <th className="pb-3 px-3">Payout Amount (₦)</th>
+                    <th className="pb-3 px-3">Bank Account</th>
+                    <th className="pb-3 px-3">Date</th>
+                    <th className="pb-3 px-3">Status</th>
+                    <th className="pb-3 px-3 text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-800/60 font-medium text-gray-300">
+                  {filtered.map((p) => (
+                    <tr key={p.request_id || p._id} className="hover:bg-gray-800/40 transition-colors">
+                      <td className="py-3.5 px-3 font-mono font-bold text-amber-400">
+                        {p.request_id}
+                      </td>
+                      <td className="py-3.5 px-3">
+                        <div className="font-bold text-white text-sm">{p.requester_name}</div>
+                        <span className="text-[11px] text-gray-400">Vendor #{p.requester_id}</span>
+                      </td>
+                      <td className="py-3.5 px-3 text-[#0aad0a] font-mono font-black text-sm">
+                        {formatNaira(p.amount)}
+                      </td>
+                      <td className="py-3.5 px-3">
+                        <p className="font-bold text-white">{p.bank_name}</p>
+                        <p className="text-gray-400 text-[11px]">{p.account_name}</p>
+                        <p className="text-gray-500 font-mono text-[10px]">•••• {p.account_number?.slice(-4)}</p>
+                      </td>
+                      <td className="py-3.5 px-3 text-gray-400 text-[11px]">
+                        {new Date(p.createdAt).toLocaleDateString('en-NG')}
+                      </td>
+                      <td className="py-3.5 px-3">
+                        <span className={`font-bold px-2.5 py-1 rounded-full text-[10px] ${
+                          p.status === 'transferred' || p.status === 'approved'
+                            ? 'bg-emerald-950/40 text-[#0aad0a] border border-[#0aad0a]/30'
+                            : p.status === 'rejected'
+                            ? 'bg-red-950/40 text-red-400 border border-red-800/30'
+                            : 'bg-amber-950/40 text-amber-400 border border-amber-800/30'
+                        }`}>
+                          {p.status === 'transferred' ? '✓ Transferred' : p.status === 'approved' ? '✓ Approved' : p.status === 'rejected' ? '✕ Rejected' : '● Pending'}
+                        </span>
+                        {p.transfer_reference && (
+                          <p className="text-[10px] font-mono text-gray-400 mt-0.5">{p.transfer_reference}</p>
+                        )}
+                        {p.rejection_reason && (
+                          <p className="text-[10px] text-red-400 mt-0.5">{p.rejection_reason}</p>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-3 text-right">
+                        {p.status === 'pending' ? (
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => handleApprove(p.request_id)}
+                              className="bg-[#0aad0a] hover:bg-[#088f08] text-white text-[11px] font-bold px-2.5 py-1 rounded-lg transition-all"
+                            >
+                              Approve Payout
+                            </button>
+                            <button
+                              onClick={() => handleReject(p.request_id)}
+                              className="bg-red-950 hover:bg-red-900 text-red-400 border border-red-800 text-[11px] font-bold px-2.5 py-1 rounded-lg transition-all"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-[11px] text-gray-500">Completed</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </main>
 
       {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#1e2632] w-full max-w-lg rounded-3xl p-6 sm:p-8 border border-gray-800 space-y-6 relative max-h-[90vh] overflow-y-auto">
+          <div className="bg-[#1e2632] w-full max-w-lg rounded-3xl p-6 sm:p-8 border border-gray-800 space-y-6 relative max-h-[90vh] overflow-y-auto text-white">
             <button
               onClick={() => setIsModalOpen(false)}
               className="absolute right-5 top-5 p-2 rounded-full hover:bg-gray-800 text-gray-400"
@@ -287,7 +395,7 @@ export default function AdminSellerPaymentHistoryPage() {
             <div>
               <h3 className="text-xl font-black">Record Vendor Payout</h3>
               <p className="text-xs text-gray-400 mt-0.5">
-                Log bank transfer disbursement and deduct platform commission fees
+                Execute direct bank transfer settlement for store online earnings
               </p>
             </div>
 
@@ -295,96 +403,85 @@ export default function AdminSellerPaymentHistoryPage() {
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-gray-300">Select Vendor Store</label>
                 <select
-                  value={sellerName}
-                  onChange={(e) => setSellerName(e.target.value)}
+                  value={selectedSellerId}
+                  onChange={(e) => setSelectedSellerId(Number(e.target.value))}
                   className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
                 >
-                  <option value="Fresh Harvest Organics">Fresh Harvest Organics</option>
-                  <option value="Green Valley Grocers">Green Valley Grocers</option>
-                  <option value="Brooklyn Artisanal Dairy">Brooklyn Artisanal Dairy</option>
-                  <option value="Daily Baker Market">Daily Baker Market</option>
+                  {sellersList.map((s) => (
+                    <option key={s._id || s.id} value={s.id || s.seller_id || 1}>
+                      {s.store_name || s.name || 'Vendor'} (ID #{s.id || s.seller_id})
+                    </option>
+                  ))}
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Gross Sales Value (₦)</label>
-                  <input
-                    type="number"
-                    step="1000"
-                    value={amount}
-                    onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
-                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs font-mono font-bold focus:outline-none focus:border-[#0aad0a]"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Commission Rate (%)</label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    value={commissionRate}
-                    onChange={(e) => setCommissionRate(parseFloat(e.target.value) || 0)}
-                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs font-mono font-bold focus:outline-none focus:border-[#0aad0a]"
-                    required
-                  />
-                </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-300">Payout Amount (₦)</label>
+                <input
+                  type="number"
+                  step="500"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs font-mono font-bold focus:outline-none focus:border-[#0aad0a]"
+                  required
+                />
               </div>
 
-              <div className="p-3 bg-gray-900 border border-gray-800 rounded-xl space-y-1 text-xs">
-                <div className="flex justify-between text-gray-400">
-                  <span>Platform Commission Cut ({commissionRate}%):</span>
-                  <span className="font-mono text-amber-400">{formatNaira((amount * commissionRate) / 100)}</span>
-                </div>
-                <div className="flex justify-between font-black text-white pt-1 border-t border-gray-800">
-                  <span>Net Payout to Bank:</span>
-                  <span className="font-mono text-[#0aad0a]">{formatNaira(amount - (amount * commissionRate) / 100)}</span>
-                </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-300">Bank Name</label>
+                <input
+                  type="text"
+                  value={bankName}
+                  onChange={(e) => setBankName(e.target.value)}
+                  placeholder="Zenith Bank PLC"
+                  className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
+                  required
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Transfer Channel</label>
-                  <select
-                    value={paymentMethod}
-                    onChange={(e) => setPaymentMethod(e.target.value as any)}
-                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                  >
-                    <option value="ACH Direct Deposit">ACH Direct Deposit</option>
-                    <option value="Stripe Connect">Stripe Connect</option>
-                    <option value="Manual Wire">Manual Wire</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Destination Bank Account</label>
+                  <label className="text-xs font-bold text-gray-300">Account Number</label>
                   <input
                     type="text"
-                    value={bankAccount}
-                    onChange={(e) => setBankAccount(e.target.value)}
-                    placeholder="e.g. Chase Bank •••• 4891"
-                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
+                    value={accountNumber}
+                    onChange={(e) => setAccountNumber(e.target.value)}
+                    maxLength={10}
+                    placeholder="0123456789"
+                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs font-mono focus:outline-none focus:border-[#0aad0a]"
                     required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-300">Account Holder Name</label>
+                  <input
+                    type="text"
+                    value={accountName}
+                    onChange={(e) => setAccountName(e.target.value)}
+                    placeholder="Account Name"
+                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
                   />
                 </div>
               </div>
 
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="submit"
-                  className="flex-1 bg-[#0aad0a] hover:bg-[#088f08] text-white font-black py-3.5 rounded-xl text-xs shadow-lg shadow-[#0aad0a]/30 transition-all"
-                >
-                  Confirm & Record Settlement
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold px-6 py-3.5 rounded-xl text-xs"
-                >
-                  Cancel
-                </button>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-300">Bank NIP Transfer Ref # (Optional)</label>
+                <input
+                  type="text"
+                  value={transferRef}
+                  onChange={(e) => setTransferRef(e.target.value)}
+                  placeholder="NIP-891240"
+                  className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs font-mono focus:outline-none focus:border-[#0aad0a]"
+                />
               </div>
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className="w-full bg-[#0aad0a] hover:bg-[#088f08] disabled:opacity-50 text-white font-black py-3.5 rounded-2xl text-xs flex items-center justify-center gap-2 transition-all active:scale-95"
+              >
+                {submitting ? 'Processing...' : 'Record & Execute Payout'}
+              </button>
             </form>
           </div>
         </div>
