@@ -26,8 +26,8 @@ export async function GET(req: NextRequest) {
     let totalGMV = 0;
     try {
       const gmvAggregation = await Order.aggregate([
-        { $match: { active_status: { $ne: 'cancelled' } } },
-        { $group: { _id: null, total: { $sum: '$total_payable' } } },
+        { $match: { order_status: { $ne: 'cancelled' }, active_status: { $ne: 'cancelled' } } },
+        { $group: { _id: null, total: { $sum: { $ifNull: ['$total_amount', '$total_payable'] } } } },
       ]);
       if (gmvAggregation && gmvAggregation.length > 0) {
         totalGMV = gmvAggregation[0].total || 0;
@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
     let orderStatusBreakdown: Record<string, number> = {};
     try {
       const statusAgg = await Order.aggregate([
-        { $group: { _id: '$active_status', count: { $sum: 1 } } },
+        { $group: { _id: { $ifNull: ['$order_status', '$active_status'] }, count: { $sum: 1 } } },
       ]);
       statusAgg.forEach((s: any) => {
         if (s._id) orderStatusBreakdown[s._id] = s.count;
@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
     let recentOrders: any[] = [];
     try {
       recentOrders = await Order.find()
-        .sort({ created_at: -1, _id: -1 })
+        .sort({ createdAt: -1, created_at: -1, _id: -1 })
         .limit(5)
         .lean();
     } catch (err) {

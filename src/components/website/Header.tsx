@@ -26,6 +26,7 @@ import ThemeToggle from './ThemeToggle';
 import { formatNaira } from '@/lib/currency';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
+import { useSystemSettings } from '@/context/SystemSettingsContext';
 
 interface HeaderProps {
   cartCount?: number;
@@ -35,6 +36,7 @@ interface HeaderProps {
 export default function Header({ cartCount, onOpenCart }: HeaderProps) {
   const { user, isAuthenticated, logout } = useAuth();
   const { cartCount: globalCartCount } = useCart();
+  const { settings } = useSystemSettings();
   const effectiveCartCount = cartCount !== undefined ? cartCount : globalCartCount;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
@@ -74,10 +76,10 @@ export default function Header({ cartCount, onOpenCart }: HeaderProps) {
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-6">
             <span className="flex items-center gap-1.5">
-              <Phone size={14} /> +1 (800) 123-4567
+              <Phone size={14} /> {settings.supportPhone}
             </span>
             <span className="flex items-center gap-1.5">
-              <Clock size={14} /> Express Delivery in 30 Mins
+              <Clock size={14} /> {settings.announcementText || 'Express Delivery in 30 Mins'}
             </span>
             {/* Multi-Language Switcher */}
             <div className="flex items-center gap-1 bg-white/10 px-2 py-0.5 rounded text-[11px] font-bold">

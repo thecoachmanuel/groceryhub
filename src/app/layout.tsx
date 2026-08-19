@@ -3,6 +3,7 @@ import './globals.css';
 import NutriGuideWidget from '@/components/website/NutriGuideWidget';
 import { AuthProvider } from '@/context/AuthContext';
 import { CartProvider } from '@/context/CartContext';
+import { SystemSettingsProvider } from '@/context/SystemSettingsContext';
 
 export const metadata: Metadata = {
   title: 'GroceryHub - Online Multi-Vendor Grocery Store & Delivery',
@@ -32,12 +33,14 @@ export default function RootLayout({
         />
       </head>
       <body className="bg-[#f8f9fa] dark:bg-[#121820] text-gray-800 dark:text-gray-100 min-h-screen antialiased overflow-x-hidden">
-        <AuthProvider>
-          <CartProvider>
-            {children}
-            <NutriGuideWidget />
-          </CartProvider>
-        </AuthProvider>
+        <SystemSettingsProvider>
+          <AuthProvider>
+            <CartProvider>
+              {children}
+              <NutriGuideWidget />
+            </CartProvider>
+          </AuthProvider>
+        </SystemSettingsProvider>
       </body>
     </html>
   );

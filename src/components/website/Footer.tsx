@@ -1,7 +1,12 @@
+'use client';
+
 import Link from 'next/link';
 import { ShoppingBag, Mail, Phone, MapPin, ShieldCheck, Truck, RefreshCw, Headphones, Bell } from 'lucide-react';
+import { useSystemSettings } from '@/context/SystemSettingsContext';
 
 export default function Footer() {
+  const { settings } = useSystemSettings();
+
   return (
     <footer className="bg-white dark:bg-[#1e2632] border-t border-gray-100 dark:border-gray-800 transition-colors mt-20">
       
@@ -70,15 +75,15 @@ export default function Footer() {
             <div className="space-y-2 text-sm text-gray-600 dark:text-gray-300">
               <div className="flex items-center gap-2">
                 <MapPin size={16} className="text-[#0aad0a]" />
-                <span>124 Market Square, Downtown Zone, NY 10001</span>
+                <span>{settings.address || 'Plot 14, Adeola Odeku St, Victoria Island, Lagos, Nigeria'}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Phone size={16} className="text-[#0aad0a]" />
-                <span>+1 (800) 123-4567</span>
+                <span>{settings.supportPhone}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Mail size={16} className="text-[#0aad0a]" />
-                <span>support@groceryhub.com</span>
+                <span>{settings.supportEmail}</span>
               </div>
             </div>
           </div>

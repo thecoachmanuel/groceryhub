@@ -65,6 +65,7 @@ const formatOrderFromApi = (o: any): Order => ({
 
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [riders, setRiders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -73,13 +74,24 @@ export default function AdminOrdersPage() {
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/orders');
-      const json = await res.json();
+      const [ordersRes, ridersRes] = await Promise.all([
+        fetch('/api/orders'),
+        fetch('/api/admin/delivery-boys').catch(() => null),
+      ]);
+
+      const json = await ordersRes.json();
       if (json.success && Array.isArray(json.data)) {
         setOrders(json.data.map(formatOrderFromApi));
       }
+
+      if (ridersRes) {
+        const ridersJson = await ridersRes.json();
+        if (ridersJson.success && Array.isArray(ridersJson.data)) {
+          setRiders(ridersJson.data);
+        }
+      }
     } catch (err) {
-      console.warn('Failed to fetch orders:', err);
+      console.warn('Failed to fetch orders or riders:', err);
     } finally {
       setLoading(false);
     }
@@ -91,10 +103,10 @@ export default function AdminOrdersPage() {
 
   const handleUpdateStatus = async (id: string, newStatus: string) => {
     try {
-      await fetch('/api/orders', {
-        method: 'PUT',
+      await fetch(`/api/orders/${id}`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId: id, active_status: newStatus }),
+        body: JSON.stringify({ order_status: newStatus }),
       });
     } catch (err) {
       console.warn('Status update error:', err);
@@ -107,12 +119,26 @@ export default function AdminOrdersPage() {
     }
   };
 
-  const handleAssignDriver = async (id: string, driver: string) => {
+  const handleAssignDriver = async (id: string, riderName: string) => {
+    const selectedRiderObj = riders.find((r) => r.name === riderName);
+    try {
+      await fetch(`/api/orders/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          delivery_boy_name: riderName,
+          delivery_boy_phone: selectedRiderObj?.mobile || '',
+          delivery_boy_id: selectedRiderObj?._id || selectedRiderObj?.delivery_boy_id || 1,
+        }),
+      });
+    } catch (err) {
+      console.warn('Rider assignment error:', err);
+    }
     setOrders((prev) =>
-      prev.map((o) => (o.id === id ? { ...o, driver } : o))
+      prev.map((o) => (o.id === id ? { ...o, driver: riderName } : o))
     );
     if (selectedOrder && selectedOrder.id === id) {
-      setSelectedOrder({ ...selectedOrder, driver });
+      setSelectedOrder({ ...selectedOrder, driver: riderName });
     }
   };
 
@@ -335,11 +361,12 @@ export default function AdminOrdersPage() {
                   onChange={(e) => handleAssignDriver(selectedOrder.id, e.target.value)}
                   className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-2.5 text-xs focus:outline-none focus:border-[#0aad0a]"
                 >
-                  <option value="Unassigned">Unassigned</option>
-                  <option value="Marcus Vance">Marcus Vance (Honda Scooter)</option>
-                  <option value="David Chen">David Chen (Electric Bike)</option>
-                  <option value="Alex Rivera">Alex Rivera (Yamaha Zuma)</option>
-                  <option value="James Wilson">James Wilson (TVS Star)</option>
+                  <option value="Unassigned">Unassigned Courier</option>
+                  {riders.map((r) => (
+                    <option key={r._id || r.name} value={r.name}>
+                      {r.name} ({r.mobile || r.vehicle_type || 'Courier Rider'})
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>

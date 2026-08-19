@@ -253,16 +253,18 @@ export default function AdminDashboardPage() {
                       <td className="py-3.5 px-3 font-bold text-white font-mono">
                         {row.order_id || `ORD-${row.id || '001'}`}
                       </td>
-                      <td className="py-3.5 px-3 text-gray-300">{row.user_id || row.customer_name || 'Guest'}</td>
-                      <td className="py-3.5 px-3 font-bold text-white font-mono">{formatNaira(row.total_payable || row.final_total || 0)}</td>
+                      <td className="py-3.5 px-3 text-gray-300">
+                        {row.customer_name || row.delivery_address?.title || (row.user_id ? `Customer #${row.user_id}` : 'Valued Customer')}
+                      </td>
+                      <td className="py-3.5 px-3 font-bold text-white font-mono">{formatNaira(row.total_amount || row.total_payable || row.final_total || 0)}</td>
                       <td className="py-3.5 px-3">
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-gray-800 text-gray-300 uppercase">
                           {row.payment_method || 'Online'}
                         </span>
                       </td>
                       <td className="py-3.5 px-3">
-                        <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-950 text-[#0aad0a]">
-                          ● {row.active_status || 'Received'}
+                        <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-950 text-[#0aad0a] capitalize">
+                          ● {row.order_status || row.active_status || 'placed'}
                         </span>
                       </td>
                       <td className="py-3.5 px-3 text-right">
