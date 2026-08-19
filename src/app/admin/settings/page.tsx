@@ -264,18 +264,6 @@ export default function AdminSettingsPage() {
               value={storeLogoUrl}
               onChange={setStoreLogoUrl}
             />
-
-            <div className="flex justify-end pt-4 border-t border-gray-800">
-              <button
-                type="button"
-                onClick={() => handleSave()}
-                disabled={isSubmitting}
-                className="bg-[#0aad0a] hover:bg-[#088f08] disabled:opacity-50 text-white font-black px-6 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-[#0aad0a]/20 transition-all active:scale-95"
-              >
-                {isSubmitting ? <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white" /> : <Save size={14} />}
-                <span>{isSubmitting ? 'Saving Identity...' : 'Save Identity Settings'}</span>
-              </button>
-            </div>
           </div>
 
           {/* Localization */}
@@ -313,18 +301,6 @@ export default function AdminSettingsPage() {
                   <option value="America/New_York (EST)">America/New_York (EST)</option>
                 </select>
               </div>
-            </div>
-
-            <div className="flex justify-end pt-4 border-t border-gray-800">
-              <button
-                type="button"
-                onClick={() => handleSave()}
-                disabled={isSubmitting}
-                className="bg-[#0aad0a] hover:bg-[#088f08] disabled:opacity-50 text-white font-black px-6 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-[#0aad0a]/20 transition-all active:scale-95"
-              >
-                {isSubmitting ? <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white" /> : <Save size={14} />}
-                <span>{isSubmitting ? 'Saving Localization...' : 'Save Currency & Timezone'}</span>
-              </button>
             </div>
           </div>
 
@@ -424,18 +400,6 @@ export default function AdminSettingsPage() {
                 </div>
               </div>
             </div>
-
-            <div className="flex justify-end pt-4 border-t border-gray-800">
-              <button
-                type="button"
-                onClick={() => handleSave()}
-                disabled={isSubmitting}
-                className="bg-[#0aad0a] hover:bg-[#088f08] disabled:opacity-50 text-white font-black px-6 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-[#0aad0a]/20 transition-all active:scale-95"
-              >
-                {isSubmitting ? <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white" /> : <Save size={14} />}
-                <span>{isSubmitting ? 'Saving Fees...' : 'Save Orders & Fee Settings'}</span>
-              </button>
-            </div>
           </div>
 
           {/* Payment Gateway */}
@@ -466,18 +430,6 @@ export default function AdminSettingsPage() {
                   <p className="text-[10px] text-red-400">⚠️ Never share your secret key. Stored securely in MongoDB, never exposed to frontend.</p>
                 </div>
               </div>
-            </div>
-
-            <div className="flex justify-end pt-4 border-t border-gray-800">
-              <button
-                type="button"
-                onClick={() => handleSave()}
-                disabled={isSubmitting}
-                className="bg-[#0aad0a] hover:bg-[#088f08] disabled:opacity-50 text-white font-black px-6 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-[#0aad0a]/20 transition-all active:scale-95"
-              >
-                {isSubmitting ? <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white" /> : <Save size={14} />}
-                <span>{isSubmitting ? 'Saving Keys...' : 'Save Paystack Keys'}</span>
-              </button>
             </div>
           </div>
 
@@ -520,18 +472,6 @@ export default function AdminSettingsPage() {
                 {maintenanceMode ? 'Lockdown ACTIVE' : 'Normal Operation'}
               </button>
             </div>
-
-            <div className="flex justify-end pt-4 border-t border-gray-800">
-              <button
-                type="button"
-                onClick={() => handleSave()}
-                disabled={isSubmitting}
-                className="bg-[#0aad0a] hover:bg-[#088f08] disabled:opacity-50 text-white font-black px-6 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-[#0aad0a]/20 transition-all active:scale-95"
-              >
-                {isSubmitting ? <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white" /> : <Save size={14} />}
-                <span>{isSubmitting ? 'Saving Security...' : 'Save Security Settings'}</span>
-              </button>
-            </div>
           </div>
 
           {/* Mobile App Store Links */}
@@ -556,18 +496,6 @@ export default function AdminSettingsPage() {
                   className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
                 />
               </div>
-            </div>
-
-            <div className="flex justify-end pt-4 border-t border-gray-800">
-              <button
-                type="button"
-                onClick={() => handleSave()}
-                disabled={isSubmitting}
-                className="bg-[#0aad0a] hover:bg-[#088f08] disabled:opacity-50 text-white font-black px-6 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-[#0aad0a]/20 transition-all active:scale-95"
-              >
-                {isSubmitting ? <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white" /> : <Save size={14} />}
-                <span>{isSubmitting ? 'Saving Links...' : 'Save Mobile Links'}</span>
-              </button>
             </div>
           </div>
 
