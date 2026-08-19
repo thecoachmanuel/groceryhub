@@ -75,30 +75,15 @@ export default function OrderHistoryPage() {
   const loadOrders = async () => {
     setLoading(true);
     try {
-      const allOrders: Order[] = [];
-
-      // 1. Load from localStorage (orders placed in this session)
-      if (typeof window !== 'undefined' && user?.id) {
-        const localKey = `groceryhub_orders_${user.id}`;
-        const raw = localStorage.getItem(localKey);
-        if (raw) {
-          try {
-            const localOrders: Order[] = JSON.parse(raw);
-            allOrders.push(...localOrders);
-          } catch {}
-        }
-      }
-
-      // 2. Load from MongoDB API
+      // Always fetch from API first — this has real timestamps and admin-updated statuses
+      let apiOrders: Order[] = [];
       if (user?.id) {
         try {
-          const res = await fetch(`/api/orders?user_id=${user.id}`, {
-            headers: { 'Content-Type': 'application/json' },
-          });
+          const res = await fetch(`/api/orders?user_id=${user.id}`);
           const data = await res.json();
           if (data.success && Array.isArray(data.data)) {
-            const apiOrders: Order[] = data.data.map((o: any) => ({
-              id: o.order_id || o._id,
+            apiOrders = data.data.map((o: any): Order => ({
+              id: o.order_id || String(o._id),
               date: o.createdAt
                 ? new Date(o.createdAt).toLocaleString('en-NG', {
                     month: 'short',
@@ -116,32 +101,50 @@ export default function OrderHistoryPage() {
               deliveryAddress: o.delivery_address
                 ? typeof o.delivery_address === 'string'
                   ? o.delivery_address
-                  : `${o.delivery_address.flat || ''}, ${o.delivery_address.area || ''}, ${o.delivery_address.city || ''}`.trim().replace(/^,\s*/, '')
-                : o.deliveryAddress || 'Lagos, Nigeria',
-              driver: o.driver || DEFAULT_DRIVER,
-              deliveryPin: o.delivery_pin || '4892',
+                  : [
+                      o.delivery_address.flat,
+                      o.delivery_address.area,
+                      o.delivery_address.city,
+                    ].filter(Boolean).join(', ')
+                : 'Lagos, Nigeria',
+              driver: o.delivery_boy_name
+                ? { name: o.delivery_boy_name, phone: o.delivery_boy_phone || '—', vehicle: 'Delivery Bike' }
+                : DEFAULT_DRIVER,
+              deliveryPin: o.delivery_pin || '—',
               items: (o.items || []).map((i: any) => ({
                 name: i.product_name || i.name || 'Product',
                 qty: i.quantity || i.qty || 1,
                 price: i.price || 0,
               })),
             }));
-
-            // Merge API orders, deduplicating by order ID
-            const localIds = new Set(allOrders.map((o) => o.id));
-            for (const apiOrder of apiOrders) {
-              if (!localIds.has(apiOrder.id)) {
-                allOrders.push(apiOrder);
-              }
-            }
           }
         } catch (err) {
           console.warn('Could not fetch orders from API:', err);
         }
       }
 
-      // Sort by most recent first (prefer local orders at top since they're newest)
-      setOrders(allOrders);
+      // Build a map of API orders by ID so they always take priority
+      const apiOrderMap = new Map(apiOrders.map((o) => [o.id, o]));
+
+      // Load from localStorage and only keep ones not in API (very recent, not yet in DB)
+      const localOnly: Order[] = [];
+      if (typeof window !== 'undefined' && user?.id) {
+        const localKey = `groceryhub_orders_${user.id}`;
+        const raw = localStorage.getItem(localKey);
+        if (raw) {
+          try {
+            const localOrders: Order[] = JSON.parse(raw);
+            for (const lo of localOrders) {
+              if (!apiOrderMap.has(lo.id)) {
+                localOnly.push(lo);
+              }
+            }
+          } catch {}
+        }
+      }
+
+      // API orders first (with real data), then any localStorage-only ones
+      setOrders([...apiOrders, ...localOnly]);
     } finally {
       setLoading(false);
     }

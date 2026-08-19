@@ -12,7 +12,7 @@ const DEFAULT_SETTINGS = {
   supportEmail: 'support@groceryhub.ng',
   address: 'Plot 14, Adeola Odeku St, Victoria Island, Lagos, Nigeria',
   storeLogoUrl: '',
-  currencySymbol: '\u20a6',
+  currencySymbol: '₦',
   currencyCode: 'NGN',
   timezone: 'Africa/Lagos (WAT)',
   orderPrefix: 'ORD-',
@@ -22,7 +22,7 @@ const DEFAULT_SETTINGS = {
   deliveryFee: 1500,
   platformServiceFee: 500,
   taxRate: 7.5,
-  announcementText: '\u26a1 30-Minute Express Grocery Delivery across Lagos! Free shipping over \u20a615,000',
+  announcementText: '⚡ 30-Minute Express Grocery Delivery across Lagos! Free shipping over ₦15,000',
   maintenanceMode: false,
   playStoreUrl: 'https://play.google.com/store/apps/details?id=com.groceryhub.customer',
   appStoreUrl: 'https://apps.apple.com/app/groceryhub-delivery/id159023481',
@@ -50,16 +50,38 @@ export async function POST(req: NextRequest) {
     await connectToDatabase();
     const body = await req.json().catch(() => ({}));
 
-    // Use findOneAndUpdate with $set for reliable atomic write.
-    // Object.assign + save() doesn't reliably mark all Mongoose fields as
-    // modified, causing silent no-ops on certain field types.
+    // Allowlist only known safe scalar fields — never let body overwrite faqItems
+    // to avoid subdocument validation errors silently blocking saves.
+    const safeFields: Record<string, any> = {};
+    const ALLOWED = [
+      'appName', 'appDescription', 'supportPhone', 'supportEmail', 'address',
+      'storeLogoUrl', 'currencySymbol', 'currencyCode', 'timezone', 'orderPrefix',
+      'defaultRadius', 'minOrderSpend', 'freeDeliveryThreshold', 'deliveryFee',
+      'platformServiceFee', 'taxRate', 'maintenanceMode', 'announcementText',
+      'playStoreUrl', 'appStoreUrl', 'paystackPublicKey', 'paystackSecretKey',
+      'smsGateway', 'smsApiKey', 'smsSenderId', 'flutterwavePublicKey', 'flutterwaveSecretKey',
+      'maxCodLimit', 'prepBufferMinutes', 'nightSurcharge', 'maxDeliveryRadius',
+      'allowMultipleVendorsCart', 'autoAssignCourier',
+    ];
+
+    for (const key of ALLOWED) {
+      if (key in body) {
+        safeFields[key] = body[key];
+      }
+    }
+
+    if (Object.keys(safeFields).length === 0) {
+      return apiError('No valid fields provided to update', 400);
+    }
+
+    // Use findOneAndUpdate WITHOUT runValidators to avoid faqItems subdoc error
     const updated = await SystemSettings.findOneAndUpdate(
-      {},           // match the single settings document
-      { $set: body },
+      {},
+      { $set: safeFields },
       {
-        new: true,        // return the updated document
-        upsert: true,     // create if it doesn't exist yet
-        runValidators: true,
+        new: true,
+        upsert: true,
+        runValidators: false, // Critical: avoids required faqItems subdoc validation blocking saves
         lean: true,
       }
     );

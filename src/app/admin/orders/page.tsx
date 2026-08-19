@@ -102,15 +102,27 @@ export default function AdminOrdersPage() {
     fetchOrders();
   }, []);
 
+  const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
+  const showToast = (msg: string, ok = true) => {
+    setToast({ msg, ok });
+    setTimeout(() => setToast(null), 3500);
+  };
+
   const handleUpdateStatus = async (id: string, newStatus: string) => {
     try {
-      await apiFetch(`/api/orders/${id}`, {
+      const res = await apiFetch(`/api/orders/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ order_status: newStatus }),
       });
+      const json = await res.json();
+      if (json.success) {
+        showToast(`Order status updated to "${newStatus}" ✓`);
+      } else {
+        showToast(json.message || 'Failed to update status', false);
+      }
     } catch (err) {
-      console.warn('Status update error:', err);
+      showToast('Network error updating status', false);
     }
     setOrders((prev) =>
       prev.map((o) => (o.id === id ? { ...o, status: newStatus } : o))
@@ -122,18 +134,26 @@ export default function AdminOrdersPage() {
 
   const handleAssignDriver = async (id: string, riderName: string) => {
     const selectedRiderObj = riders.find((r) => r.name === riderName);
+    const riderId = Number(selectedRiderObj?.delivery_boy_id || selectedRiderObj?.id || 0);
+    const riderPhone = selectedRiderObj?.mobile || selectedRiderObj?.phone || '';
     try {
-      await apiFetch(`/api/orders/${id}`, {
+      const res = await apiFetch(`/api/orders/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           delivery_boy_name: riderName,
-          delivery_boy_phone: selectedRiderObj?.mobile || '',
-          delivery_boy_id: selectedRiderObj?._id || selectedRiderObj?.delivery_boy_id || 1,
+          delivery_boy_phone: riderPhone,
+          delivery_boy_id: riderId,
         }),
       });
+      const json = await res.json();
+      if (json.success) {
+        showToast(`Rider "${riderName}" assigned successfully ✓`);
+      } else {
+        showToast(json.message || 'Failed to assign rider', false);
+      }
     } catch (err) {
-      console.warn('Rider assignment error:', err);
+      showToast('Network error assigning rider', false);
     }
     setOrders((prev) =>
       prev.map((o) => (o.id === id ? { ...o, driver: riderName } : o))
@@ -163,6 +183,15 @@ export default function AdminOrdersPage() {
   return (
     <div className="flex bg-[#121820] text-white min-h-screen">
       <AdminSidebar />
+
+      {/* Toast Notification */}
+      {toast && (
+        <div className={`fixed top-5 right-5 z-[999] px-5 py-3 rounded-xl text-sm font-bold shadow-2xl flex items-center gap-2 transition-all ${
+          toast.ok ? 'bg-[#0aad0a] text-white' : 'bg-red-500 text-white'
+        }`}>
+          {toast.ok ? '✓' : '✕'} {toast.msg}
+        </div>
+      )}
 
       <main className="flex-1 p-8 space-y-6 overflow-y-auto">
         {/* Header */}
