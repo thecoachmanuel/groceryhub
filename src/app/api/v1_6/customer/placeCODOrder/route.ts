@@ -33,6 +33,9 @@ export async function POST(req: NextRequest) {
       newDbOrder = await Order.create({
         order_id: orderId,
         user_id: user_id || Date.now(),
+        customer_name: delivery_address?.name || body.customer_name || 'Valued Customer',
+        customer_phone: delivery_address?.mobile || delivery_address?.phone || body.customer_phone || '',
+        customer_email: body.customer_email || body.email || '',
         seller_id: seller_id || 1,
         items: Array.isArray(items) ? items : [],
         subtotal: subtotal || total_amount || 0,

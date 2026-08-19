@@ -22,7 +22,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className="overflow-x-hidden" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -31,7 +31,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="bg-[#f8f9fa] dark:bg-[#121820] text-gray-800 dark:text-gray-100 min-h-screen antialiased">
+      <body className="bg-[#f8f9fa] dark:bg-[#121820] text-gray-800 dark:text-gray-100 min-h-screen antialiased overflow-x-hidden">
         <AuthProvider>
           <CartProvider>
             {children}

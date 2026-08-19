@@ -129,19 +129,56 @@ const ADMIN_LINK_GROUPS: LinkGroup[] = [
   },
 ];
 
+import { useState } from 'react';
+import { Menu, X } from 'lucide-react';
+
 export default function AdminSidebar() {
   const pathname = usePathname();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <aside className="w-64 bg-[#1e2632] border-r border-gray-800 min-h-screen flex flex-col justify-between p-4 flex-shrink-0">
-      <div className="space-y-6">
-        {/* Brand */}
-        <Link href="/admin/dashboard" className="flex items-center gap-2.5 px-3 py-2 text-white font-black text-xl">
-          <div className="w-9 h-9 rounded-xl bg-[#0aad0a] flex items-center justify-center text-white shadow-lg shadow-[#0aad0a]/30">
-            <ShoppingBag size={20} />
+    <>
+      {/* Mobile Top Header Bar for Admin */}
+      <div className="lg:hidden bg-[#1e2632] border-b border-gray-800 p-4 flex items-center justify-between sticky top-0 z-40 w-full">
+        <Link href="/admin/dashboard" className="flex items-center gap-2 text-white font-black text-lg">
+          <div className="w-8 h-8 rounded-xl bg-[#0aad0a] flex items-center justify-center text-white">
+            <ShoppingBag size={18} />
           </div>
           <span>Admin<span className="text-[#0aad0a]">Hub</span></span>
         </Link>
+        <button
+          onClick={() => setMobileOpen(!mobileOpen)}
+          className="p-2 rounded-xl text-gray-300 hover:bg-gray-800"
+        >
+          {mobileOpen ? <X size={22} /> : <Menu size={22} />}
+        </button>
+      </div>
+
+      {/* Mobile Backdrop */}
+      {mobileOpen && (
+        <div
+          className="lg:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Admin Sidebar Container (Responsive) */}
+      <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-[#1e2632] border-r border-gray-800 min-h-screen flex flex-col justify-between p-4 flex-shrink-0 transform transition-transform duration-300 ${
+        mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+      }`}>
+        <div className="space-y-6">
+          {/* Brand */}
+          <div className="flex items-center justify-between px-3 py-2">
+            <Link href="/admin/dashboard" className="flex items-center gap-2.5 text-white font-black text-xl">
+              <div className="w-9 h-9 rounded-xl bg-[#0aad0a] flex items-center justify-center text-white shadow-lg shadow-[#0aad0a]/30">
+                <ShoppingBag size={20} />
+              </div>
+              <span>Admin<span className="text-[#0aad0a]">Hub</span></span>
+            </Link>
+            <button onClick={() => setMobileOpen(false)} className="lg:hidden text-gray-400">
+              <X size={20} />
+            </button>
+          </div>
 
         {/* Navigation Menu by Groups */}
         <nav className="space-y-5 overflow-y-auto max-h-[calc(100vh-200px)] pr-1">
@@ -211,5 +248,6 @@ export default function AdminSidebar() {
         </button>
       </div>
     </aside>
+    </>
   );
 }

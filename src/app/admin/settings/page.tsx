@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Settings, 
   Globe, 
@@ -54,10 +54,80 @@ export default function AdminSettingsPage() {
   const [playStoreUrl, setPlayStoreUrl] = useState('https://play.google.com/store/apps/details?id=com.groceryhub.customer');
   const [appStoreUrl, setAppStoreUrl] = useState('https://apps.apple.com/app/groceryhub-delivery/id159023481');
 
-  const handleSave = (e: React.FormEvent) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    async function loadSettings() {
+      try {
+        const res = await fetch('/api/admin/settings');
+        const json = await res.json();
+        if (json.success && json.data) {
+          const s = json.data;
+          if (s.appName) setAppName(s.appName);
+          if (s.appDescription) setAppDescription(s.appDescription);
+          if (s.supportPhone) setSupportPhone(s.supportPhone);
+          if (s.supportEmail) setSupportEmail(s.supportEmail);
+          if (s.address) setAddress(s.address);
+          if (s.storeLogoUrl) setStoreLogoUrl(s.storeLogoUrl);
+          if (s.currencySymbol) setCurrencySymbol(s.currencySymbol);
+          if (s.currencyCode) setCurrencyCode(s.currencyCode);
+          if (s.timezone) setTimezone(s.timezone);
+          if (s.orderPrefix) setOrderPrefix(s.orderPrefix);
+          if (s.defaultRadius) setDefaultRadius(String(s.defaultRadius));
+          if (s.minOrderSpend) setMinOrderSpend(String(s.minOrderSpend));
+          if (s.freeDeliveryThreshold) setFreeDeliveryThreshold(String(s.freeDeliveryThreshold));
+          if (s.maintenanceMode !== undefined) setMaintenanceMode(s.maintenanceMode);
+          if (s.playStoreUrl) setPlayStoreUrl(s.playStoreUrl);
+          if (s.appStoreUrl) setAppStoreUrl(s.appStoreUrl);
+        }
+      } catch (err) {
+        console.warn('Failed to load admin settings:', err);
+      }
+    }
+    loadSettings();
+  }, []);
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 2500);
+    setIsSubmitting(true);
+    try {
+      const payload = {
+        appName,
+        appDescription,
+        supportPhone,
+        supportEmail,
+        address,
+        storeLogoUrl,
+        currencySymbol,
+        currencyCode,
+        timezone,
+        orderPrefix,
+        defaultRadius: Number(defaultRadius),
+        minOrderSpend: Number(minOrderSpend),
+        freeDeliveryThreshold: Number(freeDeliveryThreshold),
+        maintenanceMode,
+        playStoreUrl,
+        appStoreUrl,
+      };
+
+      const res = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+
+      if (json.success) {
+        setSavedSuccess(true);
+        setTimeout(() => setSavedSuccess(false), 3000);
+      } else {
+        alert(json.message || 'Failed to save settings');
+      }
+    } catch (err) {
+      alert('Error saving system settings');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (

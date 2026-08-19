@@ -41,6 +41,7 @@ interface Order {
   deliveryAddress: string;
   driver: OrderDriver;
   items: OrderItem[];
+  deliveryPin?: string;
 }
 
 const statusToStep: Record<string, number> = {
@@ -118,6 +119,7 @@ export default function OrderHistoryPage() {
                   : `${o.delivery_address.flat || ''}, ${o.delivery_address.area || ''}, ${o.delivery_address.city || ''}`.trim().replace(/^,\s*/, '')
                 : o.deliveryAddress || 'Lagos, Nigeria',
               driver: o.driver || DEFAULT_DRIVER,
+              deliveryPin: o.delivery_pin || '4892',
               items: (o.items || []).map((i: any) => ({
                 name: i.product_name || i.name || 'Product',
                 qty: i.quantity || i.qty || 1,
@@ -325,6 +327,18 @@ export default function OrderHistoryPage() {
                 </div>
               ))}
             </div>
+            {/* 4-Digit Delivery Verification PIN Callout */}
+            {selectedOrderForTracking.deliveryPin && (
+              <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 p-3.5 rounded-2xl flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-black uppercase text-[#0aad0a] tracking-wider block">Handover Verification PIN</span>
+                  <p className="text-[11px] text-gray-600 dark:text-gray-300">Give this 4-digit PIN code to rider at doorstep</p>
+                </div>
+                <div className="bg-[#0aad0a] text-white font-mono font-black text-lg px-3 py-1 rounded-xl shadow-md tracking-widest">
+                  {selectedOrderForTracking.deliveryPin}
+                </div>
+              </div>
+            )}
 
             {/* Driver Profile */}
             <div className="bg-gray-50 dark:bg-gray-800/60 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 flex items-center justify-between">

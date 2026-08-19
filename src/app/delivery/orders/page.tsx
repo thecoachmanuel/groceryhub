@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   ShoppingBag, 
   MapPin, 
@@ -83,20 +83,75 @@ const INITIAL_RIDER_ORDERS: RiderOrder[] = [
 
 export default function DeliveryOrdersPage() {
   const { rider } = useRiderAuth();
-  const isDemoRider = rider?.mobile === '+2348091112233' || rider?.mobile === '08091112233';
-  const [orders, setOrders] = useState<RiderOrder[]>(isDemoRider ? INITIAL_RIDER_ORDERS : []);
+  const [orders, setOrders] = useState<RiderOrder[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'all' | 'Assigned' | 'Picked Up' | 'Delivered'>('all');
   const [activeOtpModal, setActiveOtpModal] = useState<RiderOrder | null>(null);
   const [enteredOtp, setEnteredOtp] = useState('');
   const [otpError, setOtpError] = useState('');
   const [successToast, setSuccessToast] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
 
-  const handleUpdateStatus = (id: string, newStatus: RiderOrder['status']) => {
-    setOrders((prev) =>
-      prev.map((o) => (o.id === id ? { ...o, status: newStatus } : o))
-    );
-    setSuccessToast(`Order ${id} status updated to ${newStatus}`);
-    setTimeout(() => setSuccessToast(''), 3000);
+  const fetchOrders = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/orders');
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        const mapped: RiderOrder[] = json.data.map((o: any) => {
+          let st: RiderOrder['status'] = 'Assigned';
+          if (o.order_status === 'out_for_delivery') st = 'Picked Up';
+          if (o.order_status === 'delivered') st = 'Delivered';
+
+          return {
+            id: o.order_id || o._id,
+            customerName: o.customer_name || o.delivery_address?.title || 'Valued Customer',
+            customerPhone: o.customer_phone || o.delivery_address?.phone || '+234 800 000 0000',
+            address: typeof o.delivery_address === 'string' ? o.delivery_address : `${o.delivery_address?.address_line || o.delivery_address?.flat || ''}, ${o.delivery_address?.area || ''}`.trim().replace(/^,\s*/, '') || 'Doorstep Location',
+            city: o.delivery_address?.city || 'Lagos',
+            storeName: o.seller_name || 'GroceryHub Central Warehouse',
+            storeAddress: 'Victoria Island Agro Hub, Lagos',
+            items: (o.items || []).map((i: any) => `${i.product_name || i.name || 'Item'} x${i.quantity || i.qty || 1}`),
+            totalAmount: o.total_amount || o.final_total || 0,
+            paymentMethod: o.payment_method === 'cod' ? 'Cash on Delivery (COD)' : 'Online (Paystack)',
+            riderFee: o.delivery_charge || 1500.00,
+            status: st,
+            otp: o.delivery_pin || '4892',
+          };
+        });
+        setOrders(mapped);
+      }
+    } catch (err) {
+      console.warn('Failed to load rider orders:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  const handleUpdateStatus = async (id: string, newStatus: RiderOrder['status']) => {
+    try {
+      const targetApiStatus = newStatus === 'Picked Up' ? 'out_for_delivery' : newStatus === 'Delivered' ? 'delivered' : 'ready_for_pickup';
+      await fetch(`/api/orders/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          order_status: targetApiStatus,
+          delivery_boy_id: rider?.id || 1,
+          delivery_boy_name: rider?.name || 'Rider',
+        }),
+      });
+      setOrders((prev) =>
+        prev.map((o) => (o.id === id ? { ...o, status: newStatus } : o))
+      );
+      setSuccessToast(`Order ${id} updated to ${newStatus}`);
+      setTimeout(() => setSuccessToast(''), 3000);
+    } catch (err) {
+      alert('Error updating order status');
+    }
   };
 
   const handleOpenDeliverModal = (order: RiderOrder) => {
@@ -105,17 +160,35 @@ export default function DeliveryOrdersPage() {
     setOtpError('');
   };
 
-  const handleVerifyOtpAndDeliver = (e: React.FormEvent) => {
+  const handleVerifyOtpAndDeliver = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeOtpModal) return;
 
-    if (enteredOtp !== activeOtpModal.otp && enteredOtp !== '1234') {
-      setOtpError('Invalid OTP code. Please request the 4-digit code shown on customer app.');
-      return;
-    }
+    setIsVerifying(true);
+    setOtpError('');
+    try {
+      const res = await fetch(`/api/orders/${activeOtpModal.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ delivery_pin_verify: enteredOtp }),
+      });
+      const json = await res.json();
 
-    handleUpdateStatus(activeOtpModal.id, 'Delivered');
-    setActiveOtpModal(null);
+      if (json.success) {
+        setOrders((prev) =>
+          prev.map((o) => (o.id === activeOtpModal.id ? { ...o, status: 'Delivered' } : o))
+        );
+        setSuccessToast(`Delivery PIN verified! Order ${activeOtpModal.id} DELIVERED.`);
+        setActiveOtpModal(null);
+        setTimeout(() => setSuccessToast(''), 3500);
+      } else {
+        setOtpError(json.message || 'Invalid Delivery PIN code. Please check customer phone screen.');
+      }
+    } catch (err) {
+      setOtpError('Error connecting to server to verify PIN.');
+    } finally {
+      setIsVerifying(false);
+    }
   };
 
   return (

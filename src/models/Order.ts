@@ -15,8 +15,13 @@ export interface IOrderItem {
 export interface IOrder extends Document {
   order_id: string; // e.g. ORD-2026-9812
   user_id: number;
+  customer_name?: string;
+  customer_phone?: string;
+  customer_email?: string;
   seller_id: number;
   delivery_boy_id?: number;
+  delivery_boy_name?: string;
+  delivery_boy_phone?: string;
   items: IOrderItem[];
   subtotal: number; // Naira
   delivery_charge: number; // Naira
@@ -59,8 +64,13 @@ const OrderSchema: Schema = new Schema(
   {
     order_id: { type: String, required: true, unique: true, index: true },
     user_id: { type: Number, default: 0, index: true },
+    customer_name: { type: String, default: 'Valued Customer' },
+    customer_phone: { type: String, default: '' },
+    customer_email: { type: String, default: '' },
     seller_id: { type: Number, default: 1, index: true },
     delivery_boy_id: { type: Number, default: 0, index: true },
+    delivery_boy_name: { type: String, default: '' },
+    delivery_boy_phone: { type: String, default: '' },
     items: [OrderItemSchema],
     subtotal: { type: Number, required: true },
     delivery_charge: { type: Number, default: 0 },

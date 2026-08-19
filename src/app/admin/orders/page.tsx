@@ -41,20 +41,22 @@ interface Order {
 const formatOrderFromApi = (o: any): Order => ({
   id: o.order_id || `ORD-${String(o._id).slice(-5).toUpperCase()}`,
   _id: o._id,
-  user: o.user_id || o.customer_name || 'Customer',
-  phone: o.phone || o.delivery_address?.phone || '—',
-  address: o.delivery_address?.address
-    ? `${o.delivery_address.address}, ${o.delivery_address.city || ''}`
-    : o.delivery_address?.road || '—',
-  vendor: o.seller_id || 'GroceryHub Store',
-  amount: o.total_payable || o.final_total || 0,
-  paymentMethod: o.payment_method || 'Online',
-  status: o.active_status || 'placed',
-  driver: o.delivery_man_id || 'Unassigned',
-  time: o.created_at ? new Date(o.created_at).toLocaleString('en-NG') : '—',
+  user: o.customer_name || o.delivery_address?.title || (o.user_id ? `Customer #${o.user_id}` : 'Valued Customer'),
+  phone: o.customer_phone || o.delivery_address?.phone || '—',
+  address: o.delivery_address
+    ? typeof o.delivery_address === 'string'
+      ? o.delivery_address
+      : `${o.delivery_address.address_line || o.delivery_address.address || ''}, ${o.delivery_address.city || 'Lagos'}`.trim().replace(/^,\s*/, '')
+    : '—',
+  vendor: o.seller_id ? `Seller Store #${o.seller_id}` : 'GroceryHub Direct',
+  amount: o.total_amount || o.total_payable || o.final_total || 0,
+  paymentMethod: o.payment_method ? String(o.payment_method).toUpperCase() : 'PAYSTACK',
+  status: o.order_status || o.active_status || 'placed',
+  driver: o.delivery_boy_name || (o.delivery_boy_id ? `Rider #${o.delivery_boy_id}` : 'Unassigned Rider'),
+  time: o.createdAt || o.created_at ? new Date(o.createdAt || o.created_at).toLocaleString('en-NG', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Recently',
   items: Array.isArray(o.items)
     ? o.items.map((it: any) => ({
-        name: it.product_name || it.name || 'Item',
+        name: it.product_name || it.name || 'Grocery Item',
         qty: it.quantity || it.qty || 1,
         price: it.price || 0,
       }))
