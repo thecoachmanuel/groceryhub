@@ -24,6 +24,7 @@ import Footer from '@/components/website/Footer';
 import { formatNaira } from '@/lib/currency';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
+import { useSystemSettings } from '@/context/SystemSettingsContext';
 import { apiFetch } from '@/lib/api-fetch';
 
 interface SavedAddress {
@@ -147,12 +148,20 @@ export default function CheckoutPage() {
     setModalArea('');
   };
 
+  const { settings } = useSystemSettings();
+
   const walletBalance = user?.walletBalance ?? 0.00;
   const itemSubtotal = cartItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
-  const isFreeDelivery = itemSubtotal >= 15000 || itemSubtotal === 0;
-  const deliveryFee = isFreeDelivery ? 0.00 : 1500.00;
-  const platformServiceFee = itemSubtotal > 0 ? 500.00 : 0.00;
-  const tax = Math.round(itemSubtotal * 0.05 * 100) / 100; // 5% VAT
+
+  const freeDeliveryThreshold = settings?.freeDeliveryThreshold ?? 15000;
+  const baseDeliveryFee = settings?.deliveryFee ?? 1500;
+  const serviceFeeAmount = settings?.platformServiceFee ?? 500;
+  const taxRate = (settings as any)?.taxRate ?? 7.5;
+
+  const isFreeDelivery = itemSubtotal >= freeDeliveryThreshold || itemSubtotal === 0;
+  const deliveryFee = isFreeDelivery ? 0.00 : baseDeliveryFee;
+  const platformServiceFee = itemSubtotal > 0 ? serviceFeeAmount : 0.00;
+  const tax = Math.round(itemSubtotal * (taxRate / 100) * 100) / 100;
   
   const discountFromWallet = useWallet ? Math.min(walletBalance, itemSubtotal + deliveryFee + platformServiceFee + tax - couponDiscount) : 0;
   const grandTotal = Math.max(0, itemSubtotal + deliveryFee + platformServiceFee + tax - couponDiscount - discountFromWallet);

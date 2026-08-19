@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -13,23 +13,74 @@ import {
   Clock, 
   Star, 
   Navigation, 
-  ExternalLink 
+  ExternalLink,
+  RefreshCw
 } from 'lucide-react';
 import DeliveryNav from '@/components/delivery/DeliveryNav';
 import { formatNaira } from '@/lib/currency';
 import { useRiderAuth } from '@/context/AuthContext';
+import { apiFetch } from '@/lib/api-fetch';
+
+interface DeliveryOrder {
+  _id: string;
+  order_id: string;
+  customer_name: string;
+  delivery_address: string;
+  phone: string;
+  total_amount: number;
+  delivery_charge: number;
+  payment_method: string;
+  order_status: string;
+  createdAt: string;
+}
 
 export default function DeliveryDashboardPage() {
   const router = useRouter();
   const { rider, isRiderAuthenticated, isInitialized } = useRiderAuth();
+
+  const [assignedOrders, setAssignedOrders] = useState<DeliveryOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const riderId = rider?.id;
+
+  const fetchRiderData = async () => {
+    if (!riderId) return;
+    try {
+      setLoading(true);
+      const res = await apiFetch(`/api/orders?delivery_boy_id=${riderId}`);
+      const json = await res.json().catch(() => ({}));
+      if (json.success && Array.isArray(json.data)) {
+        setAssignedOrders(
+          json.data.map((o: any) => ({
+            _id: o._id,
+            order_id: o.order_id || `ORD-${String(o._id).slice(-6)}`,
+            customer_name: o.delivery_address?.title || o.user?.name || 'Customer',
+            delivery_address: `${o.delivery_address?.address_line || ''}, ${o.delivery_address?.city || 'Lagos'}`,
+            phone: o.delivery_address?.phone || o.user?.mobile || '',
+            total_amount: o.total_amount || o.final_total || 0,
+            delivery_charge: o.delivery_charge || 1500,
+            payment_method: (o.payment_method || 'Online').toUpperCase(),
+            order_status: o.order_status || 'out_for_delivery',
+            createdAt: o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-NG') : '—',
+          }))
+        );
+      }
+    } catch (err) {
+      console.warn('Error loading rider dashboard orders:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!isInitialized) return;
     const hasRiderToken = typeof window !== 'undefined' && !!localStorage.getItem('groceryhub_rider_token');
     if (!isRiderAuthenticated && !hasRiderToken) {
       router.replace('/delivery/login');
+      return;
     }
-  }, [isInitialized, isRiderAuthenticated, router]);
+    fetchRiderData();
+  }, [isInitialized, isRiderAuthenticated, riderId, router]);
 
   if (!isInitialized) {
     return (
@@ -42,12 +93,14 @@ export default function DeliveryDashboardPage() {
   const hasRiderToken = typeof window !== 'undefined' && !!localStorage.getItem('groceryhub_rider_token');
   if (!isRiderAuthenticated && !hasRiderToken) return null;
 
-  const isDemoRider = rider?.mobile === '+2348091112233' || rider?.mobile === '08091112233';
-  const completedRuns = isDemoRider ? 8 : 0;
-  const tripEarnings = isDemoRider ? 64500 : (rider?.balance || 0);
-  const cashInHand = isDemoRider ? 103500 : (rider?.cashInHand || 0);
-  const rating = isDemoRider ? '4.95' : '5.00';
-  const totalRuns = isDemoRider ? '342 lifetime runs' : 'New Courier Partner';
+  // Real Metric Calculations
+  const completedRuns = assignedOrders.filter((o) => o.order_status === 'delivered').length;
+  const tripEarnings = assignedOrders.reduce((sum, o) => sum + (o.order_status === 'delivered' ? o.delivery_charge : 0), 0);
+  const cashInHand = assignedOrders
+    .filter((o) => o.payment_method.includes('CASH') && o.order_status === 'delivered')
+    .reduce((sum, o) => sum + o.total_amount, 0);
+
+  const activeOrders = assignedOrders.filter((o) => o.order_status !== 'delivered' && o.order_status !== 'cancelled');
 
   return (
     <div className="min-h-screen bg-[#121820] text-white flex flex-col justify-between">
@@ -58,21 +111,21 @@ export default function DeliveryDashboardPage() {
           {/* Key Metrics */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             <div className="bg-[#1e2632] border border-gray-800 p-5 rounded-2xl space-y-2">
-              <span className="text-xs text-gray-400 font-bold">Today&apos;s Deliveries</span>
+              <span className="text-xs text-gray-400 font-bold">Total Completed Runs</span>
               <h3 className="text-2xl font-black text-white">{completedRuns} Completed</h3>
               <p className="text-[11px] text-[#0aad0a] font-semibold flex items-center gap-1">
-                {isDemoRider ? <><ArrowUpRight size={14} /> 2 active runs in progress</> : 'Awaiting dispatch'}
+                Real-time Courier Dispatch Ledger
               </p>
             </div>
 
             <div className="bg-[#1e2632] border border-gray-800 p-5 rounded-2xl space-y-2">
-              <span className="text-xs text-gray-400 font-bold">Today&apos;s Trip Earnings</span>
+              <span className="text-xs text-gray-400 font-bold">Trip Earnings</span>
               <h3 className="text-2xl font-black text-[#0aad0a] font-mono">{formatNaira(tripEarnings)}</h3>
-              <p className="text-[11px] text-gray-400">{isDemoRider ? `+${formatNaira(12000)} peak surge incentive` : 'No trip earnings today'}</p>
+              <p className="text-[11px] text-gray-400">Total delivery payouts earned</p>
             </div>
 
             <div className="bg-[#1e2632] border border-gray-800 p-5 rounded-2xl space-y-2">
-              <span className="text-xs text-gray-400 font-bold">Cash in Hand (COD to Remit)</span>
+              <span className="text-xs text-gray-400 font-bold">Cash in Hand (COD)</span>
               <h3 className="text-2xl font-black text-amber-400 font-mono">{formatNaira(cashInHand)}</h3>
               <Link href="/delivery/earnings" className="text-[11px] text-amber-300 font-bold hover:underline block">
                 Deposit to Store Counter &rarr;
@@ -82,131 +135,75 @@ export default function DeliveryDashboardPage() {
             <div className="bg-[#1e2632] border border-gray-800 p-5 rounded-2xl space-y-2">
               <span className="text-xs text-gray-400 font-bold">Courier Rating</span>
               <h3 className="text-2xl font-black text-white flex items-center gap-1.5">
-                {rating} <Star size={18} className="text-amber-400 fill-amber-400" />
+                5.00 <Star size={18} className="text-amber-400 fill-amber-400" />
               </h3>
-              <p className="text-[11px] text-gray-400">{totalRuns}</p>
+              <p className="text-[11px] text-gray-400">Active Delivery Partner</p>
             </div>
           </div>
 
-          {/* Active Run Card */}
-          {!isDemoRider ? (
-            <div className="bg-[#1e2632] border border-gray-800 rounded-3xl p-8 text-center space-y-3 shadow-xl">
-              <Truck size={36} className="mx-auto text-amber-400" />
-              <h3 className="text-base font-bold text-white">No active delivery runs assigned</h3>
-              <p className="text-xs text-gray-400 max-w-sm mx-auto">
-                You are online and ready for dispatch. As soon as a customer order is packed in your area, it will be assigned to your route.
-              </p>
-            </div>
-          ) : (
-            <div className="bg-gradient-to-r from-emerald-950/60 to-slate-900 border border-[#0aad0a]/40 rounded-3xl p-6 sm:p-8 space-y-6 shadow-xl relative overflow-hidden">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="bg-[#0aad0a] text-white text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase">
-                      Current Active Delivery
-                    </span>
-                    <span className="text-xs font-mono font-bold text-white">#ORD-98241</span>
-                  </div>
-                  <h3 className="text-xl font-black text-white">Alex Johnson (Flat 4B)</h3>
-                  <p className="text-xs text-gray-300 flex items-center gap-1">
-                    <MapPin size={14} className="text-[#0aad0a]" /> Plot 14, Adeola Odeku St, Victoria Island (1.2 km away)
-                </p>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <a
-                  href="tel:+2348023456789"
-                  className="bg-gray-800 hover:bg-gray-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition-colors"
-                >
-                  <Phone size={14} /> Call Customer
-                </a>
-                <a
-                  href="https://maps.google.com"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="bg-[#0aad0a] hover:bg-[#088f08] text-white font-black px-5 py-2.5 rounded-xl text-xs flex items-center gap-1.5 shadow-lg shadow-[#0aad0a]/30 transition-all active:scale-95"
-                >
-                  <Navigation size={14} /> Open GPS Navigation
-                </a>
-              </div>
-            </div>
-
-            <div className="bg-gray-900/80 rounded-2xl p-4 border border-gray-800 grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-              <div>
-                <span className="text-gray-400 block font-semibold">Store Pickup</span>
-                <strong className="text-white">Green Valley Organic Farms (Epe)</strong>
-              </div>
-              <div>
-                <span className="text-gray-400 block font-semibold">Order Items</span>
-                <strong className="text-white">4 items (Organic Broccoli, Apples, Milk)</strong>
-              </div>
-              <div>
-                <span className="text-gray-400 block font-semibold">Payment Mode</span>
-                <strong className="text-[#0aad0a]">Online Paid ({formatNaira(45000)})</strong>
-              </div>
-            </div>
-
-            <div className="flex justify-end">
-              <Link
-                href="/delivery/orders"
-                className="bg-white text-gray-900 hover:bg-gray-100 font-black px-6 py-3 rounded-xl text-xs flex items-center gap-2 transition-all active:scale-95"
-              >
-                <CheckCircle2 size={16} className="text-[#0aad0a]" />
-                <span>Mark Delivered &amp; Verify OTP</span>
-              </Link>
-            </div>
-          </div>
-          )}
-
-          {/* Assigned Runs Table */}
+          {/* Active Deliveries List */}
           <div className="bg-[#1e2632] border border-gray-800 rounded-3xl p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-base font-black">Today&apos;s Run Manifest</h3>
-                <p className="text-xs text-gray-400">Assigned customer grocery drop-offs and completed deliveries in Lagos</p>
+                <h3 className="text-base font-black flex items-center gap-2">
+                  <Truck size={20} className="text-amber-400" /> Assigned Delivery Runs
+                </h3>
+                <p className="text-xs text-gray-400">Active order dispatches assigned to {rider?.name || 'Courier'}</p>
               </div>
-              <Link href="/delivery/orders" className="text-xs font-bold text-[#0aad0a] hover:underline">
-                View All Deliveries &rarr;
-              </Link>
+              <button
+                onClick={fetchRiderData}
+                className="p-2 bg-gray-800 hover:bg-gray-700 rounded-xl text-gray-300 transition-colors"
+                title="Refresh delivery assignments"
+              >
+                <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+              </button>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="border-b border-gray-800 text-gray-400 font-bold uppercase tracking-wider">
-                  <tr>
-                    <th className="pb-3 px-3">Order</th>
-                    <th className="pb-3 px-3">Customer &amp; Address</th>
-                    <th className="pb-3 px-3">Pickup Store</th>
-                    <th className="pb-3 px-3">Payment</th>
-                    <th className="pb-3 px-3">Rider Fee</th>
-                    <th className="pb-3 px-3">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-800/60 font-medium text-gray-300">
-                  {(isDemoRider ? [
-                    { id: 'ORD-98241', customer: 'Alex Johnson', addr: 'Adeola Odeku, Victoria Island', store: 'Green Valley Farms', pay: `Online (${formatNaira(45000)})`, fee: formatNaira(1500), status: 'Out for Delivery', color: 'text-amber-400 bg-amber-950/40' },
-                    { id: 'ORD-98240', customer: 'Michael Scott', addr: 'Admiralty Way, Lekki Phase 1', store: 'Daily Dairy Fresh', pay: `COD (${formatNaira(28500)})`, fee: formatNaira(1200), status: 'Assigned', color: 'text-blue-400 bg-blue-950/40' },
-                    { id: 'ORD-98235', customer: 'Chinedu Okafor', addr: 'Oceanview Towers, VI', store: 'Artisanal Bakery', pay: `Online (${formatNaira(62100)})`, fee: formatNaira(2000), status: 'Delivered', color: 'text-[#0aad0a] bg-emerald-950/40' },
-                  ] : []).map((r) => (
-                    <tr key={r.id} className="hover:bg-gray-800/40">
-                      <td className="py-3.5 px-3 font-bold text-white font-mono">{r.id}</td>
-                      <td className="py-3.5 px-3">
-                        <span className="text-white block font-semibold">{r.customer}</span>
-                        <span className="text-gray-400 text-[11px]">{r.addr}</span>
-                      </td>
-                      <td className="py-3.5 px-3 text-gray-300">{r.store}</td>
-                      <td className="py-3.5 px-3 font-bold text-white">{r.pay}</td>
-                      <td className="py-3.5 px-3 font-black text-[#0aad0a] font-mono">+{r.fee}</td>
-                      <td className="py-3.5 px-3">
-                        <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${r.color}`}>
-                          ● {r.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            {loading ? (
+              <div className="text-center py-8 text-xs text-gray-400">Loading delivery assignments...</div>
+            ) : activeOrders.length === 0 ? (
+              <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 text-center space-y-2">
+                <CheckCircle2 size={32} className="mx-auto text-[#0aad0a]" />
+                <h4 className="text-sm font-bold text-white">No active delivery runs assigned right now</h4>
+                <p className="text-xs text-gray-400 max-w-sm mx-auto">
+                  You are online and ready for dispatch. As soon as orders are assigned by store admin, they will appear here.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {activeOrders.map((o) => (
+                  <div key={o._id} className="bg-gray-900 border border-gray-800 p-5 rounded-2xl space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold font-mono text-amber-400">{o.order_id}</span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-950 text-blue-400 border border-blue-800">
+                        {o.order_status.toUpperCase()}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1 text-xs text-gray-300">
+                      <p className="font-bold text-white flex items-center gap-1.5">
+                        <MapPin size={14} className="text-amber-400" /> {o.customer_name}
+                      </p>
+                      <p className="text-gray-400 pl-5">{o.delivery_address}</p>
+                      {o.phone && <p className="text-gray-400 pl-5">📞 {o.phone}</p>}
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2 border-t border-gray-800 text-xs">
+                      <div>
+                        <span className="text-[11px] text-gray-400 block">Collect Amount</span>
+                        <span className="font-black text-white font-mono">{formatNaira(o.total_amount)} ({o.payment_method})</span>
+                      </div>
+                      <Link
+                        href={`/delivery/orders?id=${o._id}`}
+                        className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs px-4 py-2 rounded-xl transition-colors"
+                      >
+                        Manage Delivery &rarr;
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </main>
       </div>

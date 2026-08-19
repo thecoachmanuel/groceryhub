@@ -21,6 +21,7 @@ import Footer from '@/components/website/Footer';
 import { formatNaira } from '@/lib/currency';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
+import { useSystemSettings } from '@/context/SystemSettingsContext';
 
 interface CartItem {
   id: number;
@@ -96,9 +97,12 @@ export default function CartPage() {
   const [couponApplied, setCouponApplied] = useState(false);
   const [couponError, setCouponError] = useState('');
 
-  const freeDeliveryThreshold = 15000.00; // ₦15,000
-  const platformServiceFee = 500.00; // ₦500
-  const taxRate = 0.05; // 5%
+  const { settings } = useSystemSettings();
+
+  const freeDeliveryThreshold = settings?.freeDeliveryThreshold ?? 15000;
+  const baseDeliveryFee = settings?.deliveryFee ?? 1500;
+  const platformServiceFee = items.length > 0 ? (settings?.platformServiceFee ?? 500) : 0;
+  const taxRate = ((settings as any)?.taxRate ?? 7.5) / 100;
 
   const updateQuantity = (id: number | string, delta: number) => {
     const current = items.find(i => String(i.id) === String(id));
@@ -119,23 +123,22 @@ export default function CartPage() {
     e.preventDefault();
     setCouponError('');
     if (couponCode.toUpperCase() === 'GROCERY10') {
-      setCouponDiscount(2000.00); // ₦2,000
+      setCouponDiscount(2000.00);
       setCouponApplied(true);
     } else if (couponCode.toUpperCase() === 'FRESH20') {
-      setCouponDiscount(3500.00); // ₦3,500
+      setCouponDiscount(3500.00);
       setCouponApplied(true);
     } else {
       setCouponError('Invalid promo code. Try GROCERY10 or FRESH20.');
     }
   };
 
-  // Calculations
   const itemSubtotal = items.reduce((acc, item) => acc + item.price * item.quantity, 0);
   const isFreeDelivery = itemSubtotal >= freeDeliveryThreshold;
-  const deliveryCharge = isFreeDelivery || items.length === 0 ? 0.00 : 1500.00;
+  const deliveryCharge = isFreeDelivery || items.length === 0 ? 0.00 : baseDeliveryFee;
   const progressToFreeDelivery = Math.min(100, (itemSubtotal / freeDeliveryThreshold) * 100);
   const amountNeededForFreeDelivery = Math.max(0, freeDeliveryThreshold - itemSubtotal);
-  const tax = itemSubtotal * taxRate;
+  const tax = Math.round(itemSubtotal * taxRate * 100) / 100;
   const grandTotal = Math.max(0, itemSubtotal + deliveryCharge + platformServiceFee + tax - couponDiscount);
 
   return (

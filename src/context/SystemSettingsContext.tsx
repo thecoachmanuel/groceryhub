@@ -60,7 +60,7 @@ export function SystemSettingsProvider({ children }: { children: React.ReactNode
 
   const fetchSettings = async () => {
     try {
-      const res = await fetch('/api/settings');
+      const res = await fetch(`/api/settings?t=${Date.now()}`, { cache: 'no-store' });
       const json = await res.json();
       if (json.success && json.data) {
         setSettings({ ...DEFAULT_SETTINGS, ...json.data });

@@ -1,7 +1,25 @@
 import crypto from 'crypto';
+import { connectToDatabase } from '@/lib/mongodb';
+import SystemSettings from '@/models/SystemSettings';
 
-const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY || 'sk_test_groceryhub_paystack_secret_key';
 const PAYSTACK_BASE_URL = 'https://api.paystack.co';
+
+export async function getPaystackSecretKey(): Promise<string> {
+  const envKey = process.env.PAYSTACK_SECRET_KEY;
+  if (envKey && envKey.startsWith('sk_')) return envKey;
+
+  try {
+    await connectToDatabase();
+    const settings: any = await SystemSettings.findOne().lean();
+    if (settings && settings.paystackSecretKey && settings.paystackSecretKey.startsWith('sk_')) {
+      return settings.paystackSecretKey;
+    }
+  } catch (err) {
+    console.warn('Paystack settings key lookup error:', err);
+  }
+
+  return envKey || 'sk_test_groceryhub_paystack_secret_key';
+}
 
 export interface PaystackInitParams {
   email: string;
@@ -54,8 +72,10 @@ export async function initializePaystackTransaction(params: PaystackInitParams):
   const reference = params.reference || `GROCERY_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
   const amountInKobo = Math.round(params.amount * 100);
 
-  // If running in development without valid live key, return mock fallback
-  if (!PAYSTACK_SECRET_KEY || PAYSTACK_SECRET_KEY.startsWith('sk_test_groceryhub_')) {
+  const secretKey = await getPaystackSecretKey();
+
+  // If running in test fallback mode without real key
+  if (!secretKey || secretKey.startsWith('sk_test_groceryhub_')) {
     return {
       status: true,
       message: 'Authorization URL created (Test Mode)',
@@ -71,7 +91,7 @@ export async function initializePaystackTransaction(params: PaystackInitParams):
     const res = await fetch(`${PAYSTACK_BASE_URL}/transaction/initialize`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+        Authorization: `Bearer ${secretKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -99,8 +119,9 @@ export async function initializePaystackTransaction(params: PaystackInitParams):
  * Verify a Paystack transaction by reference
  */
 export async function verifyPaystackTransaction(reference: string): Promise<PaystackVerifyResponse> {
-  // If running in mock test mode
-  if (!PAYSTACK_SECRET_KEY || PAYSTACK_SECRET_KEY.startsWith('sk_test_groceryhub_')) {
+  const secretKey = await getPaystackSecretKey();
+
+  if (!secretKey || secretKey.startsWith('sk_test_groceryhub_')) {
     return {
       status: true,
       message: 'Verification successful (Test Mode)',
@@ -127,7 +148,7 @@ export async function verifyPaystackTransaction(reference: string): Promise<Pays
     const res = await fetch(`${PAYSTACK_BASE_URL}/transaction/verify/${encodeURIComponent(reference)}`, {
       method: 'GET',
       headers: {
-        Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+        Authorization: `Bearer ${secretKey}`,
       },
     });
 
@@ -145,8 +166,9 @@ export async function verifyPaystackTransaction(reference: string): Promise<Pays
 /**
  * Verify Paystack webhook signature
  */
-export function verifyPaystackWebhookSignature(body: string, signature: string): boolean {
-  if (!PAYSTACK_SECRET_KEY) return false;
-  const hash = crypto.createHmac('sha512', PAYSTACK_SECRET_KEY).update(body).digest('hex');
+export async function verifyPaystackWebhookSignature(body: string, signature: string): Promise<boolean> {
+  const secretKey = await getPaystackSecretKey();
+  if (!secretKey) return false;
+  const hash = crypto.createHmac('sha512', secretKey).update(body).digest('hex');
   return hash === signature;
 }

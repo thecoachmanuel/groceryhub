@@ -7,6 +7,7 @@ import { X, Trash2, Plus, Minus, ArrowRight, ShoppingBag, ShieldCheck } from 'lu
 import { formatNaira } from '@/lib/currency';
 
 import { useCart } from '@/context/CartContext';
+import { useSystemSettings } from '@/context/SystemSettingsContext';
 
 export interface CartItem {
   id: number | string;
@@ -34,6 +35,7 @@ export default function CartDrawer({
   onUpdateQty: propsUpdateQty,
   onRemoveItem: propsRemoveItem,
 }: CartDrawerProps) {
+  const { settings } = useSystemSettings();
   const { cartItems: contextItems, updateQuantity, removeFromCart } = useCart();
   const items = propsItems !== undefined ? propsItems : (contextItems as CartItem[]);
   const handleUpdateQty = propsUpdateQty || updateQuantity;
@@ -46,8 +48,11 @@ export default function CartDrawer({
 
   if (!mounted) return null;
 
+  const freeDeliveryThreshold = settings?.freeDeliveryThreshold ?? 15000;
+  const baseDeliveryFee = settings?.deliveryFee ?? 1500;
+
   const itemTotal = items.reduce((acc, item) => acc + item.price * item.quantity, 0);
-  const deliveryFee = itemTotal >= 15000 || items.length === 0 ? 0 : 1500;
+  const deliveryFee = itemTotal >= freeDeliveryThreshold || items.length === 0 ? 0 : baseDeliveryFee;
   const grandTotal = itemTotal + deliveryFee;
 
   return (

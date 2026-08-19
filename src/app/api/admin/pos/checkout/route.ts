@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
     // Create Order document
     const newOrder = await Order.create({
       order_id: orderId,
+      is_pos_order: true,
       user_id: Number(user_id) || 0,
       seller_id: Number(seller_id) || 1,
       items: finalCartItems.map((item: any) => ({

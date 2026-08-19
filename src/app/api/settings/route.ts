@@ -4,6 +4,7 @@ import SystemSettings from '@/models/SystemSettings';
 import { apiSuccess } from '@/lib/api-response';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 const DEFAULT_SETTINGS = {
   appName: 'GroceryHub',
