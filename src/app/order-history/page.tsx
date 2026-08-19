@@ -45,20 +45,21 @@ interface Order {
 }
 
 const statusToStep: Record<string, number> = {
+  placed: 1,
   pending: 1,
   confirmed: 1,
+  preparing: 2,
   processing: 2,
   packed: 2,
+  ready_for_pickup: 3,
   shipped: 3,
   out_for_delivery: 3,
-  'Out for Delivery': 3,
   delivered: 4,
-  Delivered: 4,
 };
 
-const DEFAULT_DRIVER = {
-  name: 'GroceryHub Rider',
-  phone: '+234 800 000 0000',
+const UNASSIGNED_DRIVER = {
+  name: 'Unassigned Courier',
+  phone: 'Assigning nearby courier...',
   vehicle: 'Delivery Bike',
 };
 
@@ -93,8 +94,8 @@ export default function OrderHistoryPage() {
                     minute: '2-digit',
                   })
                 : 'Recently',
-              status: o.order_status || o.status || 'Processing',
-              statusStep: statusToStep[o.order_status || o.status || 'confirmed'] || 2,
+              status: o.order_status || o.status || 'placed',
+              statusStep: statusToStep[String(o.order_status || o.status || 'placed').toLowerCase()] || 1,
               total: o.total_amount || o.final_total || 0,
               itemsCount: (o.items || []).reduce((acc: number, i: any) => acc + (i.quantity || i.qty || 1), 0),
               deliverySlot: o.delivery_timeslot || o.deliverySlot || 'Express Delivery',
@@ -107,9 +108,9 @@ export default function OrderHistoryPage() {
                       o.delivery_address.city,
                     ].filter(Boolean).join(', ')
                 : 'Lagos, Nigeria',
-              driver: o.delivery_boy_name
+              driver: o.delivery_boy_name && o.delivery_boy_name !== 'Unassigned Rider'
                 ? { name: o.delivery_boy_name, phone: o.delivery_boy_phone || '—', vehicle: 'Delivery Bike' }
-                : DEFAULT_DRIVER,
+                : UNASSIGNED_DRIVER,
               deliveryPin: o.delivery_pin || '—',
               items: (o.items || []).map((i: any) => ({
                 name: i.product_name || i.name || 'Product',

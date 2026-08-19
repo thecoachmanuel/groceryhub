@@ -20,20 +20,23 @@ import Footer from '@/components/website/Footer';
 
 // Status step definitions
 const STATUS_STEPS = [
-  { key: 'placed',           label: 'Order Placed',    icon: CheckCircle2 },
-  { key: 'preparing',        label: 'Packed by Store', icon: Package      },
-  { key: 'out_for_delivery', label: 'Out for Delivery', icon: Truck       },
-  { key: 'delivered',        label: 'Delivered',       icon: MapPin       },
+  { key: 'placed',           label: 'Order Placed',      icon: CheckCircle2 },
+  { key: 'confirmed',        label: 'Order Confirmed',   icon: CheckCircle2 },
+  { key: 'preparing',        label: 'Packing at Store',  icon: Package      },
+  { key: 'out_for_delivery', label: 'Out for Delivery',  icon: Truck        },
+  { key: 'delivered',        label: 'Delivered',         icon: MapPin       },
 ];
 
-// Map status to which step index is active
+// Map status to active step index (0-4)
 const STATUS_TO_STEP: Record<string, number> = {
   placed:           0,
+  pending:          0,
   confirmed:        1,
-  preparing:        1,
-  ready_for_pickup: 2,
-  out_for_delivery: 2,
-  delivered:        3,
+  preparing:        2,
+  packed:           2,
+  ready_for_pickup: 3,
+  out_for_delivery: 3,
+  delivered:        4,
   cancelled:        0,
 };
 
@@ -78,15 +81,15 @@ export default function TrackOrderPage({ params }: { params: { orderId?: string 
     fetchOrder();
   }, [fetchOrder]);
 
-  // Auto-poll every 20 seconds so status updates from admin reflect in real time
+  // Auto-poll every 10 seconds so admin status & rider updates reflect instantly
   useEffect(() => {
     const interval = setInterval(() => {
       fetchOrder();
-    }, 20000);
+    }, 10000);
     return () => clearInterval(interval);
   }, [fetchOrder]);
 
-  const status = order?.order_status || 'placed';
+  const status = (order?.order_status || 'placed').toLowerCase();
   const activeStep = STATUS_TO_STEP[status] ?? 0;
   const isCancelled = status === 'cancelled';
   const isDelivered = status === 'delivered';
@@ -94,7 +97,7 @@ export default function TrackOrderPage({ params }: { params: { orderId?: string 
 
   const riderName = order?.delivery_boy_name || null;
   const riderPhone = order?.delivery_boy_phone || null;
-  const hasRider = !!riderName;
+  const hasRider = !!riderName && riderName !== 'Unassigned Rider' && riderName !== 'Unassigned Courier';
 
   const deliveryPin = order?.delivery_pin || '—';
 
