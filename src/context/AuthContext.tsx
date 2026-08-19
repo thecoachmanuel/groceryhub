@@ -133,6 +133,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (adminToken) setIsAdminAuthenticated(true);
 
     setIsInitialized(true);
+
+    // Asynchronously revalidate session with server to keep user data fresh across deployments
+    async function revalidateSession() {
+      try {
+        const token = localStorage.getItem('groceryhub_token') || localStorage.getItem('groceryhub_seller_token') || localStorage.getItem('groceryhub_rider_token');
+        if (!token) return;
+
+        const res = await fetch('/api/auth/me', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const json = await res.json();
+        if (json.success && json.data?.user) {
+          const u = json.data.user;
+          if (u.role === 'user') {
+            setUser((prev) => {
+              const updated = { ...(prev || {}), ...u, role: 'user' as const };
+              localStorage.setItem('groceryhub_user', JSON.stringify(updated));
+              return updated;
+            });
+          } else if (u.role === 'seller') {
+            setSeller((prev) => {
+              const updated = { ...(prev || {}), ...u, role: 'seller' as const };
+              localStorage.setItem('groceryhub_seller', JSON.stringify(updated));
+              return updated;
+            });
+          } else if (u.role === 'delivery') {
+            setRider((prev) => {
+              const updated = { ...(prev || {}), ...u, role: 'delivery' as const };
+              localStorage.setItem('groceryhub_rider', JSON.stringify(updated));
+              return updated;
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('Session revalidation warning:', err);
+      }
+    }
+    revalidateSession();
   }, []);
 
   // ─── Customer Session ───────────────────────────────────────────────────────

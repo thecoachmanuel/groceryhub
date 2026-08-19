@@ -167,22 +167,31 @@ export default function CheckoutPage() {
   };
 
   const handlePlaceOrder = async () => {
-    if (addresses.length === 0 || !selectedAddressId) {
-      alert('Please add or select a delivery address before proceeding.');
-      setShowAddAddressModal(true);
-      return;
-    }
+    let activeAddress = addresses.find(a => a.id === selectedAddressId) || addresses[0];
 
-    const activeAddress = addresses.find(a => a.id === selectedAddressId) || addresses[0];
+    if (!activeAddress) {
+      activeAddress = {
+        id: Date.now(),
+        type: 'Home',
+        name: user?.name || 'Valued Customer',
+        mobile: user?.mobile || '+234 800 000 0000',
+        flat: modalFlat || 'Doorstep Delivery',
+        area: modalArea || 'Victoria Island',
+        city: modalCity || 'Lagos',
+        pincode: '101241',
+        isDefault: true,
+      };
+    }
 
     setIsSubmitting(true);
     try {
       if (paymentMethod === 'paystack') {
+        const payEmail = user?.email && user.email.includes('@') ? user.email : 'customer@groceryhub.ng';
         const initRes = await fetch('/api/payment/paystack/initialize', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            email: user?.email || 'customer@groceryhub.ng',
+            email: payEmail,
             amount: grandTotal,
             reference: `ORD_NG_${Date.now()}`,
           }),
@@ -191,14 +200,25 @@ export default function CheckoutPage() {
         if (resData.success && resData.data?.authorization_url) {
           window.location.href = resData.data.authorization_url;
           return;
+        } else {
+          setIsSubmitting(false);
+          alert(resData.message || 'Paystack checkout failed. Please select Cash on Delivery or Digital Wallet.');
+          return;
         }
       }
 
+      const authToken = typeof window !== 'undefined' ? localStorage.getItem('groceryhub_token') : null;
       const orderRes = await fetch('/api/v1_6/customer/placeCODOrder', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+        },
         body: JSON.stringify({
           user_id: user?.id || Date.now(),
+          customer_name: user?.name || activeAddress.name || 'Valued Customer',
+          customer_phone: user?.mobile || activeAddress.mobile || '',
+          customer_email: user?.email || 'customer@groceryhub.ng',
           seller_id: 1,
           subtotal: itemSubtotal,
           delivery_charge: deliveryFee,
@@ -220,11 +240,18 @@ export default function CheckoutPage() {
       });
 
       const orderJson = await orderRes.json();
+      if (!orderRes.ok || (orderJson && orderJson.success === false)) {
+        setIsSubmitting(false);
+        alert(orderJson?.message || 'Order placement failed. Please try again.');
+        return;
+      }
+
       const placedOrderId = orderJson?.data?.order_id || `ORD-${Math.floor(10000 + Math.random() * 90000)}`;
 
       // Save order to user's localStorage order history
-      if (typeof window !== 'undefined' && user?.id) {
-        const userOrdersKey = `groceryhub_orders_${user.id}`;
+      if (typeof window !== 'undefined') {
+        const uId = user?.id || 'guest';
+        const userOrdersKey = `groceryhub_orders_${uId}`;
         const existingOrders = JSON.parse(localStorage.getItem(userOrdersKey) || '[]');
         const totalQty = cartItems.reduce((acc, i) => acc + i.quantity, 0);
         const orderItemSummary = cartItems.map(i => ({
@@ -236,16 +263,16 @@ export default function CheckoutPage() {
         const newOrderObj = {
           id: placedOrderId,
           date: 'Just Now',
-          status: 'Out for Delivery',
-          statusStep: 3,
+          status: 'placed',
+          statusStep: 1,
           total: grandTotal,
           itemsCount: totalQty,
           deliverySlot: selectedTimeslot,
           deliveryAddress: `${activeAddress.flat}, ${activeAddress.area}, ${activeAddress.city}`,
           driver: {
-            name: 'Marcus Vance',
-            phone: '+234 809 111 2233',
-            vehicle: 'Honda Super Cub 125cc (LAG-8492)',
+            name: 'GroceryHub Courier Rider',
+            phone: '+234 800 000 0000',
+            vehicle: 'Express Delivery Bike',
           },
           items: orderItemSummary,
         };
