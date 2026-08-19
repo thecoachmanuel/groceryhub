@@ -64,19 +64,18 @@ export function middleware(req: NextRequest) {
     '/delivery/profile',
   ];
 
+  const isPaystackCallback = req.nextUrl.searchParams.has('reference') || req.nextUrl.searchParams.has('trxref');
+
   // ─── Customer Protected Routes ──────────────────────────────────────────────
   const customerRoutes = [
     '/profile',
-    '/order-history',
     '/wallet',
   ];
 
   const isAdminRoute = adminRoutes.some((r) => pathname.startsWith(r));
   const isSellerRoute = sellerRoutes.some((r) => pathname.startsWith(r));
   const isRiderRoute = riderRoutes.some((r) => pathname.startsWith(r));
-  const isCustomerRoute =
-    customerRoutes.some((r) => pathname.startsWith(r)) ||
-    pathname.startsWith('/track/');
+  const isCustomerRoute = customerRoutes.some((r) => pathname.startsWith(r));
 
   // ─── Redirect Already Authenticated Users Away From Login Pages ─────────────
   if (authToken && userRole) {
@@ -98,11 +97,14 @@ export function middleware(req: NextRequest) {
   if (
     pathname === '/login' ||
     pathname === '/register' ||
+    pathname === '/admin/login' ||
     pathname === '/seller/login' ||
     pathname === '/seller/register' ||
     pathname === '/delivery/login' ||
     pathname === '/delivery/register' ||
-    pathname === '/admin/login' ||
+    pathname.startsWith('/api/') ||
+    pathname.startsWith('/_next/') ||
+    pathname.includes('.') ||
     pathname === '/forgot-password'
   ) {
     return NextResponse.next();
