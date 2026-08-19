@@ -1,9 +1,25 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
+import mongoose from 'mongoose';
 import { connectToDatabase } from '@/lib/mongodb';
 import Product from '@/models/Product';
 import { apiSuccess, apiError } from '@/lib/api-response';
 
 export const dynamic = 'force-dynamic';
+
+function buildProductFilter(id: string) {
+  const numericId = parseInt(id, 10);
+  const isValidObjectId = mongoose.Types.ObjectId.isValid(id);
+
+  const conditions: any[] = [];
+  if (isValidObjectId) conditions.push({ _id: id });
+  if (!isNaN(numericId)) {
+    conditions.push({ product_id: numericId });
+    conditions.push({ id: numericId });
+  }
+  conditions.push({ slug: id });
+
+  return conditions.length === 1 ? conditions[0] : { $or: conditions };
+}
 
 export async function GET(
   req: NextRequest,
@@ -12,11 +28,7 @@ export async function GET(
   try {
     await connectToDatabase();
     const id = params.id;
-    const numericId = parseInt(id, 10);
-
-    const filter = isNaN(numericId)
-      ? { $or: [{ _id: id }, { slug: id }] }
-      : { $or: [{ product_id: numericId }, { id: numericId }, { _id: id }, { slug: id }] };
+    const filter = buildProductFilter(id);
 
     const product = await Product.findOne(filter).lean();
     if (!product) {
@@ -40,8 +52,7 @@ export async function PUT(
     const body = await req.json().catch(() => ({}));
     const { name, category, price, discounted_price, stock, description, image, status, unit, is_deal_of_the_day } = body;
 
-    const numericId = parseInt(id, 10);
-    const filter = isNaN(numericId) ? { _id: id } : { $or: [{ product_id: numericId }, { id: numericId }, { _id: id }] };
+    const filter = buildProductFilter(id);
 
     const updateData: any = {};
     if (name) updateData.name = name.trim();
@@ -58,7 +69,7 @@ export async function PUT(
         const v = existing.variants[0];
         if (price !== undefined)            v.price = parseFloat(price);
         if (discounted_price !== undefined) v.discounted_price = parseFloat(discounted_price);
-        else if (price !== undefined)       v.discounted_price = parseFloat(price); // default discounted = price if not provided
+        else if (price !== undefined)       v.discounted_price = parseFloat(price);
         if (stock !== undefined)            v.stock = parseInt(stock, 10);
         if (unit !== undefined)             v.unit = unit;
         updateData.variants = existing.variants;
@@ -84,9 +95,8 @@ export async function DELETE(
   try {
     await connectToDatabase();
     const id = params.id;
-    const numericId = parseInt(id, 10);
+    const filter = buildProductFilter(id);
 
-    const filter = isNaN(numericId) ? { _id: id } : { $or: [{ product_id: numericId }, { id: numericId }, { _id: id }] };
     const deleted = await Product.findOneAndDelete(filter);
 
     return apiSuccess({ id: deleted?.product_id || id }, 'Product deleted successfully');

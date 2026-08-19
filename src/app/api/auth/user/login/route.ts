@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { generateToken } from '@/lib/jwt';
 import { connectToDatabase } from '@/lib/mongodb';
 import User from '@/models/User';
+import Session from '@/models/Session';
 import { verifyPassword, normalizePhone, getLocalPhone } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
@@ -89,6 +90,26 @@ export async function POST(req: NextRequest) {
       email: user.email,
       mobile: user.mobile,
     });
+
+    // Save persistent 1-year session to MongoDB
+    try {
+      const oneYearFromNow = new Date();
+      oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+      await Session.findOneAndUpdate(
+        { token },
+        {
+          token,
+          user_id: user.user_id,
+          role: 'user',
+          email: user.email || '',
+          mobile: user.mobile || '',
+          expiresAt: oneYearFromNow,
+        },
+        { upsert: true, new: true }
+      );
+    } catch (sessionErr) {
+      console.warn('Session DB log error (ignoring):', sessionErr);
+    }
 
     const res = NextResponse.json({
       success: true,

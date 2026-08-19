@@ -74,6 +74,22 @@ export function SystemSettingsProvider({ children }: { children: React.ReactNode
 
   useEffect(() => {
     fetchSettings();
+
+    const handleSync = () => {
+      fetchSettings();
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('groceryhub_settings_updated', handleSync);
+      window.addEventListener('storage', handleSync);
+    }
+
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('groceryhub_settings_updated', handleSync);
+        window.removeEventListener('storage', handleSync);
+      }
+    };
   }, []);
 
   return (

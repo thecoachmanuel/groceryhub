@@ -119,6 +119,9 @@ export default function AdminSettingsPage() {
 
       if (json.success) {
         setSavedSuccess(true);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('groceryhub_settings_updated'));
+        }
         setTimeout(() => setSavedSuccess(false), 3000);
       } else {
         alert(json.message || 'Failed to save settings');
