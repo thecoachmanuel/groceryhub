@@ -99,7 +99,7 @@ const SystemSettingsSchema: Schema = new Schema(
     maxDeliveryRadius: { type: Number, default: 25 },
     allowMultipleVendorsCart: { type: Boolean, default: true },
     autoAssignCourier: { type: Boolean, default: true },
-    announcementText: { type: String, default: '⚡ 30-Minute Express Grocery Delivery across Lagos! Free shipping over ₦15,000' },
+    announcementText: { type: String, default: '⚡ 30-Minute Express Grocery Delivery!' },
     maintenanceMode: { type: Boolean, default: false },
     playStoreUrl: { type: String, default: 'https://play.google.com/store/apps/details?id=com.groceryhub.customer' },
     appStoreUrl: { type: String, default: 'https://apps.apple.com/app/groceryhub-delivery/id159023481' },

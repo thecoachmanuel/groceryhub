@@ -29,7 +29,7 @@ const DEFAULT_SETTINGS = {
   maxDeliveryRadius: 25,
   allowMultipleVendorsCart: true,
   autoAssignCourier: true,
-  announcementText: '⚡ 30-Minute Express Grocery Delivery across Lagos! Free shipping over ₦15,000',
+  announcementText: '⚡ 30-Minute Express Grocery Delivery!',
   maintenanceMode: false,
   playStoreUrl: 'https://play.google.com/store/apps/details?id=com.groceryhub.customer',
   appStoreUrl: 'https://apps.apple.com/app/groceryhub-delivery/id159023481',
@@ -71,9 +71,13 @@ const DEFAULT_SETTINGS = {
 export async function GET() {
   try {
     await connectToDatabase();
-    let settings = await SystemSettings.findOne().lean();
+    let settings: any = await SystemSettings.findOne().lean();
     if (!settings) {
       settings = await SystemSettings.create(DEFAULT_SETTINGS);
+    } else if (settings.announcementText && settings.announcementText.includes('across Lagos')) {
+      // Auto-update legacy announcement text in MongoDB
+      await SystemSettings.updateOne({}, { $set: { announcementText: '⚡ 30-Minute Express Grocery Delivery!' } });
+      settings.announcementText = '⚡ 30-Minute Express Grocery Delivery!';
     }
     return apiSuccess(settings, 'Platform settings loaded');
   } catch (error: any) {

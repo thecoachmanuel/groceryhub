@@ -43,7 +43,7 @@ const DEFAULT_SETTINGS: SystemSettings = {
   deliveryFee: 1500,
   platformServiceFee: 500,
   taxRate: 7.5,
-  announcementText: '⚡ 30-Minute Express Grocery Delivery across Lagos! Free shipping over ₦15,000',
+  announcementText: '⚡ 30-Minute Express Grocery Delivery!',
   maintenanceMode: false,
   playStoreUrl: 'https://play.google.com/store/apps/details?id=com.groceryhub.customer',
   appStoreUrl: 'https://apps.apple.com/app/groceryhub-delivery/id159023481',
