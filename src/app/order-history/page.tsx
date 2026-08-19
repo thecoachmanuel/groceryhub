@@ -355,13 +355,21 @@ export default function OrderHistoryPage() {
                   <p className="text-[11px] text-gray-400">{selectedOrderForTracking.driver.vehicle}</p>
                 </div>
               </div>
-              <a
-                href={`tel:${selectedOrderForTracking.driver.phone}`}
-                className="bg-[#0aad0a] text-white p-2.5 rounded-xl shadow-md flex items-center gap-1 text-xs font-bold"
-              >
-                <Phone size={14} />
-                <span className="hidden sm:inline">Call Courier</span>
-              </a>
+              {selectedOrderForTracking.driver.name !== 'Unassigned Courier' &&
+              selectedOrderForTracking.driver.phone &&
+              !selectedOrderForTracking.driver.phone.includes('Assigning') ? (
+                <a
+                  href={`tel:${selectedOrderForTracking.driver.phone.replace(/[^0-9+]/g, '')}`}
+                  className="bg-[#0aad0a] hover:bg-[#088f08] text-white px-3.5 py-2 rounded-xl shadow-md flex items-center gap-1.5 text-xs font-bold transition-all active:scale-95"
+                >
+                  <Phone size={14} />
+                  <span>Call Courier ({selectedOrderForTracking.driver.phone})</span>
+                </a>
+              ) : (
+                <span className="text-[11px] font-bold text-amber-500 bg-amber-500/10 px-2.5 py-1 rounded-lg">
+                  Assigning Courier...
+                </span>
+              )}
             </div>
 
             <button

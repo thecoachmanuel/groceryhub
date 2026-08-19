@@ -285,11 +285,11 @@ export default function TrackOrderPage({ params }: { params: { orderId?: string 
 
                       {riderPhone && (
                         <a
-                          href={`tel:${riderPhone}`}
-                          className="p-3 bg-[#0aad0a] hover:bg-[#088f08] text-white rounded-2xl shadow-md transition-all active:scale-95 flex items-center gap-1.5 text-xs font-bold"
+                          href={`tel:${riderPhone.replace(/[^0-9+]/g, '')}`}
+                          className="px-4 py-3 bg-[#0aad0a] hover:bg-[#088f08] text-white rounded-2xl shadow-md transition-all active:scale-95 flex items-center gap-2 text-xs font-bold"
                         >
                           <Phone size={16} />
-                          <span>Call</span>
+                          <span>Call Courier ({riderPhone})</span>
                         </a>
                       )}
                     </div>
