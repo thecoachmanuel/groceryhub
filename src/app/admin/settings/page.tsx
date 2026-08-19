@@ -47,7 +47,7 @@ export default function AdminSettingsPage() {
   const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState('15000');
   const [deliveryFee, setDeliveryFee] = useState('1500');
   const [platformServiceFee, setPlatformServiceFee] = useState('500');
-  const [taxRate, setTaxRate] = useState('7.5');
+  const [taxRate, setTaxRate] = useState('0');
   const [autoAssignDrivers, setAutoAssignDrivers] = useState(true);
 
   // Security & Auth

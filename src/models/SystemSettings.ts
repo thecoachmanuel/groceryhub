@@ -92,7 +92,7 @@ const SystemSettingsSchema: Schema = new Schema(
     freeDeliveryThreshold: { type: Number, default: 15000 },
     deliveryFee: { type: Number, default: 1500 },
     platformServiceFee: { type: Number, default: 500 },
-    taxRate: { type: Number, default: 7.5 },
+    taxRate: { type: Number, default: 0 },
     maxCodLimit: { type: Number, default: 100000 },
     prepBufferMinutes: { type: Number, default: 20 },
     nightSurcharge: { type: Number, default: 1000 },

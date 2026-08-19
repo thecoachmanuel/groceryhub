@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
       dateFilter = { createdAt: { $gte: startOfYear } };
     }
 
-    const orders = await Order.find(dateFilter).sort({ createdAt: -1 }).lean();
+    const orders = await Order.find({ ...dateFilter, is_pos_order: { $ne: true } }).sort({ createdAt: -1 }).lean();
 
     // Map sellers
     const sellers = await Seller.find().lean();

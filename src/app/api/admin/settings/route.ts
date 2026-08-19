@@ -21,7 +21,7 @@ const DEFAULT_SETTINGS = {
   freeDeliveryThreshold: 15000,
   deliveryFee: 1500,
   platformServiceFee: 500,
-  taxRate: 7.5,
+  taxRate: 0,
   announcementText: '⚡ 30-Minute Express Grocery Delivery!',
   maintenanceMode: false,
   playStoreUrl: 'https://play.google.com/store/apps/details?id=com.groceryhub.customer',

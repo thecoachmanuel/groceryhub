@@ -7,11 +7,18 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
   try {
     await connectToDatabase();
+    const { searchParams } = new URL(req.url);
+    const sellerIdParam = searchParams.get('seller_id');
 
-    // Select name, category, variants (where stock lives), image, and product_id
-    const products = await Product.find()
+    // Build filter — sellers only see their own products; admin sees all
+    const filter: any = {};
+    if (sellerIdParam) filter.seller_id = Number(sellerIdParam);
+
+    // Populate category name from Category collection if needed
+    const products = await Product.find(filter)
       .select('name category variants product_id seller_id image status')
       .sort({ name: 1 })
+      .populate({ path: 'category', select: 'name', model: 'Category' })
       .lean();
 
     // Compute total stock and price from variants array
@@ -19,15 +26,21 @@ export async function GET(req: NextRequest) {
       const variants: any[] = Array.isArray(p.variants) ? p.variants : [];
       const totalStock = variants.reduce((sum: number, v: any) => sum + (v.stock ?? 0), 0);
       const firstVariant = variants[0] || {};
+      // Resolve category — could be a populated object, a string name, or an ObjectId string
+      const categoryName =
+        typeof p.category === 'object' && p.category?.name
+          ? p.category.name
+          : typeof p.category === 'string'
+          ? p.category
+          : '—';
       return {
         _id: p._id,
         product_id: p.product_id,
         seller_id: p.seller_id,
         name: p.name || 'Unnamed Product',
-        category: p.category || '—',
+        category: categoryName,
         image: p.image || '',
         status: p.status || 'active',
-        // Unified stock surface (sum of all variants)
         stock: totalStock,
         current_stock: totalStock,
         price: firstVariant.price ?? 0,

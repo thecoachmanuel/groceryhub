@@ -22,7 +22,7 @@ const DEFAULT_SETTINGS = {
   freeDeliveryThreshold: 15000,
   deliveryFee: 1500,
   platformServiceFee: 500,
-  taxRate: 7.5,
+  taxRate: 0,
   maxCodLimit: 100000,
   prepBufferMinutes: 20,
   nightSurcharge: 1000,
@@ -75,9 +75,14 @@ export async function GET() {
     if (!settings) {
       settings = await SystemSettings.create(DEFAULT_SETTINGS);
     } else if (settings.announcementText && settings.announcementText.includes('across Lagos')) {
-      // Auto-update legacy announcement text in MongoDB
-      await SystemSettings.updateOne({}, { $set: { announcementText: '⚡ 30-Minute Express Grocery Delivery!' } });
+      // Auto-update legacy announcement text
+      await SystemSettings.updateOne({}, { $set: { announcementText: '⚡ 30-Minute Express Grocery Delivery!', taxRate: 0 } });
       settings.announcementText = '⚡ 30-Minute Express Grocery Delivery!';
+      settings.taxRate = 0;
+    } else if ((settings as any).taxRate === 7.5) {
+      // Auto-zero legacy VAT
+      await SystemSettings.updateOne({}, { $set: { taxRate: 0 } });
+      (settings as any).taxRate = 0;
     }
     return apiSuccess(settings, 'Platform settings loaded');
   } catch (error: any) {
