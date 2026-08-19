@@ -99,8 +99,8 @@ export default function AdminSettingsPage() {
     loadSettings();
   }, []);
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setIsSubmitting(true);
     try {
       const payload = {
@@ -114,12 +114,12 @@ export default function AdminSettingsPage() {
         currencyCode,
         timezone,
         orderPrefix,
-        defaultRadius: Number(defaultRadius),
-        minOrderSpend: Number(minOrderSpend),
-        freeDeliveryThreshold: Number(freeDeliveryThreshold),
-        deliveryFee: Number(deliveryFee),
-        platformServiceFee: Number(platformServiceFee),
-        taxRate: Number(taxRate),
+        defaultRadius: Number(defaultRadius || '15'),
+        minOrderSpend: Number(minOrderSpend || '2000'),
+        freeDeliveryThreshold: Number(freeDeliveryThreshold || '15000'),
+        deliveryFee: Number(deliveryFee || '1500'),
+        platformServiceFee: Number(platformServiceFee || '500'),
+        taxRate: Number(taxRate || '7.5'),
         maintenanceMode,
         playStoreUrl,
         appStoreUrl,
@@ -138,8 +138,9 @@ export default function AdminSettingsPage() {
         setSavedSuccess(true);
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('groceryhub_settings_updated'));
+          localStorage.setItem('groceryhub_settings_cache_ts', String(Date.now()));
         }
-        setTimeout(() => setSavedSuccess(false), 3000);
+        setTimeout(() => setSavedSuccess(false), 4000);
       } else {
         alert(json.message || 'Failed to save settings');
       }
@@ -212,7 +213,6 @@ export default function AdminSettingsPage() {
                     value={appName}
                     onChange={(e) => setAppName(e.target.value)}
                     className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                    required
                   />
                 </div>
 
@@ -223,7 +223,6 @@ export default function AdminSettingsPage() {
                     value={supportPhone}
                     onChange={(e) => setSupportPhone(e.target.value)}
                     className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                    required
                   />
                 </div>
               </div>
@@ -235,7 +234,6 @@ export default function AdminSettingsPage() {
                   value={appDescription}
                   onChange={(e) => setAppDescription(e.target.value)}
                   className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                  required
                 />
               </div>
 
@@ -247,7 +245,6 @@ export default function AdminSettingsPage() {
                     value={supportEmail}
                     onChange={(e) => setSupportEmail(e.target.value)}
                     className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                    required
                   />
                 </div>
 
@@ -258,7 +255,6 @@ export default function AdminSettingsPage() {
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
                     className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                    required
                   />
                 </div>
               </div>
@@ -283,7 +279,6 @@ export default function AdminSettingsPage() {
                     value={currencySymbol}
                     onChange={(e) => setCurrencySymbol(e.target.value)}
                     className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs font-bold focus:outline-none focus:border-[#0aad0a]"
-                    required
                   />
                 </div>
 
@@ -294,7 +289,6 @@ export default function AdminSettingsPage() {
                     value={currencyCode}
                     onChange={(e) => setCurrencyCode(e.target.value)}
                     className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs font-mono font-bold focus:outline-none focus:border-[#0aad0a]"
-                    required
                   />
                 </div>
 
@@ -325,7 +319,6 @@ export default function AdminSettingsPage() {
                     value={orderPrefix}
                     onChange={(e) => setOrderPrefix(e.target.value)}
                     className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs font-mono font-bold focus:outline-none focus:border-[#0aad0a]"
-                    required
                   />
                 </div>
 
@@ -337,7 +330,6 @@ export default function AdminSettingsPage() {
                     value={defaultRadius}
                     onChange={(e) => setDefaultRadius(e.target.value)}
                     className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                    required
                   />
                 </div>
               </div>
@@ -351,7 +343,6 @@ export default function AdminSettingsPage() {
                     value={minOrderSpend}
                     onChange={(e) => setMinOrderSpend(e.target.value)}
                     className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                    required
                   />
                 </div>
 
@@ -363,7 +354,6 @@ export default function AdminSettingsPage() {
                     value={freeDeliveryThreshold}
                     onChange={(e) => setFreeDeliveryThreshold(e.target.value)}
                     className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                    required
                   />
                 </div>
               </div>
@@ -462,7 +452,6 @@ export default function AdminSettingsPage() {
                     value={otpExpirationSec}
                     onChange={(e) => setOtpExpirationSec(e.target.value)}
                     className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                    required
                   />
                 </div>
 
@@ -473,7 +462,6 @@ export default function AdminSettingsPage() {
                     value={maxLoginAttempts}
                     onChange={(e) => setMaxLoginAttempts(e.target.value)}
                     className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                    required
                   />
                 </div>
               </div>
@@ -523,11 +511,17 @@ export default function AdminSettingsPage() {
 
           <div className="flex justify-end pt-4 border-t border-gray-800">
             <button
-              type="submit"
-              className="bg-[#0aad0a] hover:bg-[#088f08] text-white font-black px-8 py-3.5 rounded-2xl text-xs flex items-center gap-2 shadow-lg shadow-[#0aad0a]/30 transition-all active:scale-95"
+              type="button"
+              onClick={() => handleSave()}
+              disabled={isSubmitting}
+              className="bg-[#0aad0a] hover:bg-[#088f08] disabled:opacity-50 text-white font-black px-8 py-3.5 rounded-2xl text-xs flex items-center gap-2 shadow-lg shadow-[#0aad0a]/30 transition-all active:scale-95"
             >
-              <Save size={16} />
-              <span>Save System Settings</span>
+              {isSubmitting ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+              ) : (
+                <Save size={16} />
+              )}
+              <span>{isSubmitting ? 'Saving Settings...' : 'Save System Settings'}</span>
             </button>
           </div>
         </form>

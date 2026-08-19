@@ -294,16 +294,17 @@ export default function AdminStoreSettingPage() {
 
             <div className="flex justify-end">
               <button
-                type="submit"
+                type="button"
+                onClick={handleSave}
                 disabled={submitting}
-                className="bg-[#0aad0a] hover:bg-[#088f08] text-white font-black px-8 py-3.5 rounded-2xl text-xs flex items-center gap-2 shadow-lg shadow-[#0aad0a]/30 transition-all active:scale-95"
+                className="bg-[#0aad0a] hover:bg-[#088f08] disabled:opacity-50 text-white font-black px-8 py-3.5 rounded-2xl text-xs flex items-center gap-2 shadow-lg shadow-[#0aad0a]/30 transition-all active:scale-95"
               >
                 {submitting ? (
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
                 ) : (
                   <Save size={16} />
                 )}
-                <span>Save Store Operation Policies</span>
+                <span>{submitting ? 'Saving Policies...' : 'Save Store Operation Policies'}</span>
               </button>
             </div>
           </form>
