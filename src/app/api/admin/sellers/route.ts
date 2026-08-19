@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import Seller from '@/models/Seller';
+import { extractRequestId, buildIdFilter } from '@/lib/mongoose-helpers';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     await connectToDatabase();
     const sellers = await Seller.find()
@@ -21,7 +22,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     await connectToDatabase();
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
     const count = await Seller.countDocuments();
     const seller = await Seller.create({ ...body, seller_id: count + 1 });
     return NextResponse.json({ success: true, data: seller }, { status: 201 });
@@ -33,10 +34,13 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     await connectToDatabase();
-    const body = await req.json();
-    const { sellerId, ...updates } = body;
-    if (!sellerId) return NextResponse.json({ success: false, message: 'sellerId required' }, { status: 400 });
-    const updated = await Seller.findByIdAndUpdate(sellerId, { $set: updates }, { new: true }).select('-password');
+    const { id, body } = await extractRequestId(req, ['sellerId', 'id', '_id', 'seller_id']);
+    if (!id) return NextResponse.json({ success: false, message: 'sellerId required' }, { status: 400 });
+
+    const filter = buildIdFilter(id, 'seller_id');
+    const { sellerId, id: _i, _id, ...updates } = body;
+
+    const updated = await Seller.findOneAndUpdate(filter, { $set: updates }, { new: true }).select('-password');
     return NextResponse.json({ success: true, data: updated });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 400 });
@@ -46,9 +50,11 @@ export async function PUT(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     await connectToDatabase();
-    const { sellerId } = await req.json();
-    if (!sellerId) return NextResponse.json({ success: false, message: 'sellerId required' }, { status: 400 });
-    await Seller.findByIdAndDelete(sellerId);
+    const { id } = await extractRequestId(req, ['sellerId', 'id', '_id', 'seller_id']);
+    if (!id) return NextResponse.json({ success: false, message: 'sellerId required' }, { status: 400 });
+
+    const filter = buildIdFilter(id, 'seller_id');
+    await Seller.findOneAndDelete(filter);
     return NextResponse.json({ success: true, message: 'Seller deleted' });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 400 });

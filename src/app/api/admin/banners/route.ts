@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import Banner from '@/models/Banner';
+import { extractRequestId, buildIdFilter } from '@/lib/mongoose-helpers';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     await connectToDatabase();
     const banners = await Banner.find().sort({ createdAt: -1 }).lean();
@@ -18,7 +19,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     await connectToDatabase();
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
     if (!body.title || !body.image) {
       return NextResponse.json({ success: false, message: 'title and image are required' }, { status: 400 });
     }
@@ -32,10 +33,13 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     await connectToDatabase();
-    const body = await req.json();
-    const { bannerId, ...updates } = body;
-    if (!bannerId) return NextResponse.json({ success: false, message: 'bannerId required' }, { status: 400 });
-    const updated = await Banner.findByIdAndUpdate(bannerId, { $set: updates }, { new: true });
+    const { id, body } = await extractRequestId(req, ['bannerId', 'id', '_id', 'banner_id']);
+    if (!id) return NextResponse.json({ success: false, message: 'bannerId required' }, { status: 400 });
+
+    const filter = buildIdFilter(id, 'banner_id');
+    const { bannerId, id: _i, _id, ...updates } = body;
+
+    const updated = await Banner.findOneAndUpdate(filter, { $set: updates }, { new: true });
     return NextResponse.json({ success: true, data: updated });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 400 });
@@ -45,9 +49,11 @@ export async function PUT(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     await connectToDatabase();
-    const { bannerId } = await req.json();
-    if (!bannerId) return NextResponse.json({ success: false, message: 'bannerId required' }, { status: 400 });
-    await Banner.findByIdAndDelete(bannerId);
+    const { id } = await extractRequestId(req, ['bannerId', 'id', '_id', 'banner_id']);
+    if (!id) return NextResponse.json({ success: false, message: 'bannerId required' }, { status: 400 });
+
+    const filter = buildIdFilter(id, 'banner_id');
+    await Banner.findOneAndDelete(filter);
     return NextResponse.json({ success: true, message: 'Banner deleted' });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 400 });

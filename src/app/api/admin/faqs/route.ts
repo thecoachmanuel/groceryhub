@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import Faq from '@/models/Faq';
+import { extractRequestId, buildIdFilter } from '@/lib/mongoose-helpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +18,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     await connectToDatabase();
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
     const newFaq = await Faq.create(body);
     return NextResponse.json({ success: true, data: newFaq });
   } catch (error: any) {
@@ -28,9 +29,12 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     await connectToDatabase();
-    const body = await req.json();
-    const { id, ...updateData } = body;
-    const updated = await Faq.findByIdAndUpdate(id, updateData, { new: true });
+    const { id, body } = await extractRequestId(req, ['id', '_id', 'faqId']);
+    if (!id) return NextResponse.json({ success: false, message: 'id required' }, { status: 400 });
+
+    const filter = buildIdFilter(id);
+    const { id: _i, _id, faqId, ...updateData } = body;
+    const updated = await Faq.findOneAndUpdate(filter, { $set: updateData }, { new: true });
     return NextResponse.json({ success: true, data: updated });
   } catch (error: any) {
     return NextResponse.json({ success: false, message: error.message }, { status: 500 });
@@ -40,10 +44,11 @@ export async function PUT(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     await connectToDatabase();
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get('id');
+    const { id } = await extractRequestId(req, ['id', '_id', 'faqId']);
     if (!id) return NextResponse.json({ success: false, message: 'ID required' }, { status: 400 });
-    await Faq.findByIdAndDelete(id);
+
+    const filter = buildIdFilter(id);
+    await Faq.findOneAndDelete(filter);
     return NextResponse.json({ success: true, message: 'Deleted' });
   } catch (error: any) {
     return NextResponse.json({ success: false, message: error.message }, { status: 500 });

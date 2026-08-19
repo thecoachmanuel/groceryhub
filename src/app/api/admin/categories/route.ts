@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import Category from '@/models/Category';
+import { extractRequestId, buildIdFilter } from '@/lib/mongoose-helpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,7 +15,7 @@ const DEFAULT_CATEGORIES = [
   { name: 'Pantry Staples', slug: 'pantry', image: 'https://images.unsplash.com/photo-1584473457406-6240486418e9?w=300', is_featured: true, status: 'Active', category_id: 7, row_order: 7 },
 ];
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     await connectToDatabase();
     let categories = await Category.find().sort({ row_order: 1, createdAt: -1 }).lean();
@@ -34,7 +35,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     await connectToDatabase();
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
     if (!body.slug) {
       body.slug = body.name?.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || `cat-${Date.now()}`;
     }
@@ -51,12 +52,13 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     await connectToDatabase();
-    const body = await req.json();
-    const { categoryId, id, ...updates } = body;
-    const targetId = categoryId || id;
-    if (!targetId) return NextResponse.json({ success: false, message: 'categoryId required' }, { status: 400 });
+    const { id, body } = await extractRequestId(req, ['categoryId', 'id', '_id', 'category_id']);
+    if (!id) return NextResponse.json({ success: false, message: 'categoryId required' }, { status: 400 });
 
-    const updated = await Category.findByIdAndUpdate(targetId, { $set: updates }, { new: true });
+    const filter = buildIdFilter(id, 'category_id');
+    const { categoryId, id: _i, _id, ...updates } = body;
+
+    const updated = await Category.findOneAndUpdate(filter, { $set: updates }, { new: true });
     return NextResponse.json({ success: true, data: updated });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 400 });
@@ -66,11 +68,11 @@ export async function PUT(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     await connectToDatabase();
-    const body = await req.json().catch(() => ({}));
-    const { categoryId, id } = body;
-    const targetId = categoryId || id;
-    if (!targetId) return NextResponse.json({ success: false, message: 'categoryId required' }, { status: 400 });
-    await Category.findByIdAndDelete(targetId);
+    const { id } = await extractRequestId(req, ['categoryId', 'id', '_id', 'category_id']);
+    if (!id) return NextResponse.json({ success: false, message: 'categoryId required' }, { status: 400 });
+
+    const filter = buildIdFilter(id, 'category_id');
+    await Category.findOneAndDelete(filter);
     return NextResponse.json({ success: true, message: 'Category deleted' });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 400 });
