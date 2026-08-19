@@ -69,6 +69,22 @@ export default function AdminPosPage() {
   const [paymentMode, setPaymentMode] = useState<'CASH' | 'CARD' | 'WALLET'>('CASH');
 
   const [printedReceipt, setPrintedReceipt] = useState<any | null>(null);
+  const [taxRate, setTaxRate] = useState<number>(7.5);
+
+  useEffect(() => {
+    async function loadTaxRate() {
+      try {
+        const res = await fetch('/api/settings');
+        const json = await res.json();
+        if (json.success && json.data && json.data.taxRate !== undefined) {
+          setTaxRate(json.data.taxRate);
+        }
+      } catch (err) {
+        console.warn('Error loading POS tax rate:', err);
+      }
+    }
+    loadTaxRate();
+  }, []);
 
   const activeSession = sessions.find((s) => s.session_id === activeSessionId) || sessions[0];
 
@@ -239,7 +255,7 @@ export default function AdminPosPage() {
     (acc, item) => acc + (item.product.special_price || item.product.price) * item.quantity,
     0
   );
-  const tax = subtotal * 0.05; // 5% VAT
+  const tax = Math.round(subtotal * (taxRate / 100) * 100) / 100;
   const grandTotal = Math.max(0, subtotal + tax + additionalCharges - discountAmount);
 
   const handleCheckout = async () => {

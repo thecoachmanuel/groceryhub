@@ -89,7 +89,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    // Customer
+    // ── Step 1: Synchronously restore from localStorage ──────────────────────
+    let restoredToken: string | null = null;
+
     try {
       const savedUser = localStorage.getItem('groceryhub_user');
       if (savedUser) {
@@ -102,7 +104,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.warn('Error restoring customer session:', e);
     }
 
-    // Seller
     try {
       const savedSeller = localStorage.getItem('groceryhub_seller');
       if (savedSeller) {
@@ -115,7 +116,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.warn('Error restoring seller session:', e);
     }
 
-    // Rider
     try {
       const savedRider = localStorage.getItem('groceryhub_rider');
       if (savedRider) {
@@ -128,49 +128,80 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.warn('Error restoring rider session:', e);
     }
 
-    // Admin
     const adminToken = localStorage.getItem('groceryhub_admin_token') || document.cookie.includes('user_role=admin');
     if (adminToken) setIsAdminAuthenticated(true);
 
-    setIsInitialized(true);
+    restoredToken =
+      localStorage.getItem('groceryhub_token') ||
+      localStorage.getItem('groceryhub_seller_token') ||
+      localStorage.getItem('groceryhub_rider_token');
 
-    // Asynchronously revalidate session with server to keep user data fresh across deployments
-    async function revalidateSession() {
-      try {
-        const token = localStorage.getItem('groceryhub_token') || localStorage.getItem('groceryhub_seller_token') || localStorage.getItem('groceryhub_rider_token');
-        if (!token) return;
+    // ── Step 2: Await server revalidation BEFORE setting isInitialized ────────
+    // This is the critical fix: isInitialized only becomes true AFTER server confirms
+    // the session (or times out). Pages guarding with !isAuthenticated will NOT redirect
+    // until we know for certain whether the user is logged in or not.
+    async function revalidateAndInit() {
+      if (restoredToken) {
+        try {
+          // 3-second timeout to avoid hanging the UI indefinitely
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 3000);
 
-        const res = await fetch('/api/auth/me', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const json = await res.json();
-        if (json.success && json.data?.user) {
-          const u = json.data.user;
-          if (u.role === 'user') {
-            setUser((prev) => {
-              const updated = { ...(prev || {}), ...u, role: 'user' as const };
-              localStorage.setItem('groceryhub_user', JSON.stringify(updated));
-              return updated;
-            });
-          } else if (u.role === 'seller') {
-            setSeller((prev) => {
-              const updated = { ...(prev || {}), ...u, role: 'seller' as const };
-              localStorage.setItem('groceryhub_seller', JSON.stringify(updated));
-              return updated;
-            });
-          } else if (u.role === 'delivery') {
-            setRider((prev) => {
-              const updated = { ...(prev || {}), ...u, role: 'delivery' as const };
-              localStorage.setItem('groceryhub_rider', JSON.stringify(updated));
-              return updated;
-            });
+          const res = await fetch('/api/auth/me', {
+            headers: { Authorization: `Bearer ${restoredToken}` },
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+
+          if (res.ok) {
+            const json = await res.json();
+            if (json.success && json.data?.user) {
+              const u = json.data.user;
+              if (u.role === 'user') {
+                setUser((prev) => {
+                  const updated = { ...(prev || {}), ...u, role: 'user' as const };
+                  localStorage.setItem('groceryhub_user', JSON.stringify(updated));
+                  return updated;
+                });
+              } else if (u.role === 'seller') {
+                setSeller((prev) => {
+                  const updated = { ...(prev || {}), ...u, role: 'seller' as const };
+                  localStorage.setItem('groceryhub_seller', JSON.stringify(updated));
+                  return updated;
+                });
+              } else if (u.role === 'delivery') {
+                setRider((prev) => {
+                  const updated = { ...(prev || {}), ...u, role: 'delivery' as const };
+                  localStorage.setItem('groceryhub_rider', JSON.stringify(updated));
+                  return updated;
+                });
+              }
+            } else if (res.status === 401) {
+              // Token truly rejected by server — clear stale session data
+              localStorage.removeItem('groceryhub_user');
+              localStorage.removeItem('groceryhub_token');
+              localStorage.removeItem('groceryhub_seller');
+              localStorage.removeItem('groceryhub_seller_token');
+              localStorage.removeItem('groceryhub_rider');
+              localStorage.removeItem('groceryhub_rider_token');
+              setUser(null);
+              setSeller(null);
+              setRider(null);
+            }
+          }
+        } catch (err: any) {
+          // Network error or timeout — fall back to localStorage data silently
+          if (err?.name !== 'AbortError') {
+            console.warn('Session revalidation network error (using localStorage fallback):', err);
           }
         }
-      } catch (err) {
-        console.warn('Session revalidation warning:', err);
       }
+
+      // ── Step 3: Only now mark app as fully initialized ─────────────────────
+      setIsInitialized(true);
     }
-    revalidateSession();
+
+    revalidateAndInit();
   }, []);
 
   // ─── Customer Session ───────────────────────────────────────────────────────

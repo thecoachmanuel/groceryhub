@@ -11,6 +11,7 @@ export async function GET(req: NextRequest) {
     const searchParams = req.nextUrl.searchParams;
     const category = searchParams.get('category');
     const query = searchParams.get('query');
+    const sellerId = searchParams.get('seller_id');
 
     let filter: any = {};
     if (category && category !== 'all') {
@@ -18,6 +19,10 @@ export async function GET(req: NextRequest) {
     }
     if (query) {
       filter.name = new RegExp(query, 'i');
+    }
+    if (sellerId) {
+      const parsedSellerId = parseInt(sellerId, 10);
+      filter.seller_id = isNaN(parsedSellerId) ? sellerId : parsedSellerId;
     }
 
     const products = await Product.find(filter).sort({ createdAt: -1, _id: -1 }).lean();
@@ -41,7 +46,7 @@ export async function POST(req: NextRequest) {
   try {
     await connectToDatabase();
     const body = await req.json().catch(() => ({}));
-    const { name, category, price, stock, description, image, status } = body;
+    const { name, category, price, discounted_price, stock, description, image, status, seller_id, unit } = body;
 
     if (!name || !name.trim()) {
       return apiError('Product name is required', 400);
@@ -49,6 +54,9 @@ export async function POST(req: NextRequest) {
 
     const productId = Date.now();
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    const numPrice = parseFloat(price || '0');
+    const numDiscounted = discounted_price !== undefined && discounted_price !== '' ? parseFloat(discounted_price) : numPrice;
+    const numSellerId = seller_id ? parseInt(seller_id, 10) : 1;
 
     const newProduct = await Product.create({
       product_id: productId,
@@ -57,18 +65,18 @@ export async function POST(req: NextRequest) {
       category: category || 'Vegetables',
       image: image || 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=300',
       description: description || '',
-      seller_id: 1,
+      seller_id: isNaN(numSellerId) ? 1 : numSellerId,
       variants: [
         {
           variant_id: productId,
           title: 'Standard Pack',
-          price: parseFloat(price || '0'),
-          discounted_price: parseFloat(price || '0'),
+          price: numPrice,
+          discounted_price: numDiscounted,
           stock: parseInt(stock || '0', 10),
-          unit: '1 pack',
+          unit: unit || '1 pack',
         },
       ],
-      status: status || 'Active',
+      status: status ? status.toLowerCase().replace(/ /g, '_') : 'active',
     });
 
     return apiSuccess(newProduct, 'Product created successfully');

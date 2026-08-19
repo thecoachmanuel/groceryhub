@@ -24,6 +24,7 @@ import Footer from '@/components/website/Footer';
 import { formatNaira } from '@/lib/currency';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
+import { apiFetch } from '@/lib/api-fetch';
 
 interface SavedAddress {
   id: number;
@@ -208,7 +209,7 @@ export default function CheckoutPage() {
       }
 
       const authToken = typeof window !== 'undefined' ? localStorage.getItem('groceryhub_token') : null;
-      const orderRes = await fetch('/api/v1_6/customer/placeCODOrder', {
+      const orderRes = await apiFetch('/api/v1_6/customer/placeCODOrder', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

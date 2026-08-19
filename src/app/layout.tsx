@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import NutriGuideWidget from '@/components/website/NutriGuideWidget';
+import ChunkErrorHandler from '@/components/common/ChunkErrorHandler';
 import { AuthProvider } from '@/context/AuthContext';
 import { CartProvider } from '@/context/CartContext';
 import { SystemSettingsProvider } from '@/context/SystemSettingsContext';
@@ -36,6 +37,7 @@ export default function RootLayout({
         <SystemSettingsProvider>
           <AuthProvider>
             <CartProvider>
+              <ChunkErrorHandler />
               {children}
               <NutriGuideWidget />
             </CartProvider>

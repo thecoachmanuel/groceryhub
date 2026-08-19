@@ -48,7 +48,7 @@ const formatOrderFromApi = (o: any): Order => ({
       ? o.delivery_address
       : `${o.delivery_address.address_line || o.delivery_address.address || ''}, ${o.delivery_address.city || 'Lagos'}`.trim().replace(/^,\s*/, '')
     : '—',
-  vendor: o.seller_id ? `Seller Store #${o.seller_id}` : 'GroceryHub Direct',
+  vendor: o.seller_store_name || o.vendor_name || (o.seller_id ? `Store #${o.seller_id}` : 'GroceryHub Direct'),
   amount: o.total_amount || o.total_payable || o.final_total || 0,
   paymentMethod: o.payment_method ? String(o.payment_method).toUpperCase() : 'PAYSTACK',
   status: o.order_status || o.active_status || 'placed',

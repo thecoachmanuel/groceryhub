@@ -1,16 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ShoppingBag, Phone, Lock, ArrowRight, ShieldCheck, Mail, AlertCircle, CheckCircle2 } from 'lucide-react';
 import Header from '@/components/website/Header';
 import Footer from '@/components/website/Footer';
 import { useAuth } from '@/context/AuthContext';
 
-export default function CustomerLoginPage() {
+function CustomerLoginPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { loginSession, isAuthenticated } = useAuth();
+  const sessionExpired = searchParams?.get('expired') === '1';
 
   const [authMode, setAuthMode] = useState<'password' | 'otp'>('password');
   const [identifier, setIdentifier] = useState('');
@@ -18,7 +20,7 @@ export default function CustomerLoginPage() {
   const [otp, setOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState(sessionExpired ? 'Your session expired. Please log in again to continue.' : '');
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -286,5 +288,19 @@ export default function CustomerLoginPage() {
 
       <Footer />
     </div>
+  );
+}
+
+export default function CustomerLoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[#121820]">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0aad0a]" />
+        </div>
+      }
+    >
+      <CustomerLoginPageContent />
+    </Suspense>
   );
 }

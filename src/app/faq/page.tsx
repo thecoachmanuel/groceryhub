@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, HelpCircle, ChevronDown, ChevronUp, Search, MessageSquare, Phone, Mail } from 'lucide-react';
+import { ArrowLeft, HelpCircle, ChevronDown, ChevronUp, Search, MessageSquare, Phone, Mail, RefreshCw } from 'lucide-react';
 import Header from '@/components/website/Header';
 import Footer from '@/components/website/Footer';
 
-const FAQS = [
+const INITIAL_FAQS = [
   {
     q: 'How fast is GroceryHub delivery?',
     a: 'We deliver in 30 minutes or less! Our hyper-local distribution network and certified neighborhood vendor hubs ensure your fresh groceries reach your doorstep in record time.',
@@ -34,10 +34,36 @@ const FAQS = [
 ];
 
 export default function FAQPage() {
+  const [faqs, setFaqs] = useState<{ q: string; a: string }[]>(INITIAL_FAQS);
+  const [supportPhone, setSupportPhone] = useState('+234 (800) 123-4567');
+  const [supportEmail, setSupportEmail] = useState('support@groceryhub.ng');
+  const [loading, setLoading] = useState(true);
   const [openIndex, setOpenIndex] = useState<number | null>(0);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const filteredFaqs = FAQS.filter(
+  useEffect(() => {
+    async function loadFaqs() {
+      try {
+        setLoading(true);
+        const res = await fetch('/api/settings');
+        const json = await res.json();
+        if (json.success && json.data) {
+          if (Array.isArray(json.data.faqItems) && json.data.faqItems.length > 0) {
+            setFaqs(json.data.faqItems);
+          }
+          if (json.data.supportPhone) setSupportPhone(json.data.supportPhone);
+          if (json.data.supportEmail) setSupportEmail(json.data.supportEmail);
+        }
+      } catch (err) {
+        console.warn('Error loading dynamic FAQs:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadFaqs();
+  }, []);
+
+  const filteredFaqs = faqs.filter(
     (item) =>
       item.q.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.a.toLowerCase().includes(searchQuery.toLowerCase())
@@ -76,35 +102,48 @@ export default function FAQPage() {
         </div>
 
         {/* FAQs Accordion */}
-        <div className="space-y-4">
-          {filteredFaqs.map((faq, idx) => {
-            const isOpen = openIndex === idx;
-            return (
-              <div
-                key={idx}
-                className="bg-white dark:bg-[#1e2632] rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden transition-all"
-              >
-                <button
-                  onClick={() => setOpenIndex(isOpen ? null : idx)}
-                  className="w-full px-6 py-4 text-left flex items-center justify-between gap-4 font-bold text-sm text-gray-900 dark:text-white hover:text-[#0aad0a] dark:hover:text-[#0aad0a] transition-colors"
+        {loading ? (
+          <div className="py-12 text-center space-y-3">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0aad0a] mx-auto" />
+            <p className="text-xs text-gray-400">Loading support topics...</p>
+          </div>
+        ) : filteredFaqs.length === 0 ? (
+          <div className="py-12 text-center space-y-2 bg-white dark:bg-[#1e2632] rounded-2xl border border-gray-100 dark:border-gray-800">
+            <HelpCircle size={32} className="mx-auto text-gray-400" />
+            <h4 className="text-sm font-bold text-gray-700 dark:text-gray-300">No matching questions found</h4>
+            <p className="text-xs text-gray-400">Try searching for a different keyword or contact our support team below.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filteredFaqs.map((faq, idx) => {
+              const isOpen = openIndex === idx;
+              return (
+                <div
+                  key={idx}
+                  className="bg-white dark:bg-[#1e2632] rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden transition-all"
                 >
-                  <span>{faq.q}</span>
-                  {isOpen ? (
-                    <ChevronUp size={18} className="text-[#0aad0a] flex-shrink-0" />
-                  ) : (
-                    <ChevronDown size={18} className="text-gray-400 flex-shrink-0" />
-                  )}
-                </button>
+                  <button
+                    onClick={() => setOpenIndex(isOpen ? null : idx)}
+                    className="w-full px-6 py-4 text-left flex items-center justify-between gap-4 font-bold text-sm text-gray-900 dark:text-white hover:text-[#0aad0a] dark:hover:text-[#0aad0a] transition-colors"
+                  >
+                    <span>{faq.q}</span>
+                    {isOpen ? (
+                      <ChevronUp size={18} className="text-[#0aad0a] flex-shrink-0" />
+                    ) : (
+                      <ChevronDown size={18} className="text-gray-400 flex-shrink-0" />
+                    )}
+                  </button>
 
-                {isOpen && (
-                  <div className="px-6 pb-5 pt-1 text-xs sm:text-sm text-gray-600 dark:text-gray-300 leading-relaxed border-t border-gray-50 dark:border-gray-800/60 animate-fade-in">
-                    {faq.a}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+                  {isOpen && (
+                    <div className="px-6 pb-5 pt-1 text-xs sm:text-sm text-gray-600 dark:text-gray-300 leading-relaxed border-t border-gray-50 dark:border-gray-800/60 animate-fade-in">
+                      {faq.a}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Contact Assistance Box */}
         <div className="bg-gradient-to-r from-emerald-600 to-teal-700 rounded-3xl p-8 text-white text-center space-y-4 shadow-xl">
@@ -114,16 +153,16 @@ export default function FAQPage() {
           </p>
           <div className="flex flex-wrap justify-center gap-4 pt-2">
             <a
-              href="tel:+18001234567"
+              href={`tel:${supportPhone.replace(/[^0-9+]/g, '')}`}
               className="inline-flex items-center gap-2 bg-white text-emerald-800 font-bold px-5 py-2.5 rounded-xl text-xs shadow-md hover:bg-emerald-50 transition-all"
             >
-              <Phone size={16} /> Call +1 (800) 123-4567
+              <Phone size={16} /> Call {supportPhone}
             </a>
             <a
-              href="mailto:support@groceryhub.com"
+              href={`mailto:${supportEmail}`}
               className="inline-flex items-center gap-2 bg-black/20 backdrop-blur-md text-white font-bold px-5 py-2.5 rounded-xl text-xs border border-white/20 hover:bg-black/30 transition-all"
             >
-              <Mail size={16} /> support@groceryhub.com
+              <Mail size={16} /> {supportEmail}
             </a>
           </div>
         </div>

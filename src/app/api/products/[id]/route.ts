@@ -38,7 +38,7 @@ export async function PUT(
     await connectToDatabase();
     const id = params.id;
     const body = await req.json().catch(() => ({}));
-    const { name, category, price, stock, description, image, status } = body;
+    const { name, category, price, discounted_price, stock, description, image, status, unit, is_deal_of_the_day } = body;
 
     const numericId = parseInt(id, 10);
     const filter = isNaN(numericId) ? { _id: id } : { $or: [{ product_id: numericId }, { id: numericId }, { _id: id }] };
@@ -48,14 +48,19 @@ export async function PUT(
     if (category) updateData.category = category;
     if (description !== undefined) updateData.description = description;
     if (image) updateData.image = image;
-    if (status) updateData.status = status;
+    if (status) updateData.status = status.toLowerCase().replace(/ /g, '_');
+    if (is_deal_of_the_day !== undefined) updateData.is_deal_of_the_day = is_deal_of_the_day;
 
-    if (price !== undefined || stock !== undefined) {
+    // Update variant-level fields (price, discounted_price, stock, unit)
+    if (price !== undefined || discounted_price !== undefined || stock !== undefined || unit !== undefined) {
       const existing = await Product.findOne(filter);
       if (existing && existing.variants && existing.variants.length > 0) {
-        existing.variants[0].price = parseFloat(price ?? existing.variants[0].price);
-        existing.variants[0].discounted_price = parseFloat(price ?? existing.variants[0].discounted_price);
-        existing.variants[0].stock = parseInt(stock ?? existing.variants[0].stock, 10);
+        const v = existing.variants[0];
+        if (price !== undefined)            v.price = parseFloat(price);
+        if (discounted_price !== undefined) v.discounted_price = parseFloat(discounted_price);
+        else if (price !== undefined)       v.discounted_price = parseFloat(price); // default discounted = price if not provided
+        if (stock !== undefined)            v.stock = parseInt(stock, 10);
+        if (unit !== undefined)             v.unit = unit;
         updateData.variants = existing.variants;
       }
     }

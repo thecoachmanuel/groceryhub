@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { 
@@ -10,57 +10,106 @@ import {
   Sparkles, 
   Trash2, 
   Edit3, 
-  CheckCircle2, 
   X,
   Filter,
-  RefreshCw
+  RefreshCw,
+  Store
 } from 'lucide-react';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import LocalImageUploader from '@/components/common/LocalImageUploader';
 import { formatNaira } from '@/lib/currency';
+import { apiFetch } from '@/lib/api-fetch';
 
 interface AdminProduct {
   id: number;
   _id?: string;
+  seller_id: number;
+  seller_name?: string;
   name: string;
   category: string;
   price: number;
+  discounted_price: number;
+  unit: string;
   stock: number;
   status: string;
   image: string;
   description?: string;
 }
 
+interface SellerItem {
+  seller_id: number;
+  store_name: string;
+  name: string;
+}
+
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<AdminProduct[]>([]);
+  const [sellers, setSellers] = useState<SellerItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<AdminProduct | null>(null);
 
+  // Form state
   const [name, setName] = useState('');
   const [category, setCategory] = useState('Vegetables');
   const [price, setPrice] = useState('');
+  const [discountedPrice, setDiscountedPrice] = useState('');
   const [stock, setStock] = useState('');
+  const [unit, setUnit] = useState('1 pack');
+  const [sellerId, setSellerId] = useState<number>(1);
   const [description, setDescription] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [status, setStatus] = useState('Active');
   const [isAiGenerating, setIsAiGenerating] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
+  // Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [sellerFilter, setSellerFilter] = useState('all');
 
-  const fetchProductsFromApi = async () => {
+  // Fetch Sellers for store filter and dropdown
+  useEffect(() => {
+    async function loadSellers() {
+      try {
+        const res = await apiFetch('/api/admin/sellers');
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) {
+          setSellers(json.data.map((s: any) => ({
+            seller_id: s.seller_id,
+            store_name: s.store_name || s.name || `Store #${s.seller_id}`,
+            name: s.name,
+          })));
+        }
+      } catch (err) {
+        console.warn('Error loading sellers list:', err);
+      }
+    }
+    loadSellers();
+  }, []);
+
+  const fetchProductsFromApi = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/products');
+      const url = sellerFilter === 'all' ? '/api/products' : `/api/products?seller_id=${sellerFilter}`;
+      const res = await apiFetch(url);
       const json = await res.json();
+
       if (json.success && Array.isArray(json.data)) {
+        // Build seller lookup map
+        const sellerMap: Record<number, string> = {};
+        sellers.forEach(s => { sellerMap[s.seller_id] = s.store_name; });
+
         const formatted: AdminProduct[] = json.data.map((p: any) => ({
           id: p.product_id || p.id || Date.now(),
           _id: p._id,
+          seller_id: p.seller_id || 1,
+          seller_name: sellerMap[p.seller_id] || (p.seller_id ? `Store #${p.seller_id}` : 'GroceryHub Direct'),
           name: p.name,
           category: p.category || 'Vegetables',
           price: p.variants?.[0]?.price || p.price || 0,
+          discounted_price: p.variants?.[0]?.discounted_price || p.variants?.[0]?.price || p.price || 0,
+          unit: p.variants?.[0]?.unit || p.unit || '1 pack',
           stock: p.variants?.[0]?.stock || p.stock || 0,
           status: p.status || 'Active',
           image: p.image || 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=300',
@@ -76,26 +125,21 @@ export default function AdminProductsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [sellerFilter, sellers]);
 
   useEffect(() => {
     fetchProductsFromApi();
-  }, []);
-
-  const notifyCatalogChanged = (updatedList: AdminProduct[]) => {
-    setProducts(updatedList);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('groceryhub_admin_products', JSON.stringify(updatedList));
-      window.dispatchEvent(new CustomEvent('groceryhub_catalog_updated', { detail: updatedList }));
-    }
-  };
+  }, [fetchProductsFromApi]);
 
   const openCreateModal = () => {
     setEditingProduct(null);
     setName('');
     setCategory('Vegetables');
     setPrice('3500');
+    setDiscountedPrice('3000');
     setStock('50');
+    setUnit('1 pack');
+    setSellerId(sellers[0]?.seller_id || 1);
     setDescription('');
     setImageUrl('');
     setStatus('Active');
@@ -107,10 +151,13 @@ export default function AdminProductsPage() {
     setName(p.name);
     setCategory(p.category);
     setPrice(String(p.price));
+    setDiscountedPrice(String(p.discounted_price || p.price));
     setStock(String(p.stock));
+    setUnit(p.unit || '1 pack');
+    setSellerId(p.seller_id || 1);
     setDescription(p.description || '');
     setImageUrl(p.image);
-    setStatus(p.status);
+    setStatus(p.status || 'Active');
     setIsModalOpen(true);
   };
 
@@ -129,97 +176,74 @@ export default function AdminProductsPage() {
     e.preventDefault();
     if (!name.trim()) return alert('Product name is required');
 
+    setSubmitting(true);
     const defaultImg = 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=300';
     const finalImage = imageUrl || defaultImg;
     const finalPrice = parseFloat(price || '0');
+    const finalDiscounted = discountedPrice ? parseFloat(discountedPrice) : finalPrice;
     const finalStock = parseInt(stock || '0', 10);
 
-    if (editingProduct) {
-      // API call to PUT /api/products/[id]
-      try {
-        await fetch(`/api/products/${editingProduct.id}`, {
+    try {
+      if (editingProduct) {
+        const res = await apiFetch(`/api/products/${editingProduct.id}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            name,
+            name: name.trim(),
             category,
             price: finalPrice,
+            discounted_price: finalDiscounted,
             stock: finalStock,
-            description,
+            unit: unit.trim(),
+            seller_id: sellerId,
+            description: description.trim(),
             image: finalImage,
             status,
           }),
         });
-      } catch (err) {
-        console.warn('API update error:', err);
-      }
-
-      const updated = products.map((p) =>
-        p.id === editingProduct.id
-          ? {
-              ...p,
-              name,
-              category,
-              price: finalPrice,
-              stock: finalStock,
-              description,
-              image: finalImage,
-              status,
-            }
-          : p
-      );
-      notifyCatalogChanged(updated);
-    } else {
-      // API call to POST /api/products
-      let newId = Date.now();
-      try {
-        const createRes = await fetch('/api/products', {
+        const json = await res.json();
+        if (!json.success) alert(json.message || 'Update failed');
+      } else {
+        const res = await apiFetch('/api/products', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            name,
+            name: name.trim(),
             category,
             price: finalPrice,
+            discounted_price: finalDiscounted,
             stock: finalStock,
-            description,
+            unit: unit.trim(),
+            seller_id: sellerId,
+            description: description.trim(),
             image: finalImage,
             status,
           }),
         });
-        const createJson = await createRes.json();
-        if (createJson.success && createJson.data?.product_id) {
-          newId = createJson.data.product_id;
-        }
-      } catch (err) {
-        console.warn('API create error:', err);
+        const json = await res.json();
+        if (!json.success) alert(json.message || 'Creation failed');
       }
 
-      const newProduct: AdminProduct = {
-        id: newId,
-        name,
-        category,
-        price: finalPrice,
-        stock: finalStock,
-        description,
-        image: finalImage,
-        status,
-      };
-      const updated = [newProduct, ...products];
-      notifyCatalogChanged(updated);
+      await fetchProductsFromApi();
+      setIsModalOpen(false);
+    } catch (err: any) {
+      alert(err?.message || 'Product save failed');
+    } finally {
+      setSubmitting(false);
     }
-
-    setIsModalOpen(false);
   };
 
   const handleDelete = async (id: number) => {
     if (confirm('Are you sure you want to remove this product?')) {
       try {
-        await fetch(`/api/products/${id}`, { method: 'DELETE' });
-      } catch (err) {
-        console.warn('API delete error:', err);
+        const res = await apiFetch(`/api/products/${id}`, { method: 'DELETE' });
+        const json = await res.json();
+        if (json.success) {
+          fetchProductsFromApi();
+        } else {
+          alert(json.message || 'Failed to delete product');
+        }
+      } catch (err: any) {
+        alert(err?.message || 'Failed to delete product');
       }
-      const updated = products.filter((p) => p.id !== id);
-      notifyCatalogChanged(updated);
     }
   };
 
@@ -227,7 +251,8 @@ export default function AdminProductsPage() {
     const matchesCategory = categoryFilter === 'all' || p.category.toLowerCase() === categoryFilter.toLowerCase();
     const matchesSearch =
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.category.toLowerCase().includes(searchQuery.toLowerCase());
+      p.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (p.seller_name && p.seller_name.toLowerCase().includes(searchQuery.toLowerCase()));
     return matchesCategory && matchesSearch;
   });
 
@@ -240,9 +265,9 @@ export default function AdminProductsPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-black flex items-center gap-2">
-              <Package size={24} className="text-[#0aad0a]" /> Store Products &amp; Catalog
+              <Package size={24} className="text-[#0aad0a]" /> Store Products &amp; Global Catalog
             </h1>
-            <p className="text-xs text-gray-400 mt-0.5">Manage live grocery items, inventory levels, AI descriptions, and Naira pricing in real time</p>
+            <p className="text-xs text-gray-400 mt-0.5">Manage live grocery items across all store partners, adjust prices, stock levels, and discount rates</p>
           </div>
 
           <div className="flex items-center gap-3">
@@ -289,26 +314,48 @@ export default function AdminProductsPage() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search products by title or department..."
+              placeholder="Search products by title, category, or store partner..."
               className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl py-2 pl-9 pr-3 text-xs focus:outline-none focus:border-[#0aad0a]"
             />
             <Search size={16} className="absolute left-3 top-2.5 text-gray-400" />
           </div>
 
-          <div className="flex items-center gap-2">
-            <Filter size={15} className="text-gray-400" />
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="bg-gray-900 border border-gray-700 text-white text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-[#0aad0a]"
-            >
-              <option value="all">All Departments ({products.length})</option>
-              <option value="vegetables">Vegetables</option>
-              <option value="fruits">Fruits</option>
-              <option value="dairy & eggs">Dairy &amp; Eggs</option>
-              <option value="bakery">Bakery</option>
-              <option value="pantry">Pantry Staples</option>
-            </select>
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Store Partner Filter */}
+            <div className="flex items-center gap-1.5">
+              <Store size={15} className="text-[#0aad0a]" />
+              <select
+                value={sellerFilter}
+                onChange={(e) => setSellerFilter(e.target.value)}
+                className="bg-gray-900 border border-gray-700 text-white text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-[#0aad0a]"
+              >
+                <option value="all">All Store Partners</option>
+                {sellers.map((s) => (
+                  <option key={s.seller_id} value={s.seller_id}>
+                    {s.store_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Department Filter */}
+            <div className="flex items-center gap-1.5">
+              <Filter size={15} className="text-gray-400" />
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="bg-gray-900 border border-gray-700 text-white text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-[#0aad0a]"
+              >
+                <option value="all">All Departments ({products.length})</option>
+                <option value="vegetables">Vegetables</option>
+                <option value="fruits">Fruits</option>
+                <option value="dairy & eggs">Dairy &amp; Eggs</option>
+                <option value="bakery">Bakery</option>
+                <option value="beverages">Beverages</option>
+                <option value="snacks & munchies">Snacks &amp; Munchies</option>
+                <option value="pantry staples">Pantry Staples</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -331,67 +378,80 @@ export default function AdminProductsPage() {
                 <thead className="border-b border-gray-800 text-gray-400 font-bold uppercase tracking-wider text-[10px]">
                   <tr>
                     <th className="pb-3 px-3">Product</th>
+                    <th className="pb-3 px-3">Store Partner</th>
                     <th className="pb-3 px-3">Category</th>
                     <th className="pb-3 px-3">Price (₦)</th>
+                    <th className="pb-3 px-3">Sale Price (₦)</th>
                     <th className="pb-3 px-3">Stock</th>
                     <th className="pb-3 px-3">Status</th>
                     <th className="pb-3 px-3 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-800/60 font-medium text-gray-300">
-                  {filtered.map((item) => (
-                    <tr key={item.id} className="hover:bg-gray-800/40 transition-colors">
-                      <td className="py-3.5 px-3">
-                        <div className="flex items-center gap-3">
-                          <div className="relative w-10 h-10 rounded-xl overflow-hidden bg-gray-900 flex-shrink-0 border border-gray-700">
-                            <Image src={item.image} alt={item.name} fill className="object-cover" />
+                  {filtered.map((item) => {
+                    const hasDiscount = item.discounted_price < item.price;
+                    return (
+                      <tr key={item.id} className="hover:bg-gray-800/40 transition-colors">
+                        <td className="py-3.5 px-3">
+                          <div className="flex items-center gap-3">
+                            <div className="relative w-10 h-10 rounded-xl overflow-hidden bg-gray-900 flex-shrink-0 border border-gray-700">
+                              <Image src={item.image} alt={item.name} fill className="object-cover" />
+                            </div>
+                            <div>
+                              <span className="font-bold text-white block">{item.name}</span>
+                              {item.description && (
+                                <span className="text-[10px] text-gray-400 line-clamp-1 max-w-xs">{item.description}</span>
+                              )}
+                            </div>
                           </div>
-                          <div>
-                            <span className="font-bold text-white block">{item.name}</span>
-                            {item.description && (
-                              <span className="text-[10px] text-gray-400 line-clamp-1 max-w-xs">{item.description}</span>
-                            )}
+                        </td>
+                        <td className="py-3.5 px-3 font-bold text-xs text-[#0aad0a]">
+                          {item.seller_name}
+                        </td>
+                        <td className="py-3.5 px-3">
+                          <span className="bg-gray-800 text-gray-300 font-bold text-[10px] px-2.5 py-1 rounded-lg capitalize">
+                            {item.category}
+                          </span>
+                        </td>
+                        <td className={`py-3.5 px-3 font-bold font-mono ${hasDiscount ? 'line-through text-gray-500 text-[11px]' : 'text-white'}`}>
+                          {formatNaira(item.price)}
+                        </td>
+                        <td className="py-3.5 px-3 font-bold font-mono text-[#0aad0a]">
+                          {formatNaira(item.discounted_price || item.price)}
+                        </td>
+                        <td className="py-3.5 px-3 font-mono">{item.stock} units</td>
+                        <td className="py-3.5 px-3">
+                          <span
+                            className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
+                              item.status === 'Active' || item.status === 'active'
+                                ? 'bg-emerald-950 text-[#0aad0a]'
+                                : 'bg-amber-950 text-amber-400'
+                            }`}
+                          >
+                            ● {item.status}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-3 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => openEditModal(item)}
+                              className="p-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-blue-400 transition-colors"
+                              title="Edit Product"
+                            >
+                              <Edit3 size={14} />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(item.id)}
+                              className="p-1.5 rounded-lg bg-gray-800 hover:bg-red-950 text-red-400 transition-colors"
+                              title="Delete Product"
+                            >
+                              <Trash2 size={14} />
+                            </button>
                           </div>
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-3">
-                        <span className="bg-gray-800 text-gray-300 font-bold text-[10px] px-2.5 py-1 rounded-lg capitalize">
-                          {item.category}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-3 font-bold text-white font-mono">{formatNaira(item.price)}</td>
-                      <td className="py-3.5 px-3 font-mono">{item.stock} units</td>
-                      <td className="py-3.5 px-3">
-                        <span
-                          className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
-                            item.status === 'Active'
-                              ? 'bg-emerald-950 text-[#0aad0a]'
-                              : 'bg-amber-950 text-amber-400'
-                          }`}
-                        >
-                          ● {item.status}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-3 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => openEditModal(item)}
-                            className="p-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-blue-400 transition-colors"
-                            title="Edit Product"
-                          >
-                            <Edit3 size={14} />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(item.id)}
-                            className="p-1.5 rounded-lg bg-gray-800 hover:bg-red-950 text-red-400 transition-colors"
-                            title="Delete Product"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -416,11 +476,27 @@ export default function AdminProductsPage() {
                 {editingProduct ? 'Edit Catalog Product' : 'Add New Product to Store'}
               </h3>
               <p className="text-xs text-gray-400 mt-0.5">
-                Manage title, Naira price, stock inventory, and AI product descriptions
+                Manage title, store partner assignment, regular &amp; sale prices, stock, and AI product descriptions
               </p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Store Partner Assignment */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-300">Assign Store Partner</label>
+                <select
+                  value={sellerId}
+                  onChange={(e) => setSellerId(Number(e.target.value))}
+                  className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
+                >
+                  {sellers.map((s) => (
+                    <option key={s.seller_id} value={s.seller_id}>
+                      {s.store_name} (ID #{s.seller_id})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-gray-300">Product Title / Name</label>
                 <input
@@ -452,7 +528,20 @@ export default function AdminProductsPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Price in Naira (₦)</label>
+                  <label className="text-xs font-bold text-gray-300">Unit Measure</label>
+                  <input
+                    type="text"
+                    value={unit}
+                    onChange={(e) => setUnit(e.target.value)}
+                    placeholder="e.g. 500g, 1 pack"
+                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-300">Regular Price in Naira (₦)</label>
                   <input
                     type="number"
                     value={price}
@@ -460,6 +549,17 @@ export default function AdminProductsPage() {
                     placeholder="3500"
                     className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a] font-mono"
                     required
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-300">Discounted / Sale Price (₦)</label>
+                  <input
+                    type="number"
+                    value={discountedPrice}
+                    onChange={(e) => setDiscountedPrice(e.target.value)}
+                    placeholder="3000"
+                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a] font-mono"
                   />
                 </div>
               </div>
@@ -485,8 +585,8 @@ export default function AdminProductsPage() {
                     className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
                   >
                     <option value="Active">Active</option>
-                    <option value="Low Stock">Low Stock</option>
                     <option value="Out of Stock">Out of Stock</option>
+                    <option value="Hidden">Hidden</option>
                   </select>
                 </div>
               </div>
@@ -526,9 +626,11 @@ export default function AdminProductsPage() {
 
               <button
                 type="submit"
-                className="w-full bg-[#0aad0a] hover:bg-[#088f08] text-white font-black py-3.5 rounded-xl text-xs shadow-lg shadow-[#0aad0a]/30 transition-all active:scale-95 mt-2"
+                disabled={submitting}
+                className="w-full bg-[#0aad0a] hover:bg-[#088f08] text-white font-black py-3.5 rounded-xl text-xs shadow-lg shadow-[#0aad0a]/30 transition-all active:scale-95 mt-2 flex items-center justify-center gap-2"
               >
-                {editingProduct ? 'Save Product Changes' : 'Publish Product to Frontpage'}
+                {submitting && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />}
+                <span>{editingProduct ? 'Save Product Changes' : 'Publish Product to Catalog'}</span>
               </button>
             </form>
           </div>
