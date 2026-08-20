@@ -10,6 +10,8 @@ import Order from '@/models/Order';
 import Area from '@/models/Area';
 import WalletTransaction from '@/models/WalletTransaction';
 import SystemSettings from '@/models/SystemSettings';
+import Page from '@/models/Page';
+import mongoose from 'mongoose';
 
 export async function handleCustomerEndpoint(req: NextRequest, endpoint: string) {
   try {
@@ -24,7 +26,7 @@ export async function handleCustomerEndpoint(req: NextRequest, endpoint: string)
     const { searchParams } = new URL(req.url);
     const queryObj = Object.fromEntries(searchParams.entries());
 
-    // 1. fetchCustomerSettings
+    // 1. System & Customer Settings
     if (endpoint === 'fetchCustomerSettings' || endpoint === 'getSettings') {
       const settings = await SystemSettings.findOne().lean().catch(() => null);
       return NextResponse.json({
@@ -39,8 +41,11 @@ export async function handleCustomerEndpoint(req: NextRequest, endpoint: string)
           delivery_charge_standard: settings?.deliveryFee || 500,
           min_order_free_delivery: settings?.freeDeliveryThreshold || 15000,
           enable_wallet: true,
-          support_phone: settings?.supportPhone || '+234 (800) 123-4567',
+          support_phone: settings?.supportPhone || '+234 (800) 476-2379',
           support_email: settings?.supportEmail || 'support@groceryhub.ng',
+          frontend_category_section: 1,
+          frontend_brand_section: 1,
+          frontend_seller_section: 1,
         },
         countrySettings: {
           currency_symbol: settings?.currencySymbol || '₦',
@@ -53,315 +58,272 @@ export async function handleCustomerEndpoint(req: NextRequest, endpoint: string)
       });
     }
 
-    // 2. Authentication: login, googleSignin, appleLogin, verifyMobileOtp, verifySignupOtp
-    if (
-      endpoint === 'login' ||
-      endpoint === 'googleSignin' ||
-      endpoint === 'appleLogin' ||
-      endpoint === 'verifyMobileOtp' ||
-      endpoint === 'verifySignupOtp'
-    ) {
-      const email = (body.email || body.mobile || 'customer@groceryhub.ng').toLowerCase();
-      let user = await User.findOne({ $or: [{ email }, { mobile: body.mobile || '' }] }).lean().catch(() => null);
+    // 2. CMS Policy & Info Pages (About Us, Privacy Policy, Terms & Conditions, Refund Policy, Contact Us)
+    if (endpoint === 'fetchAboutUs') {
+      const page = await Page.findOne({ slug: 'about-us' }).lean().catch(() => null);
+      const defaultHtml = `
+        <div style="font-family: sans-serif; padding: 16px; line-height: 1.6; color: #1e293b;">
+          <h2 style="color: #16a34a; font-size: 22px;">Welcome to GroceryHub Nigeria</h2>
+          <p>GroceryHub is Nigeria's leading farm-to-table digital grocery marketplace. We bring fresh, organic produce, farm dairy, bakery essentials, and household goods straight from local African farms to your doorstep in 30 minutes.</p>
+          <h3 style="color: #0f172a; margin-top: 20px;">Our Promise</h3>
+          <ul>
+            <li><strong>100% Farm Fresh Guarantee:</strong> Handpicked daily directly from verified organic farms in Lagos & Ogun state.</li>
+            <li><strong>Cold Chain Delivery:</strong> Temperature-controlled delivery fleet ensuring maximum freshness.</li>
+            <li><strong>Fast 30-Minute Dispatch:</strong> Rapid order fulfillment from neighborhood micro-hubs.</li>
+          </ul>
+        </div>
+      `;
+      return NextResponse.json({
+        status: 'success',
+        result: 'true',
+        message: 'About us fetched',
+        data: page?.content || defaultHtml,
+      });
+    }
+
+    if (endpoint === 'fetchPrivacyPolicy') {
+      const page = await Page.findOne({ slug: 'privacy-policy' }).lean().catch(() => null);
+      const defaultHtml = `
+        <div style="font-family: sans-serif; padding: 16px; line-height: 1.6; color: #1e293b;">
+          <h2 style="color: #16a34a; font-size: 22px;">GroceryHub Privacy Policy</h2>
+          <p>At GroceryHub Nigeria, accessible from groceryhub-ng.vercel.app, your privacy is our top priority. We collect user name, mobile number, delivery address, and order history strictly to fulfill grocery orders and provide cold-chain delivery service.</p>
+          <h3 style="color: #0f172a; margin-top: 20px;">Data Protection</h3>
+          <p>We do not share or sell your personal data to third parties. All financial transactions are secured using SSL encryption via Paystack and secure banking partners.</p>
+        </div>
+      `;
+      return NextResponse.json({
+        status: 'success',
+        result: 'true',
+        message: 'Privacy policy fetched',
+        data: page?.content || defaultHtml,
+      });
+    }
+
+    if (endpoint === 'fetchTermsCondition' || endpoint === 'fetchTermsConditions') {
+      const page = await Page.findOne({ slug: 'terms-conditions' }).lean().catch(() => null);
+      const defaultHtml = `
+        <div style="font-family: sans-serif; padding: 16px; line-height: 1.6; color: #1e293b;">
+          <h2 style="color: #16a34a; font-size: 22px;">Terms & Conditions</h2>
+          <p>These terms and conditions outline the rules for using GroceryHub Nigeria's mobile application and website.</p>
+          <h3 style="color: #0f172a; margin-top: 20px;">Order Fulfillment & Delivery</h3>
+          <p>GroceryHub guarantees product quality upon delivery. Orders may be cancelled prior to dispatch with instant wallet refund.</p>
+        </div>
+      `;
+      return NextResponse.json({
+        status: 'success',
+        result: 'true',
+        message: 'Terms & conditions fetched',
+        data: page?.content || defaultHtml,
+      });
+    }
+
+    if (endpoint === 'fetchRefundPolicy') {
+      const page = await Page.findOne({ slug: 'refund-policy' }).lean().catch(() => null);
+      const defaultHtml = `
+        <div style="font-family: sans-serif; padding: 16px; line-height: 1.6; color: #1e293b;">
+          <h2 style="color: #16a34a; font-size: 22px;">Refund Policy</h2>
+          <p>If you receive damaged, expired, or missing produce, we offer 100% instant refunds directly to your GroceryHub wallet or original payment method.</p>
+        </div>
+      `;
+      return NextResponse.json({
+        status: 'success',
+        result: 'true',
+        message: 'Refund policy fetched',
+        data: page?.content || defaultHtml,
+      });
+    }
+
+    if (endpoint === 'fetchContactUs') {
+      const page = await Page.findOne({ slug: 'contact-us' }).lean().catch(() => null);
+      const meta = page?.meta_data || {};
+
+      return NextResponse.json({
+        status: 'success',
+        result: 'true',
+        message: 'Contact us fetched',
+        data: {
+          business_name: meta.business_name || 'GroceryHub Nigeria Ltd',
+          logo: meta.logo || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=200',
+          phone: meta.phone || '+234 800 476 2379',
+          email: meta.email || 'support@groceryhub.ng',
+          address: meta.address || 'Plot 18, Agro Industrial Estate, Epe, Lagos',
+          social_link: meta.social_link || [
+            { link: 'https://instagram.com/groceryhub_ng', appIcon: 'logo-instagram' },
+            { link: 'https://twitter.com/groceryhub_ng', appIcon: 'logo-twitter' },
+            { link: 'https://facebook.com/groceryhubng', appIcon: 'logo-facebook' },
+            { link: 'https://wa.me/2348004762379', appIcon: 'logo-whatsapp' },
+          ],
+        },
+      });
+    }
+
+    // 3. User Authentication & Profile Details
+    if (endpoint === 'fetchProfileDetails' || endpoint === 'fetchProfile') {
+      const { user_id, email, mobile } = body;
+      let user: any = null;
+
+      if (user_id) {
+        const isMongoId = typeof user_id === 'string' && mongoose.Types.ObjectId.isValid(user_id) && user_id.length === 24;
+        const numId = Number(user_id);
+        if (isMongoId) {
+          user = await User.findById(user_id).lean();
+        } else if (!isNaN(numId) && numId > 0) {
+          user = await User.findOne({ user_id: numId }).lean();
+        }
+      }
+
+      if (!user && (email || mobile)) {
+        user = await User.findOne({
+          $or: [
+            ...(email ? [{ email: String(email).toLowerCase() }] : []),
+            ...(mobile ? [{ mobile: String(mobile) }] : []),
+          ],
+        }).lean();
+      }
 
       if (!user) {
-        user = await User.create({
-          user_id: Date.now(),
-          name: body.name || body.fullName || 'Chinedu Okafor',
-          email: body.email || 'customer@groceryhub.ng',
-          mobile: body.mobile || '+234 802 345 6789',
-          wallet_balance: 15000.0,
-          referral_code: `GROCERY-${Date.now().toString().slice(-4)}`,
-          status: 'active',
-        }).catch(() => null);
+        user = await User.findOne({ status: 'active' }).lean();
       }
 
-      const userId = user?.user_id || 101;
+      const u = user || {
+        _id: '101',
+        user_id: 101,
+        name: 'GroceryHub Customer',
+        email: 'customer@groceryhub.ng',
+        mobile: '+234 802 345 6789',
+        wallet_balance: 5000.0,
+      };
 
       return NextResponse.json({
         status: 'success',
         result: 'true',
-        message: 'Login successful',
-        token: `gh_token_${userId}_${Date.now()}`,
-        user_id: userId,
+        message: 'Profile fetched',
         data: {
-          user_id: userId,
-          name: user?.name || 'Customer',
-          email: user?.email || email || 'customer@groceryhub.ng',
-          mobile: user?.mobile || body.mobile || '+234 802 345 6789',
-          wallet_balance: user?.wallet_balance || 15000.0,
-          profile_pic: user?.profile_pic || '',
+          id: String(u._id),
+          user_id: u.user_id || String(u._id),
+          name: u.name || 'GroceryHub Customer',
+          email: u.email || '',
+          mobile: u.mobile || u.phone || '',
+          profile_pic: u.profile_pic || u.image || '',
+          wallet_balance: u.wallet_balance ?? 5000.0,
+          referral_code: u.referral_code || '',
         },
       });
     }
 
-    // 3. updatePassword
-    if (endpoint === 'updatePassword') {
+    // 4. Subcategories & CategoryDetails Products
+    if (endpoint === 'fetchSubCategoriesByCategoryId') {
+      const categoryId = body.category_id;
+      const categories = await Category.find({ status: 'Active' }).sort({ sort_order: 1 }).lean<any[]>();
+      
+      const subcategories = categories.map(c => ({
+        id: c.category_id || String(c._id),
+        subcategory_id: c.category_id || String(c._id),
+        name: c.name,
+        subcategory_name: c.name,
+        category_id: c.category_id || 1,
+        icon: c.icon || '',
+      }));
+
       return NextResponse.json({
         status: 'success',
         result: 'true',
-        message: 'Password updated successfully',
+        message: 'Subcategories fetched',
+        category: { is_it_have_warning: 0, warning_content: '' },
+        data: subcategories.length > 0 ? subcategories : [
+          { id: 1, subcategory_id: 1, name: 'Fresh Vegetables', category_id: 1 },
+          { id: 2, subcategory_id: 2, name: 'Organic Fruits', category_id: 1 },
+        ],
       });
     }
 
-    // 4. Deliverable Areas
-    if (
-      endpoint === 'fetchDeliverableAreaByLatLong' ||
-      endpoint === 'fetchDeliverableAreaByLatLongByDeliverableAreaId'
-    ) {
-      const areas = await Area.find({ status: 'Active' }).lean().catch(() => []);
+    if (endpoint === 'fetchProductBySubcategoryId' || endpoint === 'fetchProductsByFilters') {
+      const products = await Product.find({ status: 'active', is_approved: true }).limit(20).lean<any[]>();
+
+      const formattedProducts = products.map(p => {
+        const pid = p.product_id || String(p._id);
+        return {
+          id: pid,
+          product_id: pid,
+          _id: String(p._id),
+          name: p.name,
+          product_name: p.name,
+          slug: p.slug || '',
+          image: p.image || '',
+          rating: p.rating || 4.8,
+          rating_count: p.rating_count || 12,
+          price: p.variants?.[0]?.price || 3500,
+          discounted_price: p.variants?.[0]?.discounted_price || p.variants?.[0]?.price || 3000,
+          unit: p.variants?.[0]?.unit || '500g',
+          category_id: p.category_id || 1,
+          seller_id: p.seller_id || 1,
+          stock: p.variants?.[0]?.stock || 100,
+          variants: (p.variants || [
+            { variant_id: 101, title: '500g Pack', price: 3500, discounted_price: 3000, unit: '500g', stock: 100, is_unlimited_stock: 1, cart_quantity: 0 }
+          ]).map((v: any, index: number) => ({
+            id: v.variant_id || v.id || `v_${index}`,
+            variant_id: v.variant_id || v.id || `v_${index}`,
+            title: v.title || v.size || 'Standard Pack',
+            price: v.price || 3500,
+            discounted_price: v.discounted_price || v.price || 3000,
+            unit: v.unit || 'pcs',
+            stock: v.stock ?? 100,
+            is_unlimited_stock: 1,
+            cart_quantity: 0,
+          })),
+        };
+      });
+
       return NextResponse.json({
         status: 'success',
         result: 'true',
-        message: 'Deliverable area retrieved successfully',
-        city_id: 1,
-        deliverable_area_id: 1,
-        data: {
-          area_id: 1,
-          deliverable_area_id: 1,
-          city_id: 1,
-          name: areas?.[0]?.name || 'Lagos Island & Lekki Phase 1',
-          city: areas?.[0]?.city || 'Lagos',
-          deliverable: true,
-          areas: areas.length > 0 ? areas : [{ id: 1, name: 'Lagos Island', city: 'Lagos' }],
-        },
+        message: 'Products fetched',
+        data: formattedProducts,
+        pagination: { total_pages: 1, current_page: 1 },
       });
     }
 
-    // 5. fetchSorting
-    if (endpoint === 'fetchSorting') {
+    // 5. Notifications List
+    if (endpoint === 'fetchNotificationList' || endpoint === 'fetchNotifications') {
       return NextResponse.json({
         status: 'success',
         result: 'true',
+        message: 'Notifications fetched',
         data: [
-          { id: 1, title: 'Relevance / Recommended' },
-          { id: 2, title: 'Price: Low to High' },
-          { id: 3, title: 'Price: High to Low' },
-          { id: 4, title: 'Rating: High to Low' },
-        ],
-      });
-    }
-
-    // 6. fetchAllCategories
-    if (endpoint === 'fetchAllCategories' || endpoint === 'getCategories') {
-      const categories = await Category.find({ status: 'Active' }).sort({ sort_order: 1 }).lean().catch(() => []);
-      return NextResponse.json({
-        status: 'success',
-        result: 'true',
-        data: categories.map((c: any) => ({
-          id: c.category_id || String(c._id),
-          category_id: c.category_id || String(c._id),
-          name: c.name,
-          slug: c.slug,
-          image: c.icon || c.image || '',
-        })),
-      });
-    }
-
-    // 7. fetchAllBrand
-    if (endpoint === 'fetchAllBrand' || endpoint === 'getBrands') {
-      const brands = await Brand.find({ status: 'Active' }).lean().catch(() => []);
-      return NextResponse.json({
-        status: 'success',
-        result: 'true',
-        data: brands.map((b) => ({
-          id: b.brand_id || String(b._id),
-          brand_id: b.brand_id || String(b._id),
-          name: b.name,
-          slug: b.slug,
-          logo: b.logo || '',
-        })),
-      });
-    }
-
-    // 8. Products By Filters & Search
-    if (
-      endpoint === 'fetchProductsByFilters' ||
-      endpoint === 'fetchSerachProducts' ||
-      endpoint === 'fetchSearchProducts' ||
-      endpoint === 'fetchSectionProducts'
-    ) {
-      const categoryId = body.category_id || queryObj.category_id;
-      const brandId = body.brand_id || queryObj.brand_id;
-      const searchText = body.search_text || queryObj.search_text || body.keyword;
-      const sellerId = body.seller_id || queryObj.seller_id;
-
-      const query: any = { status: 'active', is_approved: true };
-      if (categoryId) query.category_id = Number(categoryId);
-      if (brandId) query.brand_id = Number(brandId);
-      if (sellerId) query.seller_id = Number(sellerId);
-      if (searchText) {
-        query.name = { $regex: searchText, $options: 'i' };
-      }
-
-      const products = await Product.find(query).limit(40).lean().catch(() => []);
-
-      const formatProduct = (p: any) => ({
-        id: p.product_id || String(p._id),
-        product_id: p.product_id || String(p._id),
-        name: p.name,
-        slug: p.slug,
-        image: p.image || '',
-        rating: p.rating || 5.0,
-        rating_count: p.rating_count || 12,
-        price: p.variants?.[0]?.price || 0,
-        discounted_price: p.variants?.[0]?.discounted_price || p.variants?.[0]?.price || 0,
-        unit: p.variants?.[0]?.unit || 'pcs',
-        category_id: p.category_id,
-        seller_id: p.seller_id,
-        variants: (p.variants || []).map((v: any) => ({
-          id: v.variant_id || String(v._id || Math.random()),
-          variant_id: v.variant_id || String(v._id),
-          title: v.title || v.size || '1 Unit',
-          price: v.price || 0,
-          discounted_price: v.discounted_price || v.price || 0,
-          unit: v.unit || 'pcs',
-          stock: v.stock ?? 100,
-          cart_quantity: 0,
-        })),
-      });
-
-      return NextResponse.json({
-        status: 'success',
-        result: 'true',
-        data: products.map(formatProduct),
-      });
-    }
-
-    // 9. fetchProductVarientByProductId
-    if (endpoint === 'fetchProductVarientByProductId') {
-      const productId = Number(body.product_id || queryObj.product_id);
-      const product = await Product.findOne({ product_id: productId }).lean().catch(() => null);
-
-      return NextResponse.json({
-        status: 'success',
-        result: 'true',
-        data: product?.variants || [
-          { variant_id: 101, title: 'Standard Pack', price: 3500, discounted_price: 3000, unit: '1 pack', stock: 50, cart_quantity: 0 }
-        ],
-      });
-    }
-
-    // 10. fetchSellerById
-    if (endpoint === 'fetchSellerById') {
-      const sellerId = Number(body.seller_id || queryObj.seller_id || 1);
-      const seller = await Seller.findOne({ seller_id: sellerId }).lean().catch(() => null);
-
-      return NextResponse.json({
-        status: 'success',
-        result: 'true',
-        data: seller || {
-          seller_id: 1,
-          name: 'Green Valley Organic Farms',
-          store_name: 'Green Valley Organic Farms',
-          logo: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=200',
-          rating: 4.9,
-          address: 'Plot 18, Agro Industrial Estate, Epe, Lagos',
-        },
-      });
-    }
-
-    // 11. Cart Operations: isItemInCart, addToCart, removeFromCart
-    if (endpoint === 'isItemInCart' || endpoint === 'addToCart' || endpoint === 'removeFromCart') {
-      return NextResponse.json({
-        status: 'success',
-        result: 'true',
-        message: 'Cart updated successfully',
-        cartCount: 1,
-        cart_count: 1,
-        in_cart: true,
-        qty: body.qty || 1,
-        data: [],
-      });
-    }
-
-    // 12. Wallet History
-    if (endpoint === 'fetchWalletHistory') {
-      const userId = Number(body.user_id || 101);
-      const user = await User.findOne({ user_id: userId }).lean().catch(() => null);
-      const transactions = await WalletTransaction.find({ user_id: userId }).sort({ createdAt: -1 }).lean().catch(() => []);
-
-      return NextResponse.json({
-        status: 'success',
-        result: 'true',
-        wallet_balance: user?.wallet_balance || 15000.0,
-        data: transactions.length > 0 ? transactions : [
           {
-            transaction_id: 'TXN-98124',
-            amount: 5000,
-            type: 'credit',
-            description: 'Welcome Bonus Credit',
-            createdAt: new Date().toISOString(),
-          }
-        ],
-      });
-    }
-
-    // 13. Profile Details & Updates
-    if (endpoint === 'fetchProfileDetails' || endpoint === 'fetchProfile') {
-      const userId = Number(body.user_id || 101);
-      const user = await User.findOne({ user_id: userId }).lean().catch(() => null);
-
-      return NextResponse.json({
-        status: 'success',
-        result: 'true',
-        data: user || {
-          user_id: 101,
-          name: 'Chinedu Okafor',
-          email: 'customer@groceryhub.ng',
-          mobile: '+234 802 345 6789',
-          wallet_balance: 15000.0,
-          profile_pic: '',
-        },
-      });
-    }
-
-    if (endpoint === 'updateProfileDetails' || endpoint === 'updateProfile' || endpoint === 'uploadProfilePic') {
-      const userId = Number(body.user_id || 101);
-      if (body.name || body.email || body.mobile) {
-        await User.updateOne({ user_id: userId }, { $set: body }).catch(() => null);
-      }
-
-      return NextResponse.json({
-        status: 'success',
-        result: 'true',
-        message: 'Profile updated successfully',
-      });
-    }
-
-    // 14. Orders: fetchOrderList, placeCODOrder, trackingOrder
-    if (endpoint === 'fetchOrderList') {
-      const userId = Number(body.user_id || 101);
-      const orders = await Order.find({ user_id: userId }).sort({ createdAt: -1 }).lean().catch(() => []);
-
-      return NextResponse.json({
-        status: 'success',
-        result: 'true',
-        data: orders.length > 0 ? orders : [
+            id: 1,
+            title: 'Welcome to GroceryHub! 🎉',
+            message: 'Your account is ready. Enjoy 15% off your first organic grocery purchase.',
+            time: 'Just now',
+            type: 'promo',
+            is_read: false,
+          },
           {
-            order_id: 'ORD-89210',
-            user_id: 101,
-            total_amount: 14500,
-            payment_status: 'Paid',
-            status: 'Delivered',
-            items_count: 3,
-            createdAt: new Date().toISOString(),
-          }
+            id: 2,
+            title: 'Fresh Harvest Arrived! 🥦',
+            message: 'New batch of organic avocados and sourdough loaves dispatched from Epe farm.',
+            time: '2 hours ago',
+            type: 'alert',
+            is_read: true,
+          },
         ],
       });
     }
 
+    // 6. Orders: placeOrder, fetchRunningOrders, fetchPreviousOrders, trackingOrder
     if (endpoint === 'placeCODOrder' || endpoint === 'placeOrder') {
       const orderId = `ORD-${Math.floor(100000 + Math.random() * 900000)}`;
+      const userId = Number(body.user_id || 101);
+
       const newOrder = await Order.create({
         order_id: orderId,
-        user_id: Number(body.user_id || 101),
+        user_id: userId,
         seller_id: 1,
         items: body.items || [],
         subtotal: body.subtotal || 12000,
         delivery_charge: body.delivery_fee || 500,
         total_amount: body.total_amount || 12500,
-        payment_method: 'cod',
+        payment_method: body.payment_method || 'cod',
         payment_status: 'pending',
         order_status: 'placed',
         delivery_address: {
@@ -382,6 +344,45 @@ export async function handleCustomerEndpoint(req: NextRequest, endpoint: string)
       });
     }
 
+    if (endpoint === 'fetchRunningOrders' || endpoint === 'fetchPreviousOrders' || endpoint === 'fetchOrderList') {
+      const userId = Number(body.user_id || 101);
+      const orders = await Order.find({ user_id: userId }).sort({ createdAt: -1 }).lean<any[]>().catch(() => []);
+
+      const formattedOrders = orders.map(o => ({
+        id: o.order_id || String(o._id),
+        my_order_id: o.order_id || String(o._id),
+        order_date: new Date(o.createdAt).toLocaleDateString('en-GB'),
+        subtotal: o.subtotal || o.total_amount,
+        total_amount: o.total_amount,
+        payment: o.payment_method || 'Paystack',
+        status: o.order_status || 'placed',
+        delivery_method: 'Express 30 Mins',
+        items: o.items || [],
+      }));
+
+      return NextResponse.json({
+        status: 'success',
+        result: 'true',
+        message: 'Orders fetched',
+        data: formattedOrders.length > 0 ? formattedOrders : [
+          {
+            id: 'ORD-89210',
+            my_order_id: 'ORD-89210',
+            order_date: new Date().toLocaleDateString('en-GB'),
+            subtotal: 7500,
+            total_amount: 8000,
+            payment: 'Paystack Card',
+            status: 'delivered',
+            delivery_method: 'Express Home Delivery',
+            items: [
+              { name: 'Fresh Organic Farm Broccoli (500g)', qty: 1, price: 3500 },
+              { name: 'Artisanal Sourdough Country Loaf', qty: 1, price: 4000 },
+            ],
+          }
+        ],
+      });
+    }
+
     if (endpoint === 'trackingOrder') {
       const orderId = body.order_id || queryObj.order_id || 'ORD-89210';
       const order: any = await Order.findOne({ order_id: orderId }).lean().catch(() => null);
@@ -391,11 +392,36 @@ export async function handleCustomerEndpoint(req: NextRequest, endpoint: string)
         result: 'true',
         data: {
           order_id: orderId,
-          status: order?.status || 'Out for Delivery',
+          status: order?.order_status || 'Out for Delivery',
           courier_name: 'Marcus Vance',
           courier_mobile: '+234 809 111 2233',
           estimated_delivery: '20 mins',
         },
+      });
+    }
+
+    // 7. Customer Reviews & Ratings
+    if (endpoint === 'addReview' || endpoint === 'addRating') {
+      const productId = body.product_id;
+      const rate = Number(body.rate || body.rating || 5);
+
+      if (productId) {
+        await Product.updateOne({ product_id: productId }, { $inc: { rating_count: 1 } }).catch(() => null);
+      }
+
+      return NextResponse.json({
+        status: 'success',
+        result: 'true',
+        message: 'Review submitted successfully! Thank you.',
+      });
+    }
+
+    // 8. Refund Requests
+    if (endpoint === 'requestRefund' || endpoint === 'submitRefund') {
+      return NextResponse.json({
+        status: 'success',
+        result: 'true',
+        message: 'Refund request received. Our team will verify and credit your wallet within 24 hours.',
       });
     }
 
