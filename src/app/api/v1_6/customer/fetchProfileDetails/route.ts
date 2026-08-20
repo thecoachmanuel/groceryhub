@@ -10,13 +10,10 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const { user_id, token } = body;
 
-    // Support lookup by user_id (mobile app style) or token
+    // Support lookup by user_id only (auth_token not in User schema)
     let user: any = null;
     if (user_id) {
       user = await User.findOne({ user_id: Number(user_id) }).lean();
-    } else if (token) {
-      // Try to find by token if stored, otherwise fall back to first user
-      user = await User.findOne({ auth_token: token }).lean();
     }
 
     if (!user) {

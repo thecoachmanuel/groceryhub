@@ -10,19 +10,23 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const { email, name, apple_id, uid } = body;
 
-    let user = await User.findOne({
-      $or: [
-        ...(email ? [{ email: email.toLowerCase() }] : []),
-        ...(apple_id || uid ? [{ apple_id: apple_id || uid }] : []),
-      ],
-    }).lean<any>();
+    // Look up by email only (apple_id not in User schema)
+    const query: any[] = [];
+    if (email) query.push({ email: email.toLowerCase() });
+
+    let user: any = null;
+    if (query.length > 0) {
+      user = await User.findOne({ $or: query }).lean();
+    }
 
     if (!user) {
+      // Generate a placeholder mobile so the unique constraint is satisfied
+      const placeholderMobile = `apple_${(apple_id || uid || Date.now()).toString().slice(-10)}`;
       user = await User.create({
         user_id: Date.now(),
         name: name || 'Apple User',
         email: email?.toLowerCase() || '',
-        apple_id: apple_id || uid || '',
+        mobile: placeholderMobile,
         wallet_balance: 0,
         status: 'active',
       });

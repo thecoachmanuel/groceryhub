@@ -18,24 +18,24 @@ export async function POST(req: NextRequest) {
     }
 
     const query: any = {};
-    if (email) query.email = email.toLowerCase();
-    else if (google_id) query.google_id = google_id;
-    else if (uid) query.google_id = uid;
-
-    let user = await User.findOne(query).lean<any>();
+    // Look up by email only (google_id not in User schema)
+    let user: any = null;
+    if (email) {
+      user = await User.findOne({ email: email.toLowerCase() }).lean();
+    }
 
     if (!user) {
-      // Auto-register new social login user
-      const newUser: any = {
+      // Auto-register new social login user with placeholder mobile
+      const placeholderMobile = `google_${(google_id || uid || Date.now()).toString().slice(-10)}`;
+      user = await User.create({
         user_id: Date.now(),
         name: name || email?.split('@')[0] || 'User',
         email: email?.toLowerCase() || '',
-        google_id: google_id || uid || '',
+        mobile: placeholderMobile,
         profile_pic: photoURL || '',
         wallet_balance: 0,
         status: 'active',
-      };
-      user = await User.create(newUser);
+      });
     }
 
     return NextResponse.json({
