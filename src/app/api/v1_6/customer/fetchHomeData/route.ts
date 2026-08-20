@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     // Parallel fetch of all home data
     const [banners, categories, highlights, brands, sellers, dealProducts, popularProducts, newProducts, homeSections] = await Promise.all([
       Banner.find({ status: 'Active' }).sort({ sort_order: 1 }).lean<any[]>().catch(() => []),
-      Category.find({ status: 'Active', parent_id: { $in: [0, null, undefined] } }).sort({ sort_order: 1 }).limit(12).lean<any[]>().catch(() => []),
+      Category.find({ status: 'Active', $or: [{ parent_id: 0 }, { parent_id: null }, { parent_id: { $exists: false } }] } as any).sort({ sort_order: 1 }).limit(12).lean<any[]>().catch(() => []),
       Highlight.find({ status: 'Active' }).sort({ createdAt: -1 }).lean<any[]>().catch(() => []),
       Brand.find({ status: 'Active' }).sort({ sort_order: 1 }).limit(8).lean<any[]>().catch(() => []),
       Seller.find({ status: 'approved' }).limit(6).lean<any[]>().catch(() => []),
