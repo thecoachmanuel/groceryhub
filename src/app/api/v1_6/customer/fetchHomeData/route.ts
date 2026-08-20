@@ -121,9 +121,14 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({
-      status: 200,
+      status: 'success',
       result: 'true',
       message: 'Home data fetched successfully',
+      // top-level fields the app reads directly
+      banners: banners.map(formatBanner),
+      categories: categories.length > 0 ? categories.map(formatCategory) : [],
+      sections,
+      // also nested under data for compatibility
       data: {
         banners: banners.map(formatBanner),
         categories: categories.length > 0 ? categories.map(formatCategory) : [],
