@@ -3,6 +3,9 @@ import { connectToDatabase } from '@/lib/mongodb';
 import Product from '@/models/Product';
 import Banner from '@/models/Banner';
 import Category from '@/models/Category';
+import Highlight from '@/models/Highlight';
+import Brand from '@/models/Brand';
+import Seller from '@/models/Seller';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,15 +17,32 @@ export async function POST(req: NextRequest) {
     // Fetch banners
     const banners = await Banner.find({ status: 'Active' })
       .sort({ sort_order: 1 })
-      .limit(6)
-      .lean()
+      .lean<any[]>()
       .catch(() => []);
 
     // Fetch categories
     const categories = await Category.find({ status: 'Active' })
       .sort({ sort_order: 1 })
       .limit(12)
-      .lean()
+      .lean<any[]>()
+      .catch(() => []);
+
+    // Fetch highlights
+    const highlights = await Highlight.find({ status: 'Active' })
+      .lean<any[]>()
+      .catch(() => []);
+
+    // Fetch brands
+    const brands = await Brand.find({ status: 'Active' })
+      .sort({ sort_order: 1 })
+      .limit(8)
+      .lean<any[]>()
+      .catch(() => []);
+
+    // Fetch sellers
+    const sellers = await Seller.find({ status: 'approved' })
+      .limit(6)
+      .lean<any[]>()
       .catch(() => []);
 
     // Fetch products
@@ -33,7 +53,7 @@ export async function POST(req: NextRequest) {
     })
       .sort({ createdAt: -1 })
       .limit(10)
-      .lean()
+      .lean<any[]>()
       .catch(() => []);
 
     const popularProducts = await Product.find({
@@ -42,7 +62,7 @@ export async function POST(req: NextRequest) {
     })
       .sort({ rating: -1 })
       .limit(20)
-      .lean()
+      .lean<any[]>()
       .catch(() => []);
 
     const newProducts = await Product.find({
@@ -51,7 +71,7 @@ export async function POST(req: NextRequest) {
     })
       .sort({ createdAt: -1 })
       .limit(10)
-      .lean()
+      .lean<any[]>()
       .catch(() => []);
 
     const formatProduct = (p: any) => {
@@ -105,11 +125,15 @@ export async function POST(req: NextRequest) {
 
     const formatBanner = (b: any) => ({
       id: String(b._id),
-      image: b.image_url || b.image || '',
-      redirect_type: b.link_type || 'none',
-      redirect_id: b.link_id || null,
+      image: b.image || b.banner_image || '',
+      banner_image: b.image || b.banner_image || '',
+      banner_type: b.banner_type || 'offer',
+      link_type: b.banner_type || 'offer',
+      content_id: b.content_id || 1,
+      link_id: b.content_id || 1,
+      redirect_url: b.redirect_url || '',
       title: b.title || '',
-      placement: b.placement ?? 0,
+      placement: Number(b.placement ?? 0),
     });
 
     const formatCategory = (c: any) => ({
@@ -122,11 +146,48 @@ export async function POST(req: NextRequest) {
       category_img: c.icon || c.image || '',
     });
 
+    const formatHighlight = (h: any) => ({
+      id: h.id || String(h._id),
+      title: h.title,
+      description: h.description,
+      image: h.image || '',
+      video: h.video || '',
+      redirect_type: h.redirect_type || 'none',
+      redirect_id: h.redirect_id || 1,
+      seller_id: h.seller_id || 1,
+    });
+
+    const formatBrand = (b: any) => ({
+      id: b.brand_id || String(b._id),
+      brand: b.name,
+      brand_name: b.name,
+      logo: b.logo || '',
+      image: b.logo || '',
+      slug: b.slug || '',
+    });
+
+    const formatSeller = (s: any) => ({
+      id: s.seller_id || String(s._id),
+      seller_id: s.seller_id || String(s._id),
+      name: s.name,
+      store_name: s.store_name || s.name,
+      logo: s.logo || '',
+      banner: s.banner || '',
+      rating: s.rating || 4.9,
+      rating_count: s.rating_count || 10,
+      address: s.address || '',
+      city: s.city || 'Lagos',
+    });
+
     const formattedCategories = categories.map(formatCategory);
+    const formattedHighlights = highlights.map(formatHighlight);
+    const formattedBrands = brands.map(formatBrand);
+    const formattedSellers = sellers.map(formatSeller);
+    const allFormattedBanners = banners.map(formatBanner);
 
     const sections: any[] = [];
 
-    // Section 1: Categories
+    // Section 1: Explore Categories
     if (formattedCategories.length > 0) {
       sections.push({
         id: 1,
@@ -141,11 +202,26 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Section 2: Deal of the Day
+    // Section 2: Highlights / Featured Promo Banner Cards
+    if (formattedHighlights.length > 0) {
+      sections.push({
+        id: 2,
+        title: 'Featured Highlights ✨',
+        section_style: 'highlight',
+        items: formattedHighlights,
+        no_of_content: 6,
+        no_of_row: 1,
+        bg_color: '#FFFFFF',
+        load_more: 0,
+        view_all: 0,
+      });
+    }
+
+    // Section 3: Deal of the Day
     const dealItems = (dealProducts.length > 0 ? dealProducts : popularProducts.slice(0, 4)).map(formatProduct);
     if (dealItems.length > 0) {
       sections.push({
-        id: 2,
+        id: 3,
         title: 'Deal of the Day 🔥',
         section_style: 'product_list',
         items: dealItems,
@@ -157,11 +233,26 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Section 3: Popular Products
+    // Section 4: Shop by Brand
+    if (formattedBrands.length > 0) {
+      sections.push({
+        id: 4,
+        title: 'Shop by Brand 🏷️',
+        section_style: 'shop_by_brand',
+        items: formattedBrands,
+        no_of_content: 8,
+        no_of_row: 1,
+        bg_color: '#FFFFFF',
+        load_more: 0,
+        view_all: 0,
+      });
+    }
+
+    // Section 5: Popular Products
     const popularItems = popularProducts.map(formatProduct);
     if (popularItems.length > 0) {
       sections.push({
-        id: 3,
+        id: 5,
         title: 'Popular Products ⭐',
         section_style: 'product_list',
         items: popularItems,
@@ -173,12 +264,27 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Section 4: New Arrivals
+    // Section 6: Shop by Seller
+    if (formattedSellers.length > 0) {
+      sections.push({
+        id: 6,
+        title: 'Verified Farm Sellers 🏪',
+        section_style: 'shop_by_seller',
+        items: formattedSellers,
+        no_of_content: 6,
+        no_of_row: 1,
+        bg_color: '#FFFFFF',
+        load_more: 0,
+        view_all: 0,
+      });
+    }
+
+    // Section 7: New Arrivals
     const newItems = newProducts.map(formatProduct);
     if (newItems.length > 0) {
       sections.push({
-        id: 4,
-        title: 'New Arrivals ✨',
+        id: 7,
+        title: 'New Arrivals 🌿',
         section_style: 'product_list',
         items: newItems,
         no_of_content: 10,
@@ -193,12 +299,18 @@ export async function POST(req: NextRequest) {
       status: 'success',
       result: 'true',
       message: 'Home data fetched successfully',
-      banners: banners.map(formatBanner),
+      banners: allFormattedBanners,
       categories: formattedCategories,
+      highlights: formattedHighlights,
+      brands: formattedBrands,
+      sellers: formattedSellers,
       sections,
       data: {
-        banners: banners.map(formatBanner),
+        banners: allFormattedBanners,
         categories: formattedCategories,
+        highlights: formattedHighlights,
+        brands: formattedBrands,
+        sellers: formattedSellers,
         sections,
       },
     });
