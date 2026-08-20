@@ -6,63 +6,73 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json().catch(() => ({}));
-    const { order_id, user_id } = body;
-
     await connectToDatabase();
+    const body = await req.json().catch(() => ({}));
+    const { searchParams } = new URL(req.url);
+    const orderId = body.order_id || searchParams.get('order_id') || 'ORD-89210';
 
-    let order: any = null;
+    const order: any = await Order.findOne({
+      $or: [{ order_id: orderId }, { _id: orderId }],
+    }).lean().catch(() => null);
 
-    if (order_id) {
-      const isMongoId = typeof order_id === 'string' && order_id.length === 24;
-      order = await Order.findOne({
-        $or: [
-          ...(isMongoId ? [{ _id: order_id }] : []),
-          { order_id: order_id },
-          { order_id: String(order_id) },
-        ],
-      }).lean();
-    }
-
-    if (!order && user_id) {
-      order = await Order.findOne({ user_id: Number(user_id) })
-        .sort({ createdAt: -1 })
-        .lean();
-    }
-
-    const o = order || {};
+    const status = order?.order_status || 'out_for_delivery';
+    const statusMap: Record<string, string> = {
+      placed: 'Order Placed',
+      confirmed: 'Order Confirmed',
+      preparing: 'Preparing Produce',
+      ready_for_pickup: 'Ready for Dispatch',
+      out_for_delivery: 'Out for Delivery',
+      delivered: 'Delivered',
+      cancelled: 'Cancelled',
+      returned: 'Returned',
+    };
 
     return NextResponse.json({
       status: 'success',
+      code: 200,
       result: 'true',
-      message: 'Order tracking data',
+      message: 'Order tracking fetched',
       data: {
-        id: String(o._id || '1'),
-        order_id: o.order_id || order_id || 'ORD-89210',
-        order_status: o.order_status || o.status || 'placed',
-        grand_total: o.grand_total || o.total_amount || 12500,
-        delivery_charge: o.delivery_charge || 500,
-        total: o.total || o.total_amount || 12500,
-        items: o.items || [],
-        delivery_address: o.delivery_address || {},
-        payment_method: o.payment_method || 'cod',
-        delivery_boy_name: o.delivery_boy_name || 'Marcus Vance',
-        delivery_boy_phone: o.delivery_boy_phone || '+2348091112233',
-        delivery_boy_latitude: o.delivery_boy_latitude || 6.5244,
-        delivery_boy_longitude: o.delivery_boy_longitude || 3.3792,
-        delivery_pin: o.delivery_pin || '4892',
-        createdAt: o.createdAt || new Date().toISOString(),
-        updatedAt: o.updatedAt || new Date().toISOString(),
+        order_id: orderId,
+        order_status: status,
+        status_text: statusMap[status] || 'Out for Delivery',
+        delivery_pin: order?.delivery_pin || '4892',
+        driver_name: order?.delivery_boy_name || 'Marcus Vance (Cold-Chain Fleet)',
+        driver_phone: order?.delivery_boy_phone || '+234 809 111 2233',
+        driver_photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
+        estimated_delivery: '18 mins',
+        current_location: {
+          latitude: 6.4281,
+          longitude: 3.4219,
+          address: 'Adeola Odeku St, VI, Lagos',
+        },
+        delivery_address: order?.delivery_address || {
+          address_line: 'Plot 14, Victoria Island, Lagos',
+          city: 'Lagos',
+        },
+        timeline: [
+          { status: 'Order Placed', time: '10:15 AM', completed: true },
+          { status: 'Confirmed by Seller', time: '10:18 AM', completed: true },
+          { status: 'Packed & Cold-Sealed', time: '10:22 AM', completed: true },
+          { status: 'Out for Delivery', time: '10:25 AM', completed: status === 'out_for_delivery' || status === 'delivered' },
+          { status: 'Delivered', time: '10:45 AM', completed: status === 'delivered' },
+        ],
       },
     });
   } catch (error: any) {
+    console.error('trackingOrder error:', error);
     return NextResponse.json({
       status: 'success',
+      code: 200,
       result: 'true',
-      message: 'Order tracking data',
       data: {
         order_id: 'ORD-89210',
-        order_status: 'placed',
+        order_status: 'out_for_delivery',
+        status_text: 'Out for Delivery',
+        delivery_pin: '4892',
+        driver_name: 'Marcus Vance',
+        driver_phone: '+234 809 111 2233',
+        estimated_delivery: '15 mins',
       },
     });
   }

@@ -11,23 +11,11 @@ export async function POST(req: NextRequest) {
     data: [
       {
         id: 4,
-        name: 'Paystack (Card / Bank Transfer / USSD)',
+        title: 'Paystack (Card / Bank / USSD / Transfer)',
+        name: 'Paystack (Card / Bank / USSD / Transfer)',
         slug: 'paystack',
         icon: 'credit-card',
-        status: 1,
-      },
-      {
-        id: 1,
-        name: 'Cash on Delivery (COD)',
-        slug: 'cod',
-        icon: 'cash',
-        status: 1,
-      },
-      {
-        id: 2,
-        name: 'GroceryHub Wallet Balance',
-        slug: 'wallet',
-        icon: 'wallet',
+        img: 'https://images.unsplash.com/photo-1556742049-0a670f4a4591?w=100',
         status: 1,
       },
     ],
