@@ -1,7 +1,18 @@
 import mongoose from 'mongoose';
 import { seedInitialDataIfNeeded } from './seed';
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/groceryhub';
+if (typeof window === 'undefined') {
+  try {
+    const nativeDns = eval("require('node:dns')");
+    if (nativeDns && typeof nativeDns.setServers === 'function') {
+      nativeDns.setServers(['8.8.8.8', '1.1.1.1', '8.8.4.4']);
+    }
+  } catch {
+    // Ignore DNS override errors in restricted environments
+  }
+}
+
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://groceryhub:ooydl4ZOrDUakClM@cluster0.8r3acxq.mongodb.net/groceryhub?appName=Cluster0';
 
 interface MongooseCache {
   conn: typeof mongoose | null;
