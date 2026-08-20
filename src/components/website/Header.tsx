@@ -41,10 +41,38 @@ export default function Header({ cartCount, onOpenCart }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [selectedCity, setSelectedCity] = useState('Lagos');
+  const [citiesList, setCitiesList] = useState<{ id?: string; name: string }[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentLang, setCurrentLang] = useState('en');
 
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    async function fetchCities() {
+      try {
+        const res = await fetch('/api/admin/cities');
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          setCitiesList(json.data.map((c: any) => ({ name: c.name || c.title || 'City' })));
+        } else {
+          setCitiesList([
+            { name: 'Lagos (Ikeja & Island)' },
+            { name: 'Abuja (FCT Zone)' },
+            { name: 'Port Harcourt (GRA)' },
+            { name: 'Ibadan (Bodija)' },
+          ]);
+        }
+      } catch (err) {
+        setCitiesList([
+          { name: 'Lagos (Ikeja & Island)' },
+          { name: 'Abuja (FCT Zone)' },
+          { name: 'Port Harcourt (GRA)' },
+          { name: 'Ibadan (Bodija)' },
+        ]);
+      }
+    }
+    fetchCities();
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -144,10 +172,11 @@ export default function Header({ cartCount, onOpenCart }: HeaderProps) {
                 onChange={(e) => setSelectedCity(e.target.value)}
                 className="bg-transparent focus:outline-none cursor-pointer pr-1"
               >
-                <option value="Lagos">Lagos (Ikeja & Island)</option>
-                <option value="Abuja">Abuja (FCT Zone)</option>
-                <option value="Port Harcourt">Port Harcourt (GRA)</option>
-                <option value="Ibadan">Ibadan (Bodija)</option>
+                {citiesList.map((c, i) => (
+                  <option key={i} value={c.name} className="text-gray-900">
+                    {c.name}
+                  </option>
+                ))}
               </select>
             </div>
           </div>

@@ -150,6 +150,42 @@ export default function AdminSellersPage() {
     setSaving(false);
   };
 
+  const handleAutoSettle = async (sellerId: string) => {
+    if (!confirm('Auto-settle and execute full withdrawal transfer for this vendor?')) return;
+    setSaving(true);
+    try {
+      const res = await fetch('/api/admin/withdrawals/auto-settle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ seller_id: sellerId }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        alert(json.message || 'Vendor settled successfully!');
+        fetchSellers();
+      } else alert(json.message || 'Auto-settle failed');
+    } catch (err) { alert('Error executing auto-settle'); }
+    finally { setSaving(false); }
+  };
+
+  const handleAutoSettleAll = async () => {
+    if (!confirm('Auto-settle withdrawable balances for ALL vendors with positive earnings?')) return;
+    setSaving(true);
+    try {
+      const res = await fetch('/api/admin/withdrawals/auto-settle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const json = await res.json();
+      if (json.success) {
+        alert(json.message || 'All vendors auto-settled successfully!');
+        fetchSellers();
+      } else alert(json.message || 'Auto-settled failed');
+    } catch (err) { alert('Error executing auto-settle all'); }
+    finally { setSaving(false); }
+  };
+
   const filtered = sellers.filter((s) => {
     const matchTab = activeTab === 'all' || s.status === activeTab;
     const matchSearch = s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -168,11 +204,14 @@ export default function AdminSellersPage() {
             <h1 className="text-2xl font-black flex items-center gap-2">
               <Store size={24} className="text-[#0aad0a]" /> Vendor / Seller Management
             </h1>
-            <p className="text-xs text-gray-400 mt-0.5">Manage registered vendor accounts from the database</p>
+            <p className="text-xs text-gray-400 mt-0.5">Manage registered vendor accounts and inspect live wallet balances</p>
           </div>
           <div className="flex gap-2">
             <button onClick={fetchSellers} disabled={loading} className="inline-flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-bold px-3 py-2 rounded-xl">
               <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh
+            </button>
+            <button onClick={handleAutoSettleAll} disabled={saving} className="inline-flex items-center gap-1.5 bg-emerald-950/80 hover:bg-emerald-900 border border-[#0aad0a]/40 text-[#0aad0a] text-xs font-bold px-3 py-2 rounded-xl">
+              <Wallet size={14} /> Auto-Settle All Vendors
             </button>
             <button onClick={() => setShowAddModal(true)} className="inline-flex items-center gap-1.5 bg-[#0aad0a] hover:bg-[#088f08] text-white text-xs font-bold px-4 py-2 rounded-xl">
               <Plus size={14} /> Add Seller
@@ -252,9 +291,21 @@ export default function AdminSellersPage() {
                         </span>
                       </td>
                       <td className="py-3 px-3 text-right">
-                        <button onClick={() => setSelectedSeller(s)} className="bg-[#0aad0a]/10 hover:bg-[#0aad0a] text-[#0aad0a] hover:text-white font-bold text-xs px-3 py-1.5 rounded-lg transition-all">
-                          Manage
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          {s.balance > 0 && (
+                            <button
+                              onClick={() => handleAutoSettle(s.id)}
+                              disabled={saving}
+                              className="bg-emerald-950/60 hover:bg-emerald-900 border border-[#0aad0a]/40 text-[#0aad0a] font-bold text-[11px] px-2.5 py-1.5 rounded-lg transition-all"
+                              title="Auto-settle withdrawable balance"
+                            >
+                              Auto-Settle
+                            </button>
+                          )}
+                          <button onClick={() => setSelectedSeller(s)} className="bg-[#0aad0a]/10 hover:bg-[#0aad0a] text-[#0aad0a] hover:text-white font-bold text-xs px-3 py-1.5 rounded-lg transition-all">
+                            Manage
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

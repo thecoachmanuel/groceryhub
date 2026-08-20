@@ -3,6 +3,8 @@ import { connectToDatabase } from '@/lib/mongodb';
 import DeliveryBoy from '@/models/DeliveryBoy';
 import { extractRequestId, buildIdFilter } from '@/lib/mongoose-helpers';
 
+import Order from '@/models/Order';
+
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
@@ -12,7 +14,37 @@ export async function GET() {
       .select('-password')
       .sort({ createdAt: -1 })
       .lean();
-    return NextResponse.json({ success: true, data: riders, count: riders.length });
+
+    // Enrich riders with live COD cash calculations
+    const enriched = await Promise.all(
+      (riders as any[]).map(async (r) => {
+        const rid = r.id || r.delivery_boy_id;
+        let realCodCollected = r.cash_collected || 0;
+
+        if (rid) {
+          const codOrders = await Order.find({
+            delivery_boy_id: rid,
+            order_status: 'delivered',
+            payment_method: { $regex: /^cod$/i },
+          }).lean();
+
+          const codTotal = (codOrders as any[]).reduce((sum, o) => sum + (o.total_amount || 0), 0);
+          if (codTotal > 0) realCodCollected = codTotal;
+        }
+
+        const remitted = r.cash_remitted || 0;
+        const pending = Math.max(0, realCodCollected - remitted);
+
+        return {
+          ...r,
+          cash_collected: realCodCollected,
+          cash_remitted: remitted,
+          cash_pending: pending,
+        };
+      })
+    );
+
+    return NextResponse.json({ success: true, data: enriched, count: enriched.length });
   } catch (err) {
     console.error('GET /api/admin/delivery-boys:', err);
     return NextResponse.json({ success: true, data: [], count: 0 });

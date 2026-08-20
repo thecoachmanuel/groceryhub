@@ -97,6 +97,24 @@ export default function AdminCashCollectionPage() {
   const totalPendingCOD = records.reduce((acc, curr) => acc + curr.pendingBalance, 0);
   const totalRemitted = records.reduce((acc, curr) => acc + curr.remittedAmount, 0);
 
+  const handleQuickRemit = async (r: CashCollectionRecord) => {
+    if (!r._id || r.pendingBalance <= 0) return;
+    if (!confirm(`Remit full pending COD cash of ${formatNaira(r.pendingBalance)} from ${r.driverName}?`)) return;
+    try {
+      await fetch('/api/admin/delivery-boys', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          deliveryBoyId: r._id,
+          cash_remitted: r.collectedAmount,
+        }),
+      });
+      fetchCollectionsData();
+    } catch (err) {
+      console.error('Error remitting cash:', err);
+    }
+  };
+
   return (
     <div className="flex bg-[#121820] text-white min-h-screen">
       <AdminSidebar />
@@ -181,6 +199,7 @@ export default function AdminCashCollectionPage() {
                     <th className="pb-3 px-3">Remitted to Store</th>
                     <th className="pb-3 px-3">Pending Cash in Hand</th>
                     <th className="pb-3 px-3">Settlement Status</th>
+                    <th className="pb-3 px-3 text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-800/60 font-medium text-gray-300">
@@ -203,6 +222,16 @@ export default function AdminCashCollectionPage() {
                         }`}>
                           ● {r.status}
                         </span>
+                      </td>
+                      <td className="py-3.5 px-3 text-right">
+                        {r.pendingBalance > 0 && (
+                          <button
+                            onClick={() => handleQuickRemit(r)}
+                            className="bg-amber-500 hover:bg-amber-400 text-gray-950 text-[11px] font-black px-3 py-1.5 rounded-lg transition-all"
+                          >
+                            Remit Full Cash
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
