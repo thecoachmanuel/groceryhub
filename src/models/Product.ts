@@ -3,8 +3,8 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 export interface IProductVariant {
   variant_id: number;
   title: string;
-  price: number; // in Naira
-  discounted_price: number; // in Naira
+  price: number;
+  discounted_price: number;
   stock: number;
   is_unlimited_stock: number;
   min_cart_quantity: number;
@@ -17,6 +17,7 @@ export interface IProduct extends Document {
   product_id: number;
   seller_id: number;
   brand_id?: number;
+  brand_name?: string;
   category_id: number;
   category?: string;
   subcategory_id?: number;
@@ -25,12 +26,16 @@ export interface IProduct extends Document {
   description: string;
   image: string;
   additional_images: string[];
+  tags: string[];
+  badges: string[];
+  dietary_tags: string[];
   variants: IProductVariant[];
   rating: number;
   rating_count: number;
   status: 'active' | 'hidden' | 'out_of_stock';
   is_approved: boolean;
   is_deal_of_the_day: boolean;
+  is_featured: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -53,6 +58,7 @@ const ProductSchema: Schema = new Schema(
     product_id: { type: Number, required: true, unique: true, index: true },
     seller_id: { type: Number, required: true, index: true },
     brand_id: { type: Number, default: 0, index: true },
+    brand_name: { type: String, default: '' },
     category_id: { type: Number, default: 1, index: true },
     category: { type: String, default: 'Vegetables' },
     subcategory_id: { type: Number, default: 0 },
@@ -61,12 +67,16 @@ const ProductSchema: Schema = new Schema(
     description: { type: String, default: '' },
     image: { type: String, required: true },
     additional_images: [{ type: String }],
+    tags: [{ type: String }],
+    badges: [{ type: String }],
+    dietary_tags: [{ type: String }],
     variants: [ProductVariantSchema],
     rating: { type: Number, default: 5.0 },
     rating_count: { type: Number, default: 0 },
     status: { type: String, enum: ['active', 'hidden', 'out_of_stock'], default: 'active' },
     is_approved: { type: Boolean, default: true },
     is_deal_of_the_day: { type: Boolean, default: false },
+    is_featured: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

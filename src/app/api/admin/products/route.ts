@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import Product from '@/models/Product';
+import Brand from '@/models/Brand';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,6 +17,8 @@ export async function GET(req: NextRequest) {
     const brand_id = searchParams.get('brand_id');
     const seller_id = searchParams.get('seller_id');
     const status = searchParams.get('status');
+    const is_deal = searchParams.get('is_deal');
+    const tags = searchParams.get('tags');
 
     const query: any = {};
     if (search) query.name = { $regex: search, $options: 'i' };
@@ -23,6 +26,8 @@ export async function GET(req: NextRequest) {
     if (brand_id) query.brand_id = Number(brand_id);
     if (seller_id) query.seller_id = Number(seller_id);
     if (status) query.status = status;
+    if (is_deal === 'true') query.is_deal_of_the_day = true;
+    if (tags) query.tags = { $in: tags.split(',') };
 
     const skip = (page - 1) * limit;
     const [products, total] = await Promise.all([
@@ -50,11 +55,19 @@ export async function POST(req: NextRequest) {
       name, description, image, additional_images = [],
       category_id, subcategory_id, brand_id, seller_id,
       variants, status = 'active', is_approved = true,
-      is_deal_of_the_day = false,
+      is_deal_of_the_day = false, is_featured = false,
+      tags = [], badges = [], dietary_tags = [],
     } = body;
 
     if (!name || !image) {
       return NextResponse.json({ success: false, message: 'name and image are required' }, { status: 400 });
+    }
+
+    // Resolve brand name from brand_id
+    let brand_name = '';
+    if (brand_id && Number(brand_id) > 0) {
+      const brand = await Brand.findOne({ brand_id: Number(brand_id) }).lean<any>();
+      brand_name = brand?.name || '';
     }
 
     // Generate numeric product_id
@@ -66,6 +79,7 @@ export async function POST(req: NextRequest) {
       product_id: newProductId,
       seller_id: Number(seller_id || 1),
       brand_id: Number(brand_id || 0),
+      brand_name,
       category_id: Number(category_id || 1),
       subcategory_id: Number(subcategory_id || 0),
       name,
@@ -73,10 +87,14 @@ export async function POST(req: NextRequest) {
       description: description || '',
       image,
       additional_images: Array.isArray(additional_images) ? additional_images : [],
+      tags: Array.isArray(tags) ? tags : [],
+      badges: Array.isArray(badges) ? badges : [],
+      dietary_tags: Array.isArray(dietary_tags) ? dietary_tags : [],
       variants: variants || [{ variant_id: 1, title: 'Standard', price: 1000, discounted_price: 0, unit: 'pcs', stock: 100, is_unlimited_stock: 1, min_cart_quantity: 1 }],
       status,
       is_approved,
       is_deal_of_the_day,
+      is_featured,
     });
 
     return NextResponse.json({ success: true, message: 'Product created', data: product }, { status: 201 });
@@ -85,24 +103,36 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// PUT update product (supports multi-image update)
+// PUT update product
 export async function PUT(req: NextRequest) {
   try {
     await connectToDatabase();
     const body = await req.json().catch(() => ({}));
     const { id, _id, product_id, ...updateData } = body;
 
-    // Resolve which document to update
     let filter: any = {};
     if (_id || id) filter._id = _id || id;
     else if (product_id !== undefined) filter.product_id = Number(product_id);
     else return NextResponse.json({ success: false, message: 'id or product_id required' }, { status: 400 });
 
-    // Ensure additional_images is always an array
+    // Ensure arrays are properly handled
     if (updateData.additional_images !== undefined) {
-      updateData.additional_images = Array.isArray(updateData.additional_images)
-        ? updateData.additional_images
-        : [];
+      updateData.additional_images = Array.isArray(updateData.additional_images) ? updateData.additional_images : [];
+    }
+    if (updateData.tags !== undefined) {
+      updateData.tags = Array.isArray(updateData.tags) ? updateData.tags : [];
+    }
+    if (updateData.badges !== undefined) {
+      updateData.badges = Array.isArray(updateData.badges) ? updateData.badges : [];
+    }
+    if (updateData.dietary_tags !== undefined) {
+      updateData.dietary_tags = Array.isArray(updateData.dietary_tags) ? updateData.dietary_tags : [];
+    }
+
+    // Resolve brand name if brand_id changed
+    if (updateData.brand_id !== undefined && Number(updateData.brand_id) > 0) {
+      const brand = await Brand.findOne({ brand_id: Number(updateData.brand_id) }).lean<any>();
+      updateData.brand_name = brand?.name || '';
     }
 
     // Auto-regenerate slug if name changed

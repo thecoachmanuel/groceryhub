@@ -42,9 +42,14 @@ interface SellerItem {
   name: string;
 }
 
+interface BrandItem { _id: string; name: string; brand_id?: number; }
+interface TagItem { _id: string; name: string; type: string; emoji?: string; }
+
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [sellers, setSellers] = useState<SellerItem[]>([]);
+  const [brands, setBrands] = useState<BrandItem[]>([]);
+  const [allTags, setAllTags] = useState<TagItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<AdminProduct | null>(null);
@@ -57,9 +62,13 @@ export default function AdminProductsPage() {
   const [stock, setStock] = useState('');
   const [unit, setUnit] = useState('1 pack');
   const [sellerId, setSellerId] = useState<number>(1);
+  const [brandId, setBrandId] = useState<number>(0);
   const [description, setDescription] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [status, setStatus] = useState('Active');
+  const [isDeal, setIsDeal] = useState(false);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [selectedBadges, setSelectedBadges] = useState<string[]>([]);
   const [isAiGenerating, setIsAiGenerating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -68,24 +77,26 @@ export default function AdminProductsPage() {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [sellerFilter, setSellerFilter] = useState('all');
 
-  // Fetch Sellers for store filter and dropdown
+  // Fetch Sellers, Brands, and Tags for dropdowns
   useEffect(() => {
-    async function loadSellers() {
+    async function loadDropdowns() {
       try {
-        const res = await apiFetch('/api/admin/sellers');
-        const json = await res.json();
-        if (json.success && Array.isArray(json.data)) {
-          setSellers(json.data.map((s: any) => ({
-            seller_id: s.seller_id,
-            store_name: s.store_name || s.name || `Store #${s.seller_id}`,
-            name: s.name,
-          })));
+        const [sellersRes, brandsRes, tagsRes] = await Promise.all([
+          apiFetch('/api/admin/sellers'),
+          fetch('/api/admin/brands'),
+          fetch('/api/admin/tags'),
+        ]);
+        const [sJson, bJson, tJson] = await Promise.all([sellersRes.json(), brandsRes.json(), tagsRes.json()]);
+        if (sJson.success && Array.isArray(sJson.data)) {
+          setSellers(sJson.data.map((s: any) => ({ seller_id: s.seller_id, store_name: s.store_name || s.name || `Store #${s.seller_id}`, name: s.name })));
         }
+        if (bJson.success && Array.isArray(bJson.data)) setBrands(bJson.data);
+        if (tJson.success && Array.isArray(tJson.data)) setAllTags(tJson.data);
       } catch (err) {
-        console.warn('Error loading sellers list:', err);
+        console.warn('Error loading dropdowns:', err);
       }
     }
-    loadSellers();
+    loadDropdowns();
   }, []);
 
   const fetchProductsFromApi = useCallback(async () => {
@@ -140,9 +151,13 @@ export default function AdminProductsPage() {
     setStock('50');
     setUnit('1 pack');
     setSellerId(sellers[0]?.seller_id || 1);
+    setBrandId(0);
     setDescription('');
     setImageUrl('');
     setStatus('Active');
+    setIsDeal(false);
+    setSelectedTags([]);
+    setSelectedBadges([]);
     setIsModalOpen(true);
   };
 
@@ -183,45 +198,25 @@ export default function AdminProductsPage() {
     const finalDiscounted = discountedPrice ? parseFloat(discountedPrice) : finalPrice;
     const finalStock = parseInt(stock || '0', 10);
 
+    const productPayload = {
+      name: name.trim(), category,
+      price: finalPrice, discounted_price: finalDiscounted,
+      stock: finalStock, unit: unit.trim(),
+      seller_id: sellerId, brand_id: brandId,
+      description: description.trim(),
+      image: finalImage, status,
+      is_deal_of_the_day: isDeal,
+      tags: selectedTags,
+      badges: selectedBadges,
+      variants: [{ variant_id: 1, title: unit.trim() || 'Standard', price: finalPrice, discounted_price: finalDiscounted, unit: unit.trim() || 'pcs', stock: finalStock, is_unlimited_stock: 1, min_cart_quantity: 1 }],
+    };
     try {
-      if (editingProduct) {
-        const res = await apiFetch(`/api/products/${editingProduct.id}`, {
-          method: 'PUT',
-          body: JSON.stringify({
-            name: name.trim(),
-            category,
-            price: finalPrice,
-            discounted_price: finalDiscounted,
-            stock: finalStock,
-            unit: unit.trim(),
-            seller_id: sellerId,
-            description: description.trim(),
-            image: finalImage,
-            status,
-          }),
-        });
-        const json = await res.json();
-        if (!json.success) alert(json.message || 'Update failed');
-      } else {
-        const res = await apiFetch('/api/products', {
-          method: 'POST',
-          body: JSON.stringify({
-            name: name.trim(),
-            category,
-            price: finalPrice,
-            discounted_price: finalDiscounted,
-            stock: finalStock,
-            unit: unit.trim(),
-            seller_id: sellerId,
-            description: description.trim(),
-            image: finalImage,
-            status,
-          }),
-        });
-        const json = await res.json();
-        if (!json.success) alert(json.message || 'Creation failed');
-      }
-
+      const method = editingProduct ? 'PUT' : 'POST';
+      const url = editingProduct ? '/api/admin/products' : '/api/admin/products';
+      const body = editingProduct ? { ...productPayload, _id: editingProduct._id, id: editingProduct._id } : productPayload;
+      const res = await apiFetch(url, { method, body: JSON.stringify(body) });
+      const json = await res.json();
+      if (!json.success) alert(json.message || (editingProduct ? 'Update failed' : 'Creation failed'));
       await fetchProductsFromApi();
       setIsModalOpen(false);
     } catch (err: any) {
@@ -538,6 +533,65 @@ export default function AdminProductsPage() {
                   />
                 </div>
               </div>
+
+              {/* Brand Assignment */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-300">🏷️ Brand (Optional)</label>
+                <select
+                  value={brandId}
+                  onChange={(e) => setBrandId(Number(e.target.value))}
+                  className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
+                >
+                  <option value={0}>No Brand / Generic</option>
+                  {brands.map((b) => (
+                    <option key={b._id} value={b.brand_id || b._id}>{b.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Tags & Badges */}
+              {allTags.filter(t => t.type === 'dietary' || t.type === 'label').length > 0 && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-300">🌿 Dietary Tags</label>
+                  <div className="flex flex-wrap gap-2">
+                    {allTags.filter(t => t.type === 'dietary' || t.type === 'label').map(tag => (
+                      <button
+                        key={tag._id} type="button"
+                        onClick={() => setSelectedTags(prev => prev.includes(tag.name) ? prev.filter(t => t !== tag.name) : [...prev, tag.name])}
+                        className={`text-[10px] font-bold px-2.5 py-1 rounded-full border transition-all ${
+                          selectedTags.includes(tag.name)
+                            ? 'bg-emerald-950/60 border-emerald-700 text-emerald-400'
+                            : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-500'
+                        }`}
+                      >{tag.emoji || ''} {tag.name}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {allTags.filter(t => t.type === 'badge' || t.type === 'promo').length > 0 && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-300">🎖️ Product Badges</label>
+                  <div className="flex flex-wrap gap-2">
+                    {allTags.filter(t => t.type === 'badge' || t.type === 'promo').map(tag => (
+                      <button
+                        key={tag._id} type="button"
+                        onClick={() => setSelectedBadges(prev => prev.includes(tag.name) ? prev.filter(t => t !== tag.name) : [...prev, tag.name])}
+                        className={`text-[10px] font-bold px-2.5 py-1 rounded-full border transition-all ${
+                          selectedBadges.includes(tag.name)
+                            ? 'bg-amber-950/60 border-amber-700 text-amber-400'
+                            : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-500'
+                        }`}
+                      >{tag.emoji || ''} {tag.name}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Deal of the Day */}
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={isDeal} onChange={e => setIsDeal(e.target.checked)} className="accent-[#0aad0a]" />
+                <span className="text-xs font-bold text-gray-300">🔥 Feature as Deal of the Day</span>
+              </label>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">

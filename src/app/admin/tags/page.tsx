@@ -8,7 +8,9 @@ interface TagItem {
   _id?: string;
   name: string;
   type: string;
+  emoji: string;
   color: string;
+  bg_color: string;
   status: 'Active' | 'Inactive';
 }
 
@@ -19,8 +21,10 @@ export default function AdminTagsPage() {
   const [editingTag, setEditingTag] = useState<TagItem | null>(null);
 
   const [name, setName] = useState('');
+  const [emoji, setEmoji] = useState('');
   const [type, setType] = useState('dietary');
   const [color, setColor] = useState('#0aad0a');
+  const [bgColor, setBgColor] = useState('#e8f5e9');
   const [status, setStatus] = useState<'Active' | 'Inactive'>('Active');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -46,8 +50,10 @@ export default function AdminTagsPage() {
   const openCreateModal = () => {
     setEditingTag(null);
     setName('');
+    setEmoji('');
     setType('dietary');
     setColor('#0aad0a');
+    setBgColor('#e8f5e9');
     setStatus('Active');
     setIsModalOpen(true);
   };
@@ -55,8 +61,10 @@ export default function AdminTagsPage() {
   const openEditModal = (t: TagItem) => {
     setEditingTag(t);
     setName(t.name);
+    setEmoji(t.emoji || '');
     setType(t.type || 'dietary');
     setColor(t.color || '#0aad0a');
+    setBgColor(t.bg_color || '#e8f5e9');
     setStatus(t.status || 'Active');
     setIsModalOpen(true);
   };
@@ -70,13 +78,13 @@ export default function AdminTagsPage() {
         await fetch('/api/admin/tags', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: editingTag._id, name, type, color, status }),
+          body: JSON.stringify({ id: editingTag._id, name, emoji, type, color, bg_color: bgColor, status }),
         });
       } else {
         await fetch('/api/admin/tags', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, type, color, status }),
+          body: JSON.stringify({ name, emoji, type, color, bg_color: bgColor, status }),
         });
       }
       setIsModalOpen(false);
@@ -163,13 +171,14 @@ export default function AdminTagsPage() {
                     <tr key={t._id} className="hover:bg-gray-800/40 transition-colors">
                       <td className="py-3.5 px-3">
                         <span
-                          className="font-bold px-3 py-1 rounded-lg text-xs border"
+                          className="font-bold px-3 py-1 rounded-full text-xs border inline-flex items-center gap-1"
                           style={{
-                            backgroundColor: `${t.color || '#0aad0a'}15`,
+                            backgroundColor: `${t.bg_color || t.color || '#0aad0a'}22`,
                             borderColor: `${t.color || '#0aad0a'}40`,
                             color: t.color || '#0aad0a',
                           }}
                         >
+                          {t.emoji && <span>{t.emoji}</span>}
                           {t.name}
                         </span>
                       </td>
@@ -258,29 +267,52 @@ export default function AdminTagsPage() {
                     onChange={(e) => setType(e.target.value)}
                     className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
                   >
-                    <option value="dietary">Dietary</option>
-                    <option value="promo">Promo Label</option>
-                    <option value="general">General</option>
+                    <option value="dietary">🌿 Dietary</option>
+                     <option value="badge">🎖️ Badge</option>
+                     <option value="promo">🏷️ Promo Label</option>
+                     <option value="label">📋 Label</option>
+                     <option value="general">⚙️ General</option>
                   </select>
                 </div>
 
+              {/* Emoji & Color */}
+              <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-300">Badge Color</label>
+                  <label className="text-xs font-bold text-gray-300">Emoji</label>
+                  <input
+                    type="text"
+                    value={emoji}
+                    onChange={(e) => setEmoji(e.target.value)}
+                    placeholder="🌿"
+                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-sm focus:outline-none focus:border-[#0aad0a] text-center"
+                    maxLength={4}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-300">Text Color</label>
                   <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={color}
-                      onChange={(e) => setColor(e.target.value)}
-                      className="w-10 h-10 rounded-xl bg-transparent border-0 cursor-pointer"
-                    />
-                    <input
-                      type="text"
-                      value={color}
-                      onChange={(e) => setColor(e.target.value)}
-                      className="flex-1 bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs font-mono focus:outline-none focus:border-[#0aad0a]"
-                    />
+                    <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="w-10 h-10 rounded-xl bg-transparent border-0 cursor-pointer" />
+                    <input type="text" value={color} onChange={(e) => setColor(e.target.value)} className="flex-1 bg-gray-900 border border-gray-700 text-white rounded-xl p-2 text-xs font-mono focus:outline-none focus:border-[#0aad0a]" />
                   </div>
                 </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-300">Bg Color</label>
+                  <div className="flex items-center gap-2">
+                    <input type="color" value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="w-10 h-10 rounded-xl bg-transparent border-0 cursor-pointer" />
+                    <input type="text" value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="flex-1 bg-gray-900 border border-gray-700 text-white rounded-xl p-2 text-xs font-mono focus:outline-none focus:border-[#0aad0a]" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Live Preview */}
+              {name && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-400 font-bold">Preview:</span>
+                  <span className="font-bold px-3 py-1 rounded-full text-xs border inline-flex items-center gap-1" style={{ backgroundColor: bgColor, borderColor: `${color}40`, color }}>
+                    {emoji && <span>{emoji}</span>} {name}
+                  </span>
+                </div>
+              )}
               </div>
 
               <div className="space-y-1.5">
