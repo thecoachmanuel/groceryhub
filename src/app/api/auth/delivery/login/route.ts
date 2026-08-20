@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
         { mobile: rawInput },
         { mobile: normPhone },
         { mobile: localPhone },
+        { email: rawInput.toLowerCase() },
       ],
     }).select('+password');
 

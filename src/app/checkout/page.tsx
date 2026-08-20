@@ -70,12 +70,47 @@ export default function CheckoutPage() {
   // Timeslot & Payment States
   const [selectedTimeslot, setSelectedTimeslot] = useState('Express (30 Mins)');
   const [paymentMethod, setPaymentMethod] = useState<'paystack' | 'cod' | 'wallet'>('paystack');
+  const [activeGateways, setActiveGateways] = useState<{ id: string; name: string; description: string; status: string }[]>([]);
   const [useWallet, setUseWallet] = useState(false);
   const [couponCode, setCouponCode] = useState('');
   const [couponDiscount, setCouponDiscount] = useState(0);
   const [couponApplied, setCouponApplied] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderPlacedSuccess, setOrderPlacedSuccess] = useState(false);
+
+  // Fetch active payment gateways from Admin settings
+  useEffect(() => {
+    async function loadGateways() {
+      try {
+        const res = await fetch('/api/admin/payment-methods');
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          const activeOnly = json.data.filter((g: any) => g.status === 'Active' || g.is_active === true);
+          setActiveGateways(activeOnly);
+          // If Paystack is disabled in admin settings, default selection to COD or active gateway
+          const hasPaystack = activeOnly.some((g: any) => (g.key || g.name || '').toLowerCase().includes('paystack'));
+          if (!hasPaystack) {
+            const firstActive = activeOnly[0];
+            if (firstActive) {
+              const nameLower = (firstActive.key || firstActive.name || '').toLowerCase();
+              setPaymentMethod(nameLower.includes('cod') || nameLower.includes('cash') ? 'cod' : 'wallet');
+            }
+          }
+        } else {
+          setActiveGateways([
+            { id: 'paystack', name: 'Paystack (Cards, Transfer, USSD, OPay)', description: 'Instant & Secure Naira Checkout', status: 'Active' },
+            { id: 'cod', name: 'Cash / POS on Delivery', description: 'Pay cash or terminal swipe at doorstep', status: 'Active' },
+          ]);
+        }
+      } catch (err) {
+        setActiveGateways([
+          { id: 'paystack', name: 'Paystack (Cards, Transfer, USSD, OPay)', description: 'Instant & Secure Naira Checkout', status: 'Active' },
+          { id: 'cod', name: 'Cash / POS on Delivery', description: 'Pay cash or terminal swipe at doorstep', status: 'Active' },
+        ]);
+      }
+    }
+    loadGateways();
+  }, []);
 
   // Load user saved addresses from localStorage
   useEffect(() => {
@@ -502,37 +537,39 @@ export default function CheckoutPage() {
 
                 {/* Gateways Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                  {[
-                    { id: 'paystack', label: 'Paystack (Cards, Transfer, USSD, OPay)', desc: 'Instant & Secure Naira Checkout', badge: 'Recommended' },
-                    { id: 'cod', label: 'Cash / POS on Delivery', desc: 'Pay cash or terminal swipe at doorstep', badge: 'Verified' },
-                  ].map((m) => (
-                    <div
-                      key={m.id}
-                      onClick={() => setPaymentMethod(m.id as any)}
-                      className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-start gap-3 relative ${
-                        paymentMethod === m.id
-                          ? 'border-[#0aad0a] bg-[#0aad0a]/5 dark:bg-[#0aad0a]/10'
-                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
-                      }`}
-                    >
-                      <div className={`w-4 h-4 rounded-full border-2 mt-0.5 flex items-center justify-center ${
-                        paymentMethod === m.id ? 'border-[#0aad0a] bg-[#0aad0a]' : 'border-gray-400'
-                      }`}>
-                        {paymentMethod === m.id && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-xs font-bold text-gray-900 dark:text-white">{m.label}</h4>
-                          {m.badge && (
-                            <span className="bg-[#0aad0a]/20 text-[#0aad0a] font-black text-[9px] px-1.5 py-0.2 rounded-md">
-                              {m.badge}
-                            </span>
-                          )}
+                  {activeGateways.map((m) => {
+                    const mKey = (m.id || (m as any).key || m.name || '').toLowerCase();
+                    const isPaystack = mKey.includes('paystack');
+                    const methodId = isPaystack ? 'paystack' : 'cod';
+                    const isSelected = paymentMethod === methodId;
+
+                    return (
+                      <div
+                        key={m.id || m.name}
+                        onClick={() => setPaymentMethod(methodId)}
+                        className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-start gap-3 relative ${
+                          isSelected
+                            ? 'border-[#0aad0a] bg-[#0aad0a]/5 dark:bg-[#0aad0a]/10'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className={`w-4 h-4 rounded-full border-2 mt-0.5 flex items-center justify-center ${
+                          isSelected ? 'border-[#0aad0a] bg-[#0aad0a]' : 'border-gray-400'
+                        }`}>
+                          {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                         </div>
-                        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">{m.desc}</p>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-xs font-bold text-gray-900 dark:text-white">{m.name || (m as any).label}</h4>
+                            <span className="bg-[#0aad0a]/20 text-[#0aad0a] font-black text-[9px] px-1.5 py-0.2 rounded-md uppercase">
+                              {isPaystack ? 'Instant' : 'Verified'}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">{m.description || (m as any).desc}</p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
