@@ -86,6 +86,7 @@ const ADMIN_LINK_GROUPS: LinkGroup[] = [
       { href: '/admin/sections', label: 'Content Sections', icon: Layout },
       { href: '/admin/home-sections', label: 'Home Layout Builder', icon: LayoutGrid, badge: 'Visual' },
       { href: '/admin/banners', label: 'Banners & Ads', icon: ImageIcon },
+      { href: '/admin/deal-of-the-day', label: 'Deal of the Day', icon: Flame, badge: 'Deals' },
       { href: '/admin/highlights', label: 'Deal Highlights', icon: Flame },
       { href: '/admin/coupons', label: 'Coupons & Promos', icon: Percent },
       { href: '/admin/notifications', label: 'Push Notifications', icon: Bell },

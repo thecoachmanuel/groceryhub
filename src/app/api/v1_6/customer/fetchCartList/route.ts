@@ -20,6 +20,7 @@ export async function POST(req: NextRequest) {
 
     let subtotal = 0;
     let savingsTotal = 0;
+    let totalQty = 0;
 
     const formattedItems = items.map((item: any, index: number) => {
       const price = Number(item.price || 0);
@@ -28,6 +29,7 @@ export async function POST(req: NextRequest) {
       const effectivePrice = discounted > 0 && discounted < price ? discounted : price;
       subtotal += effectivePrice * qty;
       savingsTotal += (price - effectivePrice) * qty;
+      totalQty += qty;
 
       return {
         id: index + 1,
@@ -67,6 +69,12 @@ export async function POST(req: NextRequest) {
       subtotal: subtotal.toFixed(2),
       discountedPricesaving: savingsTotal.toFixed(2),
       total: subtotal.toFixed(2),
+      total_items: items.length,
+      total_quantity: totalQty,
+      cart_count: totalQty,
+      total_cart_items: totalQty,
+      cart_total_items: totalQty,
+      cart_item_count: totalQty,
       data: formattedItems,
     });
   } catch (error: any) {
@@ -78,6 +86,12 @@ export async function POST(req: NextRequest) {
       subtotal: '0',
       discountedPricesaving: '0',
       total: '0',
+      total_items: 0,
+      total_quantity: 0,
+      cart_count: 0,
+      total_cart_items: 0,
+      cart_total_items: 0,
+      cart_item_count: 0,
       data: [],
     });
   }
