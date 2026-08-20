@@ -162,36 +162,15 @@ function CustomerLoginPageContent() {
           {/* Google Sign In Button */}
           <button
             type="button"
-            onClick={async () => {
+            onClick={() => {
               setErrorMsg('');
-              const userEmail = prompt('Enter your Google email address for instant sign-in:');
-              if (!userEmail) return;
-              setLoading(true);
-              try {
-                const res = await fetch('/api/v1_6/customer/googleSignin', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    email: userEmail,
-                    name: userEmail.split('@')[0],
-                    google_id: `g_${Date.now()}`,
-                  }),
-                });
-                const data = await res.json();
-                setLoading(false);
-                if (data.success || data.status === 'success' || data.result === 'true') {
-                  loginSession(data.token, data.data.user || data.data);
-                  const params = new URLSearchParams(window.location.search);
-                  window.location.href = params.get('redirect') || '/';
-                } else {
-                  setErrorMsg(data.message || 'Google sign in failed');
-                }
-              } catch (err: any) {
-                setLoading(false);
-                setErrorMsg('Google authentication error. Please try again.');
-              }
+              const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '613050846299-5q32jiodl8n0g4ia125aq0ucf016b765.apps.googleusercontent.com';
+              const redirectUri = `${window.location.origin}/api/auth/google/callback`;
+              const scope = encodeURIComponent('openid profile email');
+              const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&access_type=offline&prompt=select_account`;
+              window.location.href = googleAuthUrl;
             }}
-            className="w-full bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-white border border-gray-200 dark:border-gray-700 font-bold py-3 rounded-2xl flex items-center justify-center gap-3 text-xs shadow-sm transition-all"
+            className="w-full bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-white border border-gray-200 dark:border-gray-700 font-bold py-3.5 rounded-2xl flex items-center justify-center gap-3 text-xs shadow-sm transition-all active:scale-[0.98]"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
