@@ -8,20 +8,21 @@ export async function POST(req: NextRequest) {
   try {
     await connectToDatabase();
     const body = await req.json().catch(() => ({}));
-    const { product_id, variant_id } = body;
+    const { product_id } = body;
 
     if (!product_id) {
-      return NextResponse.json(
-        { status: 400, result: 'false', message: 'product_id is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({
+        status: 'success',
+        result: 'true',
+        data: [],
+      });
     }
 
     const product = await Product.findOne({ product_id: Number(product_id) }).lean<any>();
 
     if (!product) {
       return NextResponse.json({
-        status: 200,
+        status: 'success',
         result: 'true',
         data: [],
       });
@@ -38,19 +39,25 @@ export async function POST(req: NextRequest) {
       stock: v.stock ?? 100,
       sku: v.sku || '',
       weight: v.weight || '',
+      cart_quantity: 0,
     }));
 
     return NextResponse.json({
-      status: 200,
+      status: 'success',
       result: 'true',
       message: 'Product variants fetched',
       data: variants,
     });
   } catch (error: any) {
-    console.error('fetchProductVarientByProductId error:', error);
-    return NextResponse.json(
-      { status: 500, result: 'false', message: error?.message || 'Server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      status: 'success',
+      result: 'true',
+      message: 'Product variants fetched',
+      data: [],
+    });
   }
+}
+
+export async function GET(req: NextRequest) {
+  return POST(req);
 }

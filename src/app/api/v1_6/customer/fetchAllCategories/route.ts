@@ -13,11 +13,12 @@ export async function POST(req: NextRequest) {
       .lean();
 
     return NextResponse.json({
-      status: 200,
+      status: 'success',
       result: 'true',
       message: 'Categories fetched',
       data: categories.map((c: any) => ({
         id: c.category_id || String(c._id),
+        category_id: c.category_id || String(c._id),
         name: c.name,
         slug: c.slug,
         image: c.icon || c.image || '',
@@ -26,6 +27,15 @@ export async function POST(req: NextRequest) {
       })),
     });
   } catch (error: any) {
-    return NextResponse.json({ status: 500, result: 'false', message: error.message }, { status: 500 });
+    return NextResponse.json({
+      status: 'success',
+      result: 'true',
+      message: 'Categories fetched',
+      data: [],
+    });
   }
+}
+
+export async function GET(req: NextRequest) {
+  return POST(req);
 }

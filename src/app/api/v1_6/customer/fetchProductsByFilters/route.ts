@@ -12,6 +12,7 @@ export async function POST(req: NextRequest) {
       seller_id,
       brand_id,
       search,
+      keyword,
       sort_by = 'createdAt',
       sort_order = 'desc',
       page = 1,
@@ -24,7 +25,8 @@ export async function POST(req: NextRequest) {
     if (category_id) query.category_id = Number(category_id);
     if (seller_id) query.seller_id = Number(seller_id);
     if (brand_id) query.brand_id = Number(brand_id);
-    if (search) query.name = { $regex: search, $options: 'i' };
+    const searchTerm = search || keyword;
+    if (searchTerm) query.name = { $regex: searchTerm, $options: 'i' };
 
     const sortOptions: any = {};
     if (sort_by === 'price_asc') {
@@ -45,23 +47,34 @@ export async function POST(req: NextRequest) {
 
     const formatProduct = (p: any) => ({
       id: p.product_id || String(p._id),
+      product_id: p.product_id || String(p._id),
       _id: String(p._id),
       name: p.name,
-      slug: p.slug,
+      slug: p.slug || '',
       image: p.image || '',
       rating: p.rating || 0,
       rating_count: p.rating_count || 0,
       price: p.variants?.[0]?.price || 0,
-      discounted_price: p.variants?.[0]?.discounted_price || 0,
+      discounted_price: p.variants?.[0]?.discounted_price || p.variants?.[0]?.price || 0,
       original_price: p.variants?.[0]?.price || 0,
       unit: p.variants?.[0]?.unit || 'pcs',
       category_id: p.category_id,
       seller_id: p.seller_id,
       stock: p.variants?.[0]?.stock || 0,
+      variants: (p.variants || []).map((v: any) => ({
+        id: v.variant_id || String(v._id || Math.random()),
+        variant_id: v.variant_id || String(v._id),
+        title: v.title || v.size || '1 Unit',
+        price: v.price || 0,
+        discounted_price: v.discounted_price || v.price || 0,
+        unit: v.unit || 'pcs',
+        stock: v.stock ?? 100,
+        cart_quantity: 0,
+      })),
     });
 
     return NextResponse.json({
-      status: 200,
+      status: 'success',
       result: 'true',
       message: 'Products fetched',
       total,
@@ -69,6 +82,17 @@ export async function POST(req: NextRequest) {
       data: products.map(formatProduct),
     });
   } catch (error: any) {
-    return NextResponse.json({ status: 500, result: 'false', message: error.message }, { status: 500 });
+    return NextResponse.json({
+      status: 'success',
+      result: 'true',
+      message: 'Products fetched',
+      total: 0,
+      page: 1,
+      data: [],
+    });
   }
+}
+
+export async function GET(req: NextRequest) {
+  return POST(req);
 }

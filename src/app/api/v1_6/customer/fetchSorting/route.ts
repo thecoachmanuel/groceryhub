@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   return NextResponse.json({
-    status: 200,
+    status: 'success',
     result: 'true',
     message: 'Sorting options fetched',
     data: [
