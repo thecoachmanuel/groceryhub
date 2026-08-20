@@ -11,11 +11,11 @@ export async function POST(req: NextRequest) {
     data: [
       {
         id: 4,
-        title: 'Paystack (Card / Bank / USSD / Transfer)',
-        name: 'Paystack (Card / Bank / USSD / Transfer)',
+        title: 'Paystack',
+        name: 'Paystack',
         slug: 'paystack',
         icon: 'credit-card',
-        img: 'https://images.unsplash.com/photo-1556742049-0a670f4a4591?w=100',
+        img: 'https://raw.githubusercontent.com/PaystackHQ/paystack-wordpress/master/assets/icon.png',
         status: 1,
       },
     ],

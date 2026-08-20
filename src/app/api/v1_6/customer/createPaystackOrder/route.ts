@@ -3,6 +3,7 @@ import { connectToDatabase } from '@/lib/mongodb';
 import Order from '@/models/Order';
 import Cart from '@/models/Cart';
 import User from '@/models/User';
+import SystemSettings from '@/models/SystemSettings';
 import { getUserIdFromHeader, getUserFromHeader } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
@@ -90,7 +91,8 @@ export async function POST(req: NextRequest) {
       order_notes: body.deliveryInstructions || body.order_notes || '',
     });
 
-    const paystackPublicKey = process.env.PAYSTACK_PUBLIC_KEY || 'pk_test_groceryhub_demo_2026';
+    const settings = await SystemSettings.findOne().lean<any>().catch(() => null);
+    const paystackPublicKey = settings?.paystackPublicKey || process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || process.env.PAYSTACK_PUBLIC_KEY || 'pk_test_groceryhub_demo_2026';
 
     return NextResponse.json({
       status: 'success',
