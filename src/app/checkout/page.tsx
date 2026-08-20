@@ -511,66 +511,84 @@ export default function CheckoutPage() {
                 </div>
 
                 {/* Wallet Option */}
-                <div className="p-4 rounded-2xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center">
-                      <Wallet size={20} />
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-gray-900 dark:text-white">GroceryHub Naira Wallet</h4>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Available Balance: {formatNaira(walletBalance)}</p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setUseWallet(!useWallet)}
-                    disabled={walletBalance <= 0}
-                    className={`text-xs font-black px-4 py-2 rounded-xl transition-all ${
-                      useWallet
-                        ? 'bg-amber-500 text-white'
-                        : 'bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200'
-                    }`}
-                  >
-                    {useWallet ? `Applied (-${formatNaira(discountFromWallet)})` : 'Use Balance'}
-                  </button>
-                </div>
-
-                {/* Gateways Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                  {activeGateways.map((m) => {
-                    const mKey = (m.id || (m as any).key || m.name || '').toLowerCase();
-                    const isPaystack = mKey.includes('paystack');
-                    const methodId = isPaystack ? 'paystack' : 'cod';
-                    const isSelected = paymentMethod === methodId;
-
-                    return (
-                      <div
-                        key={m.id || m.name}
-                        onClick={() => setPaymentMethod(methodId)}
-                        className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-start gap-3 relative ${
-                          isSelected
-                            ? 'border-[#0aad0a] bg-[#0aad0a]/5 dark:bg-[#0aad0a]/10'
-                            : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
-                        }`}
-                      >
-                        <div className={`w-4 h-4 rounded-full border-2 mt-0.5 flex items-center justify-center ${
-                          isSelected ? 'border-[#0aad0a] bg-[#0aad0a]' : 'border-gray-400'
-                        }`}>
-                          {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h4 className="text-xs font-bold text-gray-900 dark:text-white">{m.name || (m as any).label}</h4>
-                            <span className="bg-[#0aad0a]/20 text-[#0aad0a] font-black text-[9px] px-1.5 py-0.2 rounded-md uppercase">
-                              {isPaystack ? 'Instant' : 'Verified'}
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">{m.description || (m as any).desc}</p>
-                        </div>
+                <div className="p-4 rounded-2xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center font-black">
+                        <Wallet size={20} />
                       </div>
-                    );
-                  })}
+                      <div>
+                        <h4 className="text-xs font-bold text-gray-900 dark:text-white">GroceryHub Store Wallet</h4>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Available Balance: <strong className="text-amber-600 dark:text-amber-400">{formatNaira(walletBalance)}</strong></p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setUseWallet(!useWallet)}
+                      disabled={walletBalance <= 0}
+                      className={`text-xs font-black px-4 py-2 rounded-xl transition-all ${
+                        useWallet
+                          ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20'
+                          : 'bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200 hover:border-amber-400'
+                      }`}
+                    >
+                      {useWallet ? `Applied (-${formatNaira(discountFromWallet)})` : 'Apply Wallet'}
+                    </button>
+                  </div>
+
+                  {useWallet && (
+                    <div className="text-[11px] font-bold p-2.5 rounded-xl bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">
+                      {grandTotal === 0 ? (
+                        <span>✨ <strong>Full Payment Covered by Wallet!</strong> No external card or cash payment needed.</span>
+                      ) : (
+                        <span>💳 <strong>Partial Wallet Payment:</strong> {formatNaira(discountFromWallet)} deducted. Remaining {formatNaira(grandTotal)} to pay below.</span>
+                      )}
+                    </div>
+                  )}
                 </div>
+
+                {/* Gateways Grid — shown or dimmed if fully covered */}
+                {grandTotal > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                    {activeGateways.map((m) => {
+                      const mKey = (m.id || (m as any).key || m.name || '').toLowerCase();
+                      const isPaystack = mKey.includes('paystack');
+                      const methodId = isPaystack ? 'paystack' : 'cod';
+                      const isSelected = paymentMethod === methodId;
+
+                      return (
+                        <div
+                          key={m.id || m.name}
+                          onClick={() => setPaymentMethod(methodId)}
+                          className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-start gap-3 relative ${
+                            isSelected
+                              ? 'border-[#0aad0a] bg-[#0aad0a]/5 dark:bg-[#0aad0a]/10'
+                              : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
+                          }`}
+                        >
+                          <div className={`w-4 h-4 rounded-full border-2 mt-0.5 flex items-center justify-center ${
+                            isSelected ? 'border-[#0aad0a] bg-[#0aad0a]' : 'border-gray-400'
+                          }`}>
+                            {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h4 className="text-xs font-bold text-gray-900 dark:text-white">{m.name || (m as any).label}</h4>
+                              <span className="bg-[#0aad0a]/20 text-[#0aad0a] font-black text-[9px] px-1.5 py-0.2 rounded-md uppercase">
+                                {isPaystack ? 'Instant' : 'Verified'}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">{m.description || (m as any).desc}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-2xl bg-emerald-950/20 border border-emerald-800/40 text-emerald-400 text-xs font-bold text-center">
+                    ✓ Wallet covers 100% of order. Click Place Order to confirm instantly.
+                  </div>
+                )}
               </div>
 
             </div>

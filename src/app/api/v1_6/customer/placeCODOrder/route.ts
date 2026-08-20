@@ -58,6 +58,22 @@ export async function POST(req: NextRequest) {
         delivery_pin: `${Math.floor(1000 + Math.random() * 9000)}`,
       });
 
+      // Deduct wallet balance from user in MongoDB if wallet was used
+      if (wallet_amount_used > 0 && user_id) {
+        try {
+          const User = (await import('@/models/User')).default;
+          const userDoc = await User.findOne({
+            $or: [{ _id: user_id.length === 24 ? user_id : null }, { user_id: Number(user_id) }],
+          });
+          if (userDoc) {
+            userDoc.wallet_balance = Math.max(0, (userDoc.wallet_balance || 0) - wallet_amount_used);
+            await userDoc.save();
+          }
+        } catch (walletErr) {
+          console.warn('Wallet balance deduction warning:', walletErr);
+        }
+      }
+
       // Decrement product stock in MongoDB
       if (Array.isArray(items)) {
         for (const item of items) {
