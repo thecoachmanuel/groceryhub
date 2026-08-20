@@ -7,7 +7,7 @@ export interface IUser extends Document {
   mobile: string;
   password?: string;
   profile_pic?: string;
-  wallet_balance: number; // in Naira
+  wallet_balance: number;
   referral_code?: string;
   referred_by?: string;
   status: 'active' | 'suspended';
@@ -20,11 +20,11 @@ const UserSchema: Schema = new Schema(
     user_id: { type: Number, required: true, unique: true, index: true },
     name: { type: String, required: true, trim: true },
     email: { type: String, lowercase: true, trim: true, default: '' },
-    mobile: { type: String, required: true, unique: true, trim: true, index: true },
+    mobile: { type: String, trim: true, default: '' },
     password: { type: String, select: false },
     profile_pic: { type: String, default: '' },
     wallet_balance: { type: Number, default: 0 },
-    referral_code: { type: String, unique: true, sparse: true },
+    referral_code: { type: String, sparse: true },
     referred_by: { type: String, default: '' },
     status: { type: String, enum: ['active', 'suspended'], default: 'active' },
   },
