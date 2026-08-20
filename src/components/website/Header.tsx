@@ -28,6 +28,8 @@ import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import { useSystemSettings } from '@/context/SystemSettingsContext';
 
+import LocationSelectorModal from './LocationSelectorModal';
+
 interface HeaderProps {
   cartCount?: number;
   onOpenCart?: () => void;
@@ -40,6 +42,7 @@ export default function Header({ cartCount, onOpenCart }: HeaderProps) {
   const effectiveCartCount = cartCount !== undefined ? cartCount : globalCartCount;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [selectedCity, setSelectedCity] = useState('Lagos');
   const [citiesList, setCitiesList] = useState<{ id?: string; name: string }[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -164,21 +167,16 @@ export default function Header({ cartCount, onOpenCart }: HeaderProps) {
               <span>{settings.appName || 'GroceryHub'}</span>
             </Link>
 
-            {/* City Location Picker */}
-            <div className="hidden lg:flex items-center gap-1.5 bg-gray-100 dark:bg-gray-800 px-3.5 py-2 rounded-full text-xs font-semibold text-gray-700 dark:text-gray-200">
+            {/* City Location Picker Modal Button */}
+            <button
+              type="button"
+              onClick={() => setIsLocationModalOpen(true)}
+              className="hidden lg:flex items-center gap-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 px-3.5 py-2 rounded-full text-xs font-semibold text-gray-700 dark:text-gray-200 transition-colors"
+            >
               <MapPin size={15} className="text-[#0aad0a]" />
-              <select
-                value={selectedCity}
-                onChange={(e) => setSelectedCity(e.target.value)}
-                className="bg-transparent focus:outline-none cursor-pointer pr-1"
-              >
-                {citiesList.map((c, i) => (
-                  <option key={i} value={c.name} className="text-gray-900">
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+              <span className="max-w-[150px] truncate">{selectedCity}</span>
+              <ChevronDown size={13} className="text-gray-400" />
+            </button>
           </div>
 
           {/* Desktop Search Bar */}
@@ -397,6 +395,14 @@ export default function Header({ cartCount, onOpenCart }: HeaderProps) {
           </Link>
         </div>
       )}
+
+      {/* Location Selector Modal */}
+      <LocationSelectorModal
+        isOpen={isLocationModalOpen}
+        onClose={() => setIsLocationModalOpen(false)}
+        selectedLocation={selectedCity}
+        onSelectLocation={(locationName) => setSelectedCity(locationName)}
+      />
     </header>
   );
 }
