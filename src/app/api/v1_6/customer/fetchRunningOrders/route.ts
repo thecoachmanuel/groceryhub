@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
 
     const orders = await Order.find({
       user_id: userId,
-      order_status: { $in: ['placed', 'confirmed', 'preparing', 'out_for_delivery', 'Out for Delivery'] },
+      order_status: { $in: ['placed', 'confirmed', 'preparing', 'out_for_delivery', 'ready_for_pickup'] },
     }).sort({ createdAt: -1 }).lean<any[]>().catch(() => []);
 
     const formattedOrders = orders.map((o: any) => ({
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
       delivery_charge: o.delivery_charge || 0,
       payment: o.total_amount || o.subtotal || 0,
       payment_status: o.payment_status || 'Pending',
-      status: o.order_status || o.status || 'placed',
+      status: o.order_status || 'placed',
       delivery_method: 'homeDelivery',
       timeslot: o.delivery_timeslot || 'Express Delivery',
       delivery_date: 'Today',
