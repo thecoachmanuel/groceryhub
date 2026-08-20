@@ -43,7 +43,7 @@ export default function Header({ cartCount, onOpenCart }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
-  const [selectedCity, setSelectedCity] = useState('Lagos');
+  const [selectedCity, setSelectedCity] = useState('Select Location');
   const [citiesList, setCitiesList] = useState<{ id?: string; name: string }[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentLang, setCurrentLang] = useState('en');
@@ -59,44 +59,55 @@ export default function Header({ cartCount, onOpenCart }: HeaderProps) {
           setCitiesList(json.data.map((c: any) => ({ name: c.name || c.title || 'City' })));
         } else {
           setCitiesList([
-            { name: 'Lagos (Ikeja & Island)' },
-            { name: 'Abuja (FCT Zone)' },
-            { name: 'Port Harcourt (GRA)' },
-            { name: 'Ibadan (Bodija)' },
+            { name: 'Ikeja & Victoria Island' },
+            { name: 'Abuja FCT' },
+            { name: 'Port Harcourt' },
+            { name: 'Ibadan' },
           ]);
         }
       } catch (err) {
         setCitiesList([
-          { name: 'Lagos (Ikeja & Island)' },
-          { name: 'Abuja (FCT Zone)' },
-          { name: 'Port Harcourt (GRA)' },
-          { name: 'Ibadan (Bodija)' },
+          { name: 'Ikeja & Victoria Island' },
+          { name: 'Abuja FCT' },
+          { name: 'Port Harcourt' },
+          { name: 'Ibadan' },
         ]);
       }
     }
     fetchCities();
 
-    // Auto-detect real location on web storefront launch
-    if (typeof window !== 'undefined' && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-          const { latitude, longitude } = pos.coords;
-          try {
-            const res = await fetch('/api/v1_6/customer/fetchDeliverableAreaByLatLong', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ latitude, longitude }),
-            });
-            const json = await res.json();
-            if (json.status === 'success' && json.data) {
-              const detected = `${json.data.name || 'Lagos'}, ${json.data.city || 'Nigeria'}`;
-              setSelectedCity(detected);
-            }
-          } catch (err) {}
-        },
-        () => {},
-        { timeout: 8000, enableHighAccuracy: true }
-      );
+    if (typeof window !== 'undefined') {
+      const savedLoc = localStorage.getItem('gh_selected_location');
+      if (savedLoc) {
+        setSelectedCity(savedLoc);
+      } else {
+        // Auto-prompt location modal on first visit
+        setIsLocationModalOpen(true);
+      }
+
+      // Auto-detect real GPS location if permission granted
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          async (pos) => {
+            const { latitude, longitude } = pos.coords;
+            try {
+              const res = await fetch('/api/v1_6/customer/fetchDeliverableAreaByLatLong', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ latitude, longitude }),
+              });
+              const json = await res.json();
+              if (json.status === 'success' && json.data) {
+                const detected = `${json.data.name || 'Current Area'}, ${json.data.city || 'Hub'}`;
+                setSelectedCity(detected);
+                localStorage.setItem('gh_selected_location', detected);
+              }
+            } catch (err) {}
+          },
+          () => {},
+          { timeout: 8000, enableHighAccuracy: true }
+        );
+      }
     }
   }, []);
 
@@ -424,7 +435,12 @@ export default function Header({ cartCount, onOpenCart }: HeaderProps) {
         isOpen={isLocationModalOpen}
         onClose={() => setIsLocationModalOpen(false)}
         selectedLocation={selectedCity}
-        onSelectLocation={(locationName) => setSelectedCity(locationName)}
+        onSelectLocation={(locationName) => {
+          setSelectedCity(locationName);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('gh_selected_location', locationName);
+          }
+        }}
       />
     </header>
   );
