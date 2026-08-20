@@ -75,6 +75,29 @@ export default function Header({ cartCount, onOpenCart }: HeaderProps) {
       }
     }
     fetchCities();
+
+    // Auto-detect real location on web storefront launch
+    if (typeof window !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const { latitude, longitude } = pos.coords;
+          try {
+            const res = await fetch('/api/v1_6/customer/fetchDeliverableAreaByLatLong', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ latitude, longitude }),
+            });
+            const json = await res.json();
+            if (json.status === 'success' && json.data) {
+              const detected = `${json.data.name || 'Lagos'}, ${json.data.city || 'Nigeria'}`;
+              setSelectedCity(detected);
+            }
+          } catch (err) {}
+        },
+        () => {},
+        { timeout: 8000, enableHighAccuracy: true }
+      );
+    }
   }, []);
 
   useEffect(() => {

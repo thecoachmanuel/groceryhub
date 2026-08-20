@@ -9,6 +9,8 @@ export async function POST(req: NextRequest) {
     await connectToDatabase();
     const settings = await SystemSettings.findOne().lean<any>().catch(() => null);
 
+    const mapKey = settings?.googleMapsApiKey || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
+
     return NextResponse.json({
       status: 'success',
       result: 'true',
@@ -25,7 +27,10 @@ export async function POST(req: NextRequest) {
         support_phone: settings?.supportPhone || '+234 (800) 123-4567',
         support_email: settings?.supportEmail || 'support@groceryhub.ng',
         tax_percentage: settings?.taxPercentage ?? 0,
-        google_api_key: settings?.googleMapsApiKey || '',
+        google_api_key: mapKey,
+        google_map_key: mapKey,
+        google_android_map_key: mapKey,
+        google_ios_map_key: mapKey,
         app_color: settings?.appColor || '#4CAF50',
         light_color: settings?.lightColor || '#E8F5E9',
         dark_color: settings?.darkColor || '#388E3C',
@@ -42,6 +47,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (error: any) {
     console.error('fetchCustomerSettings error:', error);
+    const fallbackKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
     return NextResponse.json({
       status: 'success',
       result: 'true',
@@ -54,6 +60,8 @@ export async function POST(req: NextRequest) {
         delivery_charge_standard: 500,
         min_order_free_delivery: 15000,
         enable_wallet: true,
+        google_api_key: fallbackKey,
+        google_map_key: fallbackKey,
       },
       countrySettings: {
         currency_symbol: '₦',
