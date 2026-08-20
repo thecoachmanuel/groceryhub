@@ -119,17 +119,26 @@ export default function CartPage() {
     contextClearCart();
   };
 
-  const handleApplyCoupon = (e: React.FormEvent) => {
+  const handleApplyCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
     setCouponError('');
-    if (couponCode.toUpperCase() === 'GROCERY10') {
-      setCouponDiscount(2000.00);
-      setCouponApplied(true);
-    } else if (couponCode.toUpperCase() === 'FRESH20') {
-      setCouponDiscount(3500.00);
-      setCouponApplied(true);
-    } else {
-      setCouponError('Invalid promo code. Try GROCERY10 or FRESH20.');
+    if (!couponCode.trim()) return;
+
+    try {
+      const res = await fetch('/api/coupons/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: couponCode, subtotal: itemSubtotal }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setCouponDiscount(json.discountAmount || 0);
+        setCouponApplied(true);
+      } else {
+        setCouponError(json.message || 'Invalid promo code');
+      }
+    } catch (err) {
+      setCouponError('Failed to validate coupon code');
     }
   };
 

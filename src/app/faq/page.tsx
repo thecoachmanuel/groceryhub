@@ -45,14 +45,23 @@ export default function FAQPage() {
     async function loadFaqs() {
       try {
         setLoading(true);
-        const res = await fetch('/api/settings');
-        const json = await res.json();
-        if (json.success && json.data) {
-          if (Array.isArray(json.data.faqItems) && json.data.faqItems.length > 0) {
-            setFaqs(json.data.faqItems);
-          }
-          if (json.data.supportPhone) setSupportPhone(json.data.supportPhone);
-          if (json.data.supportEmail) setSupportEmail(json.data.supportEmail);
+        // Load live FAQs from Admin FAQs manager
+        const faqRes = await fetch('/api/admin/faqs');
+        const faqJson = await faqRes.json();
+        if (faqJson.success && Array.isArray(faqJson.data) && faqJson.data.length > 0) {
+          const mapped = faqJson.data.map((item: any) => ({
+            q: item.question || item.q || 'Question',
+            a: item.answer || item.a || 'Answer',
+          }));
+          setFaqs(mapped);
+        }
+
+        // Load contact details from system settings
+        const settingsRes = await fetch('/api/settings');
+        const settingsJson = await settingsRes.json();
+        if (settingsJson.success && settingsJson.data) {
+          if (settingsJson.data.supportPhone) setSupportPhone(settingsJson.data.supportPhone);
+          if (settingsJson.data.supportEmail) setSupportEmail(settingsJson.data.supportEmail);
         }
       } catch (err) {
         console.warn('Error loading dynamic FAQs:', err);

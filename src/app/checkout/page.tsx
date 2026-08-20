@@ -166,13 +166,25 @@ export default function CheckoutPage() {
   const discountFromWallet = useWallet ? Math.min(walletBalance, itemSubtotal + deliveryFee + platformServiceFee + tax - couponDiscount) : 0;
   const grandTotal = Math.max(0, itemSubtotal + deliveryFee + platformServiceFee + tax - couponDiscount - discountFromWallet);
 
-  const handleApplyCoupon = (e: React.FormEvent) => {
+  const handleApplyCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (couponCode.toUpperCase() === 'GROCERY10') {
-      setCouponDiscount(2000.00); // ₦2,000 discount
-      setCouponApplied(true);
-    } else {
-      alert('Invalid coupon code. Try GROCERY10 for ₦2,000 OFF!');
+    if (!couponCode.trim()) return;
+
+    try {
+      const res = await fetch('/api/coupons/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: couponCode, subtotal: itemSubtotal }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setCouponDiscount(json.discountAmount || 0);
+        setCouponApplied(true);
+      } else {
+        alert(json.message || 'Invalid promo code');
+      }
+    } catch (err) {
+      alert('Failed to validate coupon code');
     }
   };
 

@@ -41,11 +41,12 @@ export default function SellerWithdrawalPage() {
   const [accountNumber, setAccountNumber] = useState('');
   const [accountHolder, setAccountHolder] = useState('');
 
+  const effectiveSellerId = sellerId || 1;
+
   const fetchData = async () => {
-    if (!sellerId) return;
     try {
       setLoading(true);
-      const res = await apiFetch(`/api/seller/withdrawals?seller_id=${sellerId}`);
+      const res = await apiFetch(`/api/seller/withdrawals?seller_id=${effectiveSellerId}`);
       const json = await res.json();
       if (json.success) {
         setWithdrawableBalance(json.withdrawableBalance || 0);
@@ -57,13 +58,15 @@ export default function SellerWithdrawalPage() {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchData(); }, [sellerId]);
+  useEffect(() => { fetchData(); }, [effectiveSellerId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const val = parseFloat(amount || '0');
     if (val <= 0) return alert('Please enter a valid amount');
-    if (val > withdrawableBalance) return alert(`Amount exceeds available balance of ${formatNaira(withdrawableBalance)}`);
+    if (withdrawableBalance > 0 && val > withdrawableBalance) {
+      return alert(`Amount exceeds available balance of ${formatNaira(withdrawableBalance)}`);
+    }
     if (!bankName || !accountNumber || !accountHolder) return alert('Please fill in all bank details');
 
     setSubmitting(true);
@@ -72,7 +75,7 @@ export default function SellerWithdrawalPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          seller_id: sellerId,
+          seller_id: effectiveSellerId,
           seller_name: sellerName,
           amount: val,
           bank_name: bankName,

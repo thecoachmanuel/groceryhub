@@ -13,31 +13,48 @@ interface HomeSectionItem {
   status: 'Active' | 'Inactive';
 }
 
+interface CategoryOption {
+  _id?: string;
+  name: string;
+}
+
 export default function AdminHomeSectionsPage() {
   const [sections, setSections] = useState<HomeSectionItem[]>([]);
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingSection, setEditingSection] = useState<HomeSectionItem | null>(null);
+
   const [title, setTitle] = useState('');
   const [type, setType] = useState('ProductGrid');
   const [categoryRef, setCategoryRef] = useState('');
 
-  const fetchSections = async () => {
+  const fetchSectionsAndCategories = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/admin/home-sections');
-      const data = await res.json();
-      if (data.success) {
-        setSections(data.data || []);
+      const [secRes, catRes] = await Promise.all([
+        fetch('/api/admin/home-sections'),
+        fetch('/api/admin/categories'),
+      ]);
+
+      const secData = await secRes.json();
+      const catData = await catRes.json();
+
+      if (secData.success) {
+        setSections(secData.data || []);
+      }
+      if (catData.success && Array.isArray(catData.data)) {
+        setCategories(catData.data);
       }
     } catch (err) {
-      console.error('Error fetching home sections:', err);
+      console.error('Error fetching home sections/categories:', err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchSections();
+    fetchSectionsAndCategories();
   }, []);
 
   const handleMove = async (index: number, direction: 'up' | 'down') => {
@@ -49,7 +66,6 @@ export default function AdminHomeSectionsPage() {
     updated[targetIndex] = temp;
     setSections(updated);
 
-    // Save reorder
     for (let i = 0; i < updated.length; i++) {
       if (updated[i]._id) {
         await fetch('/api/admin/home-sections', {
@@ -61,37 +77,82 @@ export default function AdminHomeSectionsPage() {
     }
   };
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleToggleStatus = async (sec: HomeSectionItem) => {
+    if (!sec._id) return;
+    const newStatus = sec.status === 'Active' ? 'Inactive' : 'Active';
     try {
       await fetch('/api/admin/home-sections', {
-        method: 'POST',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title,
-          type,
-          categoryRef,
-          order: sections.length + 1,
-          status: 'Active',
-        }),
+        body: JSON.stringify({ id: sec._id, status: newStatus }),
       });
+      setSections((prev) => prev.map((s) => (s._id === sec._id ? { ...s, status: newStatus } : s)));
+    } catch (err) {
+      console.error('Error updating section status:', err);
+    }
+  };
+
+  const handleCreateOrUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (editingSection && editingSection._id) {
+        await fetch('/api/admin/home-sections', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: editingSection._id,
+            title,
+            type,
+            categoryRef,
+          }),
+        });
+      } else {
+        await fetch('/api/admin/home-sections', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title,
+            type,
+            categoryRef,
+            order: sections.length + 1,
+            status: 'Active',
+          }),
+        });
+      }
       setShowAddModal(false);
+      setEditingSection(null);
       setTitle('');
       setCategoryRef('');
-      fetchSections();
+      fetchSectionsAndCategories();
     } catch (err) {
-      console.error('Error creating home section:', err);
+      console.error('Error saving home section:', err);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this home section?')) return;
+    if (!confirm('Are you sure you want to delete this home layout section?')) return;
     try {
       await fetch(`/api/admin/home-sections?id=${id}`, { method: 'DELETE' });
-      fetchSections();
+      fetchSectionsAndCategories();
     } catch (err) {
       console.error('Error deleting home section:', err);
     }
+  };
+
+  const openEdit = (sec: HomeSectionItem) => {
+    setEditingSection(sec);
+    setTitle(sec.title);
+    setType(sec.type);
+    setCategoryRef(sec.categoryRef || '');
+    setShowAddModal(true);
+  };
+
+  const openNew = () => {
+    setEditingSection(null);
+    setTitle('');
+    setType('ProductGrid');
+    setCategoryRef('');
+    setShowAddModal(true);
   };
 
   return (
@@ -108,7 +169,7 @@ export default function AdminHomeSectionsPage() {
           </div>
 
           <button
-            onClick={() => setShowAddModal(true)}
+            onClick={openNew}
             className="bg-[#0aad0a] hover:bg-[#088f08] text-white text-xs font-black px-5 py-2.5 rounded-2xl flex items-center gap-2 shadow-lg shadow-[#0aad0a]/30 transition-all active:scale-95"
           >
             <Plus size={16} />
@@ -125,7 +186,7 @@ export default function AdminHomeSectionsPage() {
           <div className="space-y-4">
             {sections.map((section, idx) => (
               <div
-                key={section._id}
+                key={section._id || idx}
                 className="bg-[#1e2632] border border-gray-800 rounded-3xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:border-[#0aad0a]/40 transition-all"
               >
                 {/* Order index & details */}
@@ -141,34 +202,54 @@ export default function AdminHomeSectionsPage() {
                         {section.type}
                       </span>
                     </div>
-                    <p className="text-xs text-gray-400">{section.categoryRef ? `Category: ${section.categoryRef}` : 'All Products'}</p>
+                    <p className="text-xs text-gray-400">{section.categoryRef ? `Category Filter: ${section.categoryRef}` : 'All Store Items'}</p>
                   </div>
                 </div>
 
-                {/* Reorder Buttons & Actions */}
-                <div className="flex items-center gap-1.5">
+                {/* Status & Actions */}
+                <div className="flex items-center gap-2">
                   <button
-                    onClick={() => handleMove(idx, 'up')}
-                    disabled={idx === 0}
-                    className="p-2 rounded-xl bg-gray-900 border border-gray-700 hover:bg-gray-800 disabled:opacity-30"
-                    title="Move Up"
+                    onClick={() => handleToggleStatus(section)}
+                    className={`text-[10px] font-bold px-3 py-1.5 rounded-full transition-all ${
+                      section.status === 'Active'
+                        ? 'bg-emerald-950/60 text-[#0aad0a] border border-[#0aad0a]/30'
+                        : 'bg-gray-800 text-gray-400 border border-gray-700'
+                    }`}
                   >
-                    <ArrowUp size={14} />
+                    ● {section.status}
                   </button>
+
                   <button
-                    onClick={() => handleMove(idx, 'down')}
-                    disabled={idx === sections.length - 1}
-                    className="p-2 rounded-xl bg-gray-900 border border-gray-700 hover:bg-gray-800 disabled:opacity-30"
-                    title="Move Down"
+                    onClick={() => openEdit(section)}
+                    className="px-3 py-1.5 rounded-xl bg-gray-900 border border-gray-700 text-xs font-bold hover:bg-gray-800 text-white"
                   >
-                    <ArrowDown size={14} />
+                    Edit
                   </button>
-                  <button
-                    onClick={() => section._id && handleDelete(section._id)}
-                    className="p-2 rounded-xl bg-red-950/40 text-red-400 hover:bg-red-900/60 transition-colors ml-2"
-                  >
-                    <Trash2 size={15} />
-                  </button>
+
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleMove(idx, 'up')}
+                      disabled={idx === 0}
+                      className="p-2 rounded-xl bg-gray-900 border border-gray-700 hover:bg-gray-800 disabled:opacity-30"
+                      title="Move Up"
+                    >
+                      <ArrowUp size={14} />
+                    </button>
+                    <button
+                      onClick={() => handleMove(idx, 'down')}
+                      disabled={idx === sections.length - 1}
+                      className="p-2 rounded-xl bg-gray-900 border border-gray-700 hover:bg-gray-800 disabled:opacity-30"
+                      title="Move Down"
+                    >
+                      <ArrowDown size={14} />
+                    </button>
+                    <button
+                      onClick={() => section._id && handleDelete(section._id)}
+                      className="p-2 rounded-xl bg-red-950/40 text-red-400 hover:bg-red-900/60 transition-colors ml-1"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -176,7 +257,7 @@ export default function AdminHomeSectionsPage() {
         )}
       </main>
 
-      {/* Add Modal */}
+      {/* Add / Edit Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-[#1e2632] w-full max-w-lg rounded-3xl p-6 sm:p-8 border border-gray-800 space-y-6 relative max-h-[90vh] overflow-y-auto">
@@ -187,9 +268,9 @@ export default function AdminHomeSectionsPage() {
               <X size={20} />
             </button>
 
-            <h3 className="text-xl font-black">Configure Home Layout Section</h3>
+            <h3 className="text-xl font-black">{editingSection ? 'Edit Section Layout' : 'Configure Home Layout Section'}</h3>
 
-            <form onSubmit={handleCreate} className="space-y-4">
+            <form onSubmit={handleCreateOrUpdate} className="space-y-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-gray-300">Section Title</label>
                 <input
@@ -203,7 +284,7 @@ export default function AdminHomeSectionsPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-300">Section Display Type</label>
+                <label className="text-xs font-bold text-gray-[#0aad0a]">Section Display Style</label>
                 <select
                   value={type}
                   onChange={(e) => setType(e.target.value)}
@@ -218,14 +299,19 @@ export default function AdminHomeSectionsPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-300">Category Filter (Optional)</label>
-                <input
-                  type="text"
+                <label className="text-xs font-bold text-gray-300">Target Category Filter</label>
+                <select
                   value={categoryRef}
                   onChange={(e) => setCategoryRef(e.target.value)}
-                  placeholder="e.g. vegetables"
                   className="w-full bg-gray-900 border border-gray-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-[#0aad0a]"
-                />
+                >
+                  <option value="">All Categories (No Filter)</option>
+                  {categories.map((c) => (
+                    <option key={c._id || c.name} value={c.name}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="flex gap-3 pt-3">
@@ -233,7 +319,7 @@ export default function AdminHomeSectionsPage() {
                   type="submit"
                   className="flex-1 bg-[#0aad0a] hover:bg-[#088f08] text-white font-black py-3.5 rounded-xl text-xs shadow-lg shadow-[#0aad0a]/30"
                 >
-                  Insert Section to Layout
+                  {editingSection ? 'Save Section Changes' : 'Insert Section to Layout'}
                 </button>
                 <button
                   type="button"
