@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import User from '@/models/User';
-import mongoose from 'mongoose';
+import { getUserIdFromHeader, getUserFromHeader } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,17 +9,20 @@ export async function POST(req: NextRequest) {
   try {
     await connectToDatabase();
     const body = await req.json().catch(() => ({}));
-    const { user_id, email, mobile } = body;
+
+    const authHeader = req.headers.get('authorization');
+    const tokenUser = getUserFromHeader(authHeader);
+    const tokenUserId = tokenUser?.user_id;
+
+    // Priority: token user_id > body user_id > body email/mobile
+    const userId = tokenUserId || body.user_id;
+    const { email, mobile } = body;
 
     let user: any = null;
 
-    if (user_id) {
-      const isMongoId = typeof user_id === 'string' && mongoose.Types.ObjectId.isValid(user_id) && user_id.length === 24;
-      const numId = Number(user_id);
-
-      if (isMongoId) {
-        user = await User.findById(user_id).lean();
-      } else if (!isNaN(numId) && numId > 0) {
+    if (userId) {
+      const numId = Number(userId);
+      if (!isNaN(numId) && numId > 0) {
         user = await User.findOne({ user_id: numId }).lean();
       }
     }
@@ -34,23 +37,12 @@ export async function POST(req: NextRequest) {
     }
 
     if (!user) {
-      user = await User.findOne({ status: 'active' }).lean();
-    }
-
-    if (!user) {
       return NextResponse.json({
-        status: 'success',
-        code: 200,
-        result: 'true',
-        message: 'Profile fetched',
-        data: {
-          user_id: 101,
-          name: 'GroceryHub Customer',
-          email: 'customer@groceryhub.ng',
-          mobile: '+234 802 345 6789',
-          wallet_balance: 5000.0,
-        },
-      });
+        status: 'error',
+        code: 401,
+        result: 'false',
+        message: 'User not found. Please log in again.',
+      }, { status: 401 });
     }
 
     return NextResponse.json({
@@ -61,29 +53,23 @@ export async function POST(req: NextRequest) {
       data: {
         id: String(user._id),
         user_id: user.user_id || String(user._id),
-        name: user.name || 'GroceryHub Customer',
+        name: user.name || '',
         email: user.email || '',
         mobile: user.mobile || user.phone || '',
         profile_pic: user.profile_pic || user.image || '',
-        wallet_balance: user.wallet_balance ?? 5000.0,
+        wallet_balance: user.wallet_balance ?? 0,
         referral_code: user.referral_code || '',
         createdAt: user.createdAt || new Date().toISOString(),
       },
     });
   } catch (error: any) {
+    console.error('fetchProfileDetails error:', error);
     return NextResponse.json({
-      status: 'success',
-      code: 200,
-      result: 'true',
-      message: 'Profile fetched',
-      data: {
-        user_id: 101,
-        name: 'GroceryHub Customer',
-        email: 'customer@groceryhub.ng',
-        mobile: '+234 802 345 6789',
-        wallet_balance: 5000.0,
-      },
-    });
+      status: 'error',
+      code: 500,
+      result: 'false',
+      message: 'Server error',
+    }, { status: 500 });
   }
 }
 

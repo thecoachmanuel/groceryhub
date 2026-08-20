@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import User from '@/models/User';
 import bcrypt from 'bcryptjs';
+import { signToken } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,7 +10,7 @@ export async function POST(req: NextRequest) {
   try {
     await connectToDatabase();
     const body = await req.json().catch(() => ({}));
-    const { email, mobile, password, name } = body;
+    const { email, mobile, password } = body;
 
     const identifier = email || mobile;
     if (!identifier) {
@@ -19,78 +20,74 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const query: any = {};
-    if (email) query.email = email.toLowerCase();
-    if (mobile) query.mobile = mobile;
-
-    // Query real user from MongoDB Atlas
-    let user = await User.findOne({
+    // Look up ONLY existing users — no auto-registration
+    const user = await User.findOne({
       $or: [
-        ...(email ? [{ email: email.toLowerCase() }] : []),
-        ...(mobile ? [{ mobile }] : []),
+        ...(email ? [{ email: email.toLowerCase().trim() }] : []),
+        ...(mobile ? [{ mobile: mobile.trim() }] : []),
       ],
     }).select('+password').lean<any>();
 
-    if (user) {
-      // Verify password if password exists on record and was provided
-      if (password && user.password) {
-        const isMatch = await bcrypt.compare(password, user.password).catch(() => false);
-        if (!isMatch && user.password.length > 5) {
-          return NextResponse.json(
-            { status: 'error', code: 401, result: 'false', message: 'Invalid password. Please check your credentials.' },
-            { status: 401 }
-          );
-        }
-      }
-    } else {
-      // Register new user directly in MongoDB Atlas
-      const hashedPassword = password ? await bcrypt.hash(password, 10) : '';
-      const newUserId = Math.floor(100000 + Math.random() * 900000);
-      const userName = name || (email ? email.split('@')[0] : 'User');
+    if (!user) {
+      return NextResponse.json(
+        { status: 'error', code: 401, result: 'false', message: 'No account found with these credentials. Please register first.' },
+        { status: 401 }
+      );
+    }
 
-      const createdUser = await User.create({
-        user_id: newUserId,
-        name: userName,
-        email: email ? email.toLowerCase() : `${newUserId}@groceryhub.ng`,
-        mobile: mobile || `+234${newUserId}`,
-        password: hashedPassword,
-        wallet_balance: 5000.0,
-        referral_code: `GH-${newUserId}`,
-        status: 'active',
-      }).catch(() => null);
-
-      if (createdUser) {
-        user = createdUser.toObject ? createdUser.toObject() : createdUser;
+    // Password check — if user has a password, validate it
+    if (password && user.password) {
+      const isMatch = await bcrypt.compare(password, user.password).catch(() => false);
+      if (!isMatch) {
+        return NextResponse.json(
+          { status: 'error', code: 401, result: 'false', message: 'Incorrect password. Please try again.' },
+          { status: 401 }
+        );
       }
     }
 
-    const userId = user?.user_id || user?._id || 101;
-    const userName = user?.name || name || 'GroceryHub Customer';
-    const userEmail = user?.email || email || 'customer@groceryhub.ng';
-    const userMobile = user?.mobile || mobile || '+234 802 345 6789';
-    const walletBalance = user?.wallet_balance ?? 5000.0;
+    // Check account status
+    if (user.status === 'suspended') {
+      return NextResponse.json(
+        { status: 'error', code: 403, result: 'false', message: 'Your account has been suspended. Contact support.' },
+        { status: 403 }
+      );
+    }
+
+    const userId = user.user_id || Number(String(user._id).slice(-6));
+    const userName = user.name || 'Customer';
+    const userEmail = user.email || '';
+    const userMobile = user.mobile || '';
+
+    // Issue a proper token with all user info embedded
+    const token = signToken({
+      user_id: userId,
+      name: userName,
+      email: userEmail,
+      mobile: userMobile,
+    });
 
     return NextResponse.json({
       status: 'success',
       code: 200,
       result: 'true',
       message: 'Login successful',
-      token: `gh_token_${userId}_${Date.now()}`,
+      token,
       user_id: userId,
       data: {
         user_id: userId,
         name: userName,
         email: userEmail,
         mobile: userMobile,
-        wallet_balance: walletBalance,
-        profile_pic: user?.profile_pic || '',
-        referral_code: user?.referral_code || '',
+        wallet_balance: user.wallet_balance ?? 0,
+        profile_pic: user.profile_pic || '',
+        referral_code: user.referral_code || '',
       },
     });
   } catch (error: any) {
     console.error('Login error:', error);
     return NextResponse.json(
-      { status: 'error', code: 500, result: 'false', message: error?.message || 'Server error' },
+      { status: 'error', code: 500, result: 'false', message: 'Server error. Please try again.' },
       { status: 500 }
     );
   }

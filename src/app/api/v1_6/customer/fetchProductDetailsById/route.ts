@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import Product from '@/models/Product';
+import ProductRating from '@/models/ProductRating';
+import User from '@/models/User';
 import mongoose from 'mongoose';
+import { getUserIdFromHeader } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,98 +15,133 @@ export async function POST(req: NextRequest) {
 
     await connectToDatabase();
 
+    const authHeader = req.headers.get('authorization');
+    const userId = getUserIdFromHeader(authHeader);
+
     let product: any = null;
     if (product_id) {
-      const isMongoId = typeof product_id === 'string' && mongoose.Types.ObjectId.isValid(product_id) && product_id.length === 24;
       const numId = Number(product_id);
+      const isMongoId =
+        typeof product_id === 'string' &&
+        mongoose.Types.ObjectId.isValid(product_id) &&
+        product_id.length === 24;
 
       if (isMongoId) {
         product = await Product.findById(product_id).lean();
       } else if (!isNaN(numId)) {
         product = await Product.findOne({ product_id: numId }).lean();
       }
+
+      // Fallback: try as string product_id
+      if (!product) {
+        product = await Product.findById(String(product_id)).lean().catch(() => null);
+      }
     }
 
     if (!product) {
-      product = await Product.findOne().lean();
+      return NextResponse.json({
+        status: 'error',
+        code: 404,
+        result: 'false',
+        message: 'Product not found',
+        data: null,
+      });
     }
 
-    const p = product || {
-      product_id: 1,
-      name: 'Fresh Organic Farm Broccoli (Certified Non-GMO)',
-      slug: 'fresh-organic-farm-broccoli',
-      image: 'https://images.unsplash.com/photo-1459411621453-7b03977f4bfc?w=800',
-      description: 'Handpicked fresh organic farm broccoli sourced directly from local verified organic farms. Rich in vitamins and minerals.',
-      rating: 4.9,
-      rating_count: 145,
-      category_id: 1,
-      seller_id: 1,
-      variants: [
-        {
-          variant_id: 101,
-          title: '500g Pack',
-          price: 4500,
-          discounted_price: 3500,
-          unit: '500g',
-          stock: 43,
-          is_unlimited_stock: 1,
-          cart_quantity: 0,
-        }
-      ],
-    };
+    // Build images array: main image + all additional_images
+    const imagesArr: string[] = [
+      product.image,
+      ...(product.additional_images || []),
+    ].filter(Boolean);
 
-    const pid = p.product_id || String(p._id);
-    const variants = (p.variants && p.variants.length > 0 ? p.variants : [
-      {
-        variant_id: 101,
-        title: '500g Pack',
-        price: p.price || 4500,
-        discounted_price: p.discounted_price || p.price || 3500,
-        unit: p.unit || '500g',
-        stock: 43,
-        is_unlimited_stock: 1,
-        cart_quantity: 0,
-      }
-    ]).map((v: any, index: number) => ({
+    // Format variants with all fields the app expects
+    const pid = product.product_id || String(product._id);
+    const variants = (product.variants && product.variants.length > 0
+      ? product.variants
+      : [
+          {
+            variant_id: 101,
+            title: 'Standard Pack',
+            price: product.price || 3500,
+            discounted_price: product.discounted_price || product.price || 3000,
+            unit: product.unit || '500g',
+            stock: 100,
+            is_unlimited_stock: 1,
+            min_cart_quantity: 1,
+          },
+        ]
+    ).map((v: any, index: number) => ({
       id: v.variant_id || v.id || `${pid}_v${index}`,
       variant_id: v.variant_id || v.id || `${pid}_v${index}`,
-      title: v.title || v.size || '500g Pack',
-      price: v.price || 4500,
-      discounted_price: v.discounted_price || v.price || 3500,
+      title: v.title || v.size || 'Standard Pack',
+      price: v.price || 3500,
+      discounted_price: v.discounted_price || v.price || 3000,
       unit: v.unit || '500g',
       stock: v.stock ?? 100,
-      is_unlimited_stock: 1,
+      is_unlimited_stock: v.is_unlimited_stock ?? 1,
+      min_cart_quantity: v.min_cart_quantity || 1,
       cart_quantity: 0,
     }));
+
+    // Fetch real reviews for this product
+    const ratings = await ProductRating.find({ product_id: String(pid) })
+      .sort({ createdAt: -1 })
+      .limit(20)
+      .lean<any[]>()
+      .catch(() => []);
+
+    // Enrich reviews with user names
+    const userIds = [...new Set(ratings.map((r: any) => r.user_id).filter(Boolean))];
+    const users = await User.find({ user_id: { $in: userIds } })
+      .select('user_id name profile_pic')
+      .lean<any[]>()
+      .catch(() => []);
+    const userMap: Record<number, any> = {};
+    users.forEach((u: any) => { userMap[u.user_id] = u; });
+
+    const reviews = ratings.map((r: any) => ({
+      id: String(r._id),
+      user_id: r.user_id,
+      user_name: userMap[r.user_id]?.name || 'Customer',
+      user_img: userMap[r.user_id]?.profile_pic || '',
+      rate: r.rating || 5,
+      title: r.title || '',
+      review: r.review || '',
+      images: r.images || [],
+      created_at: r.createdAt || new Date().toISOString(),
+    }));
+
+    // Check if current user already rated this product
+    const userRating = userId
+      ? await ProductRating.findOne({ product_id: String(pid), user_id: userId }).lean<any>()
+      : null;
 
     const productDetails = {
       id: pid,
       product_id: pid,
-      name: p.name,
-      product_name: p.name,
-      slug: p.slug || '',
-      product_image: p.image || '',
-      image: p.image || '',
-      main_img: p.image || '',
-      images: p.images?.length > 0 ? p.images : [p.image || 'https://images.unsplash.com/photo-1459411621453-7b03977f4bfc?w=800'],
-      description: p.description || 'Handpicked fresh organic farm produce delivered in temperature-controlled cold storage.',
-      rating: p.rating || 4.9,
-      rating_count: p.rating_count || 145,
-      seller_id: p.seller_id || 1,
-      seller_name: 'Green Valley Organic Farms',
-      seller_rating: 4.9,
+      _id: String(product._id),
+      name: product.name,
+      product_name: product.name,
+      slug: product.slug || '',
+      product_image: product.image || '',
+      image: product.image || '',
+      main_img: product.image || '',
+      // All images including additional ones
+      images: imagesArr,
+      additional_images: product.additional_images || [],
+      description: product.description || '',
+      rating: product.rating || 0,
+      rating_count: product.rating_count || 0,
+      category_id: product.category_id || 1,
+      subcategory_id: product.subcategory_id || 0,
+      seller_id: product.seller_id || 1,
+      brand_id: product.brand_id || 0,
+      is_deal_of_the_day: product.is_deal_of_the_day || false,
       variants,
-      reviews: [
-        {
-          id: 1,
-          user_name: 'Amina Bello',
-          user_img: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100',
-          rate: 5,
-          title: 'Super Fresh!',
-          review: 'The quality of the produce was fantastic. Delivered cold and fast within 25 mins.',
-          created_at: new Date().toISOString(),
-        }
-      ],
+      reviews,
+      // Has the current user rated it?
+      is_rated_by_user: !!userRating,
+      user_rating: userRating?.rating || 0,
     };
 
     return NextResponse.json({
@@ -114,21 +152,11 @@ export async function POST(req: NextRequest) {
       data: productDetails,
     });
   } catch (error: any) {
-    return NextResponse.json({
-      status: 'success',
-      code: 200,
-      result: 'true',
-      message: 'Product details fetched',
-      data: {
-        id: 1,
-        product_id: 1,
-        name: 'Fresh Organic Farm Broccoli (Certified Non-GMO)',
-        image: 'https://images.unsplash.com/photo-1459411621453-7b03977f4bfc?w=800',
-        price: 4500,
-        discounted_price: 3500,
-        variants: [{ id: 101, variant_id: 101, title: '500g Pack', price: 4500, discounted_price: 3500, unit: '500g', stock: 50, is_unlimited_stock: 1, cart_quantity: 0 }],
-      },
-    });
+    console.error('fetchProductDetailsById error:', error);
+    return NextResponse.json(
+      { status: 'error', code: 500, result: 'false', message: error?.message || 'Server error' },
+      { status: 500 }
+    );
   }
 }
 

@@ -1,36 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
+import Cart from '@/models/Cart';
+import { getUserIdFromHeader } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
-
-// In-memory cart store for demo
-const cartStore: Map<string, any[]> = new Map();
 
 export async function POST(req: NextRequest) {
   try {
     await connectToDatabase();
     const body = await req.json().catch(() => ({}));
-    const { user_id, guest_id, product_id, product_variant_id } = body;
+    const { guest_id, product_id, product_variant_id, variant_id } = body;
 
-    const key = String(user_id || guest_id || 'guest');
-    const cart = cartStore.get(key) || [];
-    const inCart = product_id
-      ? cart.some(
-          (item: any) =>
-            item.product_id === product_id &&
-            (!product_variant_id || item.product_variant_id === product_variant_id)
+    const authHeader = req.headers.get('authorization');
+    const userId = getUserIdFromHeader(authHeader);
+    const cartKey = userId ? `user_${userId}` : `guest_${guest_id || 'anon'}`;
+
+    const cart = await Cart.findOne({ cart_key: cartKey }).lean<any>();
+    const items = cart?.items || [];
+    const vId = product_variant_id || variant_id;
+
+    const found = product_id
+      ? items.find(
+          (i: any) =>
+            String(i.product_id) === String(product_id) &&
+            (!vId || String(i.variant_id) === String(vId))
         )
-      : false;
+      : null;
+
+    const cartImages = items.slice(0, 5).map((i: any) => i.image || '').filter(Boolean);
 
     return NextResponse.json({
       status: 'success',
       result: 'true',
       message: 'Cart status fetched',
-      in_cart: inCart,
-      cartCount: cart.length,
-      cart_count: cart.length,
-      data: cart.map(item => item.image || '').filter(Boolean),
-      qty: inCart ? (cart.find((i: any) => i.product_id === product_id)?.qty || 1) : 0,
+      in_cart: !!found,
+      cartCount: items.length,
+      cart_count: items.length,
+      qty: found?.qty || 0,
+      data: cartImages,
     });
   } catch (error: any) {
     console.error('isItemInCart error:', error);
@@ -41,8 +48,8 @@ export async function POST(req: NextRequest) {
       in_cart: false,
       cartCount: 0,
       cart_count: 0,
-      data: [],
       qty: 0,
+      data: [],
     });
   }
 }

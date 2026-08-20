@@ -10,26 +10,53 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const { category_id } = body;
 
-    const parentId = category_id ? Number(category_id) : null;
-    const query: any = { status: 'Active' };
-    if (parentId) query.parent_id = parentId;
+    let subcategories: any[] = [];
 
-    const subcategories = await Category.find(query)
-      .sort({ sort_order: 1 })
-      .lean<any[]>();
+    if (category_id) {
+      // First try to find the parent category by category_id (numeric) or _id
+      let parentDoc: any = null;
 
-    const formattedList = (subcategories.length > 0 ? subcategories : [
-      {
-        id: 1,
-        category_id: 1,
-        name: 'All Items',
-        subcategory_img: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=200',
+      // Try numeric category_id field first
+      const numId = Number(category_id);
+      if (!isNaN(numId) && numId > 0) {
+        // Check if Category model has a numeric category_id field
+        parentDoc = await Category.findOne({ category_id: numId }).lean().catch(() => null);
       }
-    ]).map((c: any) => ({
-      id: c.category_id || String(c._id),
+
+      // Fallback to MongoDB ObjectId lookup
+      if (!parentDoc && typeof category_id === 'string' && category_id.length === 24) {
+        parentDoc = await Category.findById(category_id).lean().catch(() => null);
+      }
+
+      if (parentDoc) {
+        // Find all categories whose parent_id equals this category's _id
+        subcategories = await Category.find({
+          parent_id: parentDoc._id,
+          status: 'Active',
+        }).sort({ row_order: 1 }).lean().catch(() => []);
+      }
+
+      // If no children found, return all sibling categories at same level
+      if (!subcategories.length) {
+        subcategories = await Category.find({
+          status: 'Active',
+          parent_id: null,
+        }).sort({ row_order: 1 }).lean().catch(() => []);
+      }
+    } else {
+      // No category_id — return all top-level categories
+      subcategories = await Category.find({ status: 'Active', parent_id: null })
+        .sort({ row_order: 1 }).lean().catch(() => []);
+    }
+
+    const formattedList = subcategories.map((c: any) => ({
+      id: c.category_id ? Number(c.category_id) : String(c._id),
+      _id: String(c._id),
       name: c.name,
-      subcategory_img: c.icon || c.image || 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=200',
+      subcategory_name: c.name,
+      subcategory_img: c.icon || c.image || '',
       image: c.icon || c.image || '',
+      slug: c.slug || '',
     }));
 
     return NextResponse.json({
@@ -44,18 +71,14 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error: any) {
+    console.error('fetchSubCategoriesByCategoryId error:', error);
     return NextResponse.json({
       status: 'success',
       code: 200,
       result: 'true',
       message: 'Subcategories fetched',
-      data: [
-        {
-          id: 1,
-          name: 'All Items',
-          subcategory_img: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=200',
-        }
-      ],
+      data: [],
+      category: { is_it_have_warning: 0, warning_content: '' },
     });
   }
 }

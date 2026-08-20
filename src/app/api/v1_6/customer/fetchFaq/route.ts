@@ -1,36 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
-import Address from '@/models/Address';
-import { getUserIdFromHeader } from '@/lib/auth';
+import Faq from '@/models/Faq';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
     await connectToDatabase();
-    const body = await req.json().catch(() => ({}));
-    const { address_id } = body;
+    const faqs = await Faq.find({ status: 'Active' })
+      .sort({ createdAt: 1 })
+      .lean<any[]>()
+      .catch(() => []);
 
-    const authHeader = req.headers.get('authorization');
-    const tokenUserId = getUserIdFromHeader(authHeader);
-    const userId = Number(tokenUserId || body.user_id || 0);
-
-    if (address_id) {
-      await Address.findByIdAndDelete(address_id);
-    }
+    const formatted = faqs.map((f: any) => ({
+      id: String(f._id),
+      question: f.question,
+      answer: f.answer,
+      category: f.category || 'General',
+    }));
 
     return NextResponse.json({
       status: 'success',
       code: 200,
       result: 'true',
-      message: 'Address deleted successfully',
+      message: 'FAQs fetched successfully',
+      data: formatted,
     });
   } catch (error: any) {
     return NextResponse.json({
       status: 'success',
       code: 200,
       result: 'true',
-      message: 'Address deleted successfully',
+      message: 'FAQs fetched',
+      data: [],
     });
   }
 }

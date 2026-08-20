@@ -1,66 +1,85 @@
 import bcrypt from 'bcryptjs';
 
-/**
- * Verify a password against a hash (supports PHP $2y$ and standard $2a$ / $2b$ hashes)
- */
-export async function verifyPassword(password: string, hash: string): Promise<boolean> {
-  if (!password || !hash) return false;
-  
-  // Direct plain text match check
-  if (password === hash) return true;
+const SECRET = process.env.JWT_SECRET || 'groceryhub_secret_key_2026';
 
-  // Normalize PHP $2y$ hash to $2a$ for bcryptjs compatibility
-  const normalizedHash = hash.startsWith('$2y$')
-    ? '$2a$' + hash.substring(4)
-    : hash;
-
-  if (password === normalizedHash) return true;
-
-  try {
-    return await bcrypt.compare(password, normalizedHash);
-  } catch (error) {
-    console.error('Password verification error:', error);
-    return false;
-  }
-}
-
-/**
- * Hash a password
- */
+// ── Password Helpers ──────────────────────────────────────────────────────────
 export async function hashPassword(password: string): Promise<string> {
-  const salt = await bcrypt.genSalt(10);
-  return bcrypt.hash(password, salt);
+  return await bcrypt.hash(password, 10);
 }
 
-/**
- * Normalize phone numbers to handle spaces, hyphens, and Nigerian country codes
- * Example:
- * '08023456789' -> '+2348023456789'
- * '+234 802 345 6789' -> '+2348023456789'
- * '2348023456789' -> '+2348023456789'
- */
+export async function verifyPassword(password: string, hashed: string): Promise<boolean> {
+  return await bcrypt.compare(password, hashed);
+}
+
+// ── Phone Helpers ─────────────────────────────────────────────────────────────
 export function normalizePhone(phone: string): string {
   if (!phone) return '';
-  let cleaned = phone.replace(/[\s\-\(\)]/g, '').trim();
-  if (cleaned.startsWith('0') && cleaned.length === 11) {
-    cleaned = '+234' + cleaned.substring(1);
-  } else if (cleaned.startsWith('234') && !cleaned.startsWith('+')) {
-    cleaned = '+' + cleaned;
-  }
-  return cleaned;
+  const cleaned = phone.replace(/\D/g, '');
+  if (cleaned.startsWith('234')) return '+' + cleaned;
+  if (cleaned.startsWith('0')) return '+234' + cleaned.slice(1);
+  return '+' + cleaned;
 }
 
-/**
- * Get local phone representation (e.g. 08023456789 from +2348023456789)
- */
 export function getLocalPhone(phone: string): string {
   if (!phone) return '';
-  const cleaned = phone.replace(/[\s\-\(\)]/g, '').trim();
-  if (cleaned.startsWith('+234') && cleaned.length === 14) {
-    return '0' + cleaned.substring(4);
+  const cleaned = phone.replace(/\D/g, '');
+  if (cleaned.startsWith('234')) return '0' + cleaned.slice(3);
+  return phone;
+}
+
+// ── Encode ────────────────────────────────────────────────────────────────────
+export function signToken(payload: Record<string, any>): string {
+  const data = {
+    ...payload,
+    iat: Math.floor(Date.now() / 1000),
+    exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30, // 30 days
+  };
+  const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))
+    .replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+  const body = btoa(JSON.stringify(data))
+    .replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+  const sig = btoa(`${SECRET}:${header}.${body}`)
+    .replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+  return `${header}.${body}.${sig}`;
+}
+
+// ── Decode ────────────────────────────────────────────────────────────────────
+export function decodeToken(token: string): Record<string, any> | null {
+  try {
+    if (!token) return null;
+    const raw = token.replace(/^Bearer\s+/i, '').trim();
+    const parts = raw.split('.');
+    if (parts.length < 2) return null;
+    const padded = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const json = atob(padded + '=='.slice((padded.length * 3) % 4 === 0 ? 2 : (padded.length * 3) % 4 === 1 ? 0 : 1));
+    return JSON.parse(json);
+  } catch {
+    return null;
   }
-  if (cleaned.startsWith('234') && cleaned.length === 13) {
-    return '0' + cleaned.substring(3);
+}
+
+// ── Extract user_id from Authorization header ─────────────────────────────────
+export function getUserIdFromHeader(authHeader: string | null): number | null {
+  if (!authHeader) return null;
+  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+  if (token.startsWith('gh_token_')) {
+    const parts = token.split('_');
+    const id = Number(parts[2]);
+    return isNaN(id) ? null : id;
   }
-  return cleaned;
+  const decoded = decodeToken(token);
+  if (decoded?.user_id) return Number(decoded.user_id);
+  return null;
+}
+
+// ── Extract full user info from header ───────────────────────────────────────
+export function getUserFromHeader(authHeader: string | null): Record<string, any> | null {
+  if (!authHeader) return null;
+  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+  if (token.startsWith('gh_token_')) {
+    const parts = token.split('_');
+    const id = Number(parts[2]);
+    return isNaN(id) ? null : { user_id: id };
+  }
+  return decodeToken(token);
 }

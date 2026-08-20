@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import Order from '@/models/Order';
+import { getUserIdFromHeader } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,7 +9,14 @@ export async function POST(req: NextRequest) {
   try {
     await connectToDatabase();
     const body = await req.json().catch(() => ({}));
-    const userId = Number(body.user_id || 101);
+
+    const authHeader = req.headers.get('authorization');
+    const tokenUserId = getUserIdFromHeader(authHeader);
+    const userId = Number(tokenUserId || body.user_id || 0);
+
+    if (!userId) {
+      return NextResponse.json({ status: 'success', code: 200, result: 'true', data: [] });
+    }
 
     const orders = await Order.find({
       user_id: userId,
@@ -22,7 +30,6 @@ export async function POST(req: NextRequest) {
       user_id: o.user_id,
       order_date: new Date(o.createdAt || Date.now()).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }),
       subtotal: o.subtotal || o.total_amount || 0,
-      tax: o.tax || 0,
       delivery_charge: o.delivery_charge || 0,
       payment: o.total_amount || o.subtotal || 0,
       payment_status: o.payment_status || 'Paid',
@@ -30,7 +37,14 @@ export async function POST(req: NextRequest) {
       delivery_method: 'homeDelivery',
       timeslot: o.delivery_timeslot || 'Express Delivery',
       delivery_date: 'Completed',
-      items: o.items || [],
+      items: (o.items || []).map((item: any) => ({
+        product_name: item.product_name || '',
+        image: item.image || '',
+        qty: item.quantity || 1,
+        price: item.price || 0,
+        variant_title: item.variant_title || '',
+      })),
+      delivery_address: o.delivery_address || {},
       bg_color: '#D1FAE5',
       text_color: '#059669',
     }));
@@ -43,13 +57,7 @@ export async function POST(req: NextRequest) {
       data: formattedOrders,
     });
   } catch (error: any) {
-    return NextResponse.json({
-      status: 'success',
-      code: 200,
-      result: 'true',
-      message: 'Previous orders fetched',
-      data: [],
-    });
+    return NextResponse.json({ status: 'success', code: 200, result: 'true', data: [] });
   }
 }
 

@@ -6,6 +6,8 @@ export interface IProductVariant {
   price: number; // in Naira
   discounted_price: number; // in Naira
   stock: number;
+  is_unlimited_stock: number;
+  min_cart_quantity: number;
   unit: string;
   barcode?: string;
   sku?: string;
@@ -22,7 +24,7 @@ export interface IProduct extends Document {
   slug: string;
   description: string;
   image: string;
-  additional_images?: string[];
+  additional_images: string[];
   variants: IProductVariant[];
   rating: number;
   rating_count: number;
@@ -39,6 +41,8 @@ const ProductVariantSchema = new Schema({
   price: { type: Number, required: true },
   discounted_price: { type: Number, default: 0 },
   stock: { type: Number, default: 0 },
+  is_unlimited_stock: { type: Number, default: 1 },
+  min_cart_quantity: { type: Number, default: 1 },
   unit: { type: String, required: true },
   barcode: { type: String, default: '' },
   sku: { type: String, default: '' },
