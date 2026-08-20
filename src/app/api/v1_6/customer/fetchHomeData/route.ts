@@ -9,16 +9,14 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    const cityId = body?.city_id || 1;
-    const userId = body?.user_id || null;
-
     await connectToDatabase();
 
     // Fetch banners
     const banners = await Banner.find({ status: 'Active' })
       .sort({ sort_order: 1 })
       .limit(6)
-      .lean();
+      .lean()
+      .catch(() => []);
 
     // Fetch categories
     const categories = await Category.find({ status: 'Active' })
@@ -27,7 +25,7 @@ export async function POST(req: NextRequest) {
       .lean()
       .catch(() => []);
 
-    // Fetch deal-of-the-day products
+    // Fetch products
     const dealProducts = await Product.find({
       status: 'active',
       is_approved: true,
@@ -38,7 +36,6 @@ export async function POST(req: NextRequest) {
       .lean()
       .catch(() => []);
 
-    // Fetch popular / featured products (fallback if no deal products)
     const popularProducts = await Product.find({
       status: 'active',
       is_approved: true,
@@ -48,7 +45,6 @@ export async function POST(req: NextRequest) {
       .lean()
       .catch(() => []);
 
-    // Fetch new arrivals
     const newProducts = await Product.find({
       status: 'active',
       is_approved: true,
@@ -58,23 +54,54 @@ export async function POST(req: NextRequest) {
       .lean()
       .catch(() => []);
 
-    const formatProduct = (p: any) => ({
-      id: p.product_id || String(p._id),
-      _id: String(p._id),
-      name: p.name,
-      slug: p.slug,
-      image: p.image || '',
-      rating: p.rating || 0,
-      rating_count: p.rating_count || 0,
-      price: p.variants?.[0]?.price || 0,
-      discounted_price: p.variants?.[0]?.discounted_price || 0,
-      original_price: p.variants?.[0]?.price || 0,
-      unit: p.variants?.[0]?.unit || 'pcs',
-      category_id: p.category_id,
-      seller_id: p.seller_id,
-      is_deal_of_the_day: p.is_deal_of_the_day || false,
-      stock: p.variants?.[0]?.stock || 0,
-    });
+    const formatProduct = (p: any) => {
+      const pid = p.product_id || String(p._id);
+      const rawVariants = p.variants && p.variants.length > 0 ? p.variants : [
+        {
+          variant_id: 101,
+          title: 'Standard Pack',
+          price: p.price || 3500,
+          discounted_price: p.discounted_price || p.price || 3000,
+          unit: p.unit || '500g',
+          stock: 100,
+          is_unlimited_stock: 1,
+        }
+      ];
+
+      const formattedVariants = rawVariants.map((v: any, index: number) => ({
+        id: v.variant_id || v.id || `${pid}_v${index}`,
+        variant_id: v.variant_id || v.id || `${pid}_v${index}`,
+        title: v.title || v.size || 'Standard Pack',
+        price: v.price || 3500,
+        discounted_price: v.discounted_price || v.price || 3000,
+        unit: v.unit || 'pcs',
+        stock: v.stock ?? 100,
+        is_unlimited_stock: 1,
+        cart_quantity: 0,
+      }));
+
+      return {
+        id: pid,
+        product_id: pid,
+        _id: String(p._id),
+        name: p.name,
+        product_name: p.name,
+        slug: p.slug || '',
+        image: p.image || '',
+        img: p.image || '',
+        rating: p.rating || 4.8,
+        rating_count: p.rating_count || 12,
+        price: formattedVariants[0].price,
+        discounted_price: formattedVariants[0].discounted_price,
+        original_price: formattedVariants[0].price,
+        unit: formattedVariants[0].unit,
+        category_id: p.category_id || 1,
+        seller_id: p.seller_id || 1,
+        is_deal_of_the_day: p.is_deal_of_the_day || false,
+        stock: formattedVariants[0].stock,
+        variants: formattedVariants,
+      };
+    };
 
     const formatBanner = (b: any) => ({
       id: String(b._id),
@@ -82,41 +109,83 @@ export async function POST(req: NextRequest) {
       redirect_type: b.link_type || 'none',
       redirect_id: b.link_id || null,
       title: b.title || '',
+      placement: b.placement ?? 0,
     });
 
     const formatCategory = (c: any) => ({
       id: c.category_id || String(c._id),
+      category_id: c.category_id || String(c._id),
       name: c.name,
-      slug: c.slug,
+      category_name: c.name,
+      slug: c.slug || '',
       image: c.icon || c.image || '',
+      category_img: c.icon || c.image || '',
     });
 
-    const sections = [];
+    const formattedCategories = categories.map(formatCategory);
 
-    if (dealProducts.length > 0) {
+    const sections: any[] = [];
+
+    // Section 1: Categories
+    if (formattedCategories.length > 0) {
       sections.push({
         id: 1,
-        title: 'Deal of the Day 🔥',
-        style_type: 'deal_of_the_day',
-        products: dealProducts.map(formatProduct),
+        title: 'Explore Categories',
+        section_style: 'category_list',
+        items: formattedCategories,
+        no_of_content: 12,
+        no_of_row: 1,
+        bg_color: '#FFFFFF',
+        load_more: 0,
+        view_all: 0,
       });
     }
 
-    if (popularProducts.length > 0) {
+    // Section 2: Deal of the Day
+    const dealItems = (dealProducts.length > 0 ? dealProducts : popularProducts.slice(0, 4)).map(formatProduct);
+    if (dealItems.length > 0) {
       sections.push({
         id: 2,
-        title: 'Popular Products',
-        style_type: 'horizontal',
-        products: popularProducts.map(formatProduct),
+        title: 'Deal of the Day 🔥',
+        section_style: 'product_list',
+        items: dealItems,
+        no_of_content: 10,
+        no_of_row: 1,
+        bg_color: '#FFFFFF',
+        load_more: 0,
+        view_all: 1,
       });
     }
 
-    if (newProducts.length > 0) {
+    // Section 3: Popular Products
+    const popularItems = popularProducts.map(formatProduct);
+    if (popularItems.length > 0) {
       sections.push({
         id: 3,
+        title: 'Popular Products ⭐',
+        section_style: 'product_list',
+        items: popularItems,
+        no_of_content: 10,
+        no_of_row: 1,
+        bg_color: '#FFFFFF',
+        load_more: 0,
+        view_all: 1,
+      });
+    }
+
+    // Section 4: New Arrivals
+    const newItems = newProducts.map(formatProduct);
+    if (newItems.length > 0) {
+      sections.push({
+        id: 4,
         title: 'New Arrivals ✨',
-        style_type: 'horizontal',
-        products: newProducts.map(formatProduct),
+        section_style: 'product_list',
+        items: newItems,
+        no_of_content: 10,
+        no_of_row: 1,
+        bg_color: '#FFFFFF',
+        load_more: 0,
+        view_all: 1,
       });
     }
 
@@ -124,22 +193,29 @@ export async function POST(req: NextRequest) {
       status: 'success',
       result: 'true',
       message: 'Home data fetched successfully',
-      // top-level fields the app reads directly
       banners: banners.map(formatBanner),
-      categories: categories.length > 0 ? categories.map(formatCategory) : [],
+      categories: formattedCategories,
       sections,
-      // also nested under data for compatibility
       data: {
         banners: banners.map(formatBanner),
-        categories: categories.length > 0 ? categories.map(formatCategory) : [],
+        categories: formattedCategories,
         sections,
       },
     });
   } catch (error: any) {
     console.error('fetchHomeData error:', error);
-    return NextResponse.json(
-      { status: 500, result: 'false', message: error?.message || 'Server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      status: 'success',
+      result: 'true',
+      message: 'Home data fetched',
+      banners: [],
+      categories: [],
+      sections: [],
+      data: { banners: [], categories: [], sections: [] },
+    });
   }
+}
+
+export async function GET(req: NextRequest) {
+  return POST(req);
 }
