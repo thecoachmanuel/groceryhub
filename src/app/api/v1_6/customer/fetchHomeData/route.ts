@@ -1,67 +1,137 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { connectToDatabase } from '@/lib/mongodb';
+import Product from '@/models/Product';
+import Banner from '@/models/Banner';
+import Category from '@/models/Category';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
     const cityId = body?.city_id || 1;
+    const userId = body?.user_id || null;
 
-    const mockHomeData = {
+    await connectToDatabase();
+
+    // Fetch banners
+    const banners = await Banner.find({ status: 'Active' })
+      .sort({ sort_order: 1 })
+      .limit(6)
+      .lean();
+
+    // Fetch categories
+    const categories = await Category.find({ status: 'Active' })
+      .sort({ sort_order: 1 })
+      .limit(12)
+      .lean()
+      .catch(() => []);
+
+    // Fetch deal-of-the-day products
+    const dealProducts = await Product.find({
+      status: 'active',
+      is_approved: true,
+      is_deal_of_the_day: true,
+    })
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .lean()
+      .catch(() => []);
+
+    // Fetch popular / featured products (fallback if no deal products)
+    const popularProducts = await Product.find({
+      status: 'active',
+      is_approved: true,
+    })
+      .sort({ rating: -1 })
+      .limit(20)
+      .lean()
+      .catch(() => []);
+
+    // Fetch new arrivals
+    const newProducts = await Product.find({
+      status: 'active',
+      is_approved: true,
+    })
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .lean()
+      .catch(() => []);
+
+    const formatProduct = (p: any) => ({
+      id: p.product_id || String(p._id),
+      _id: String(p._id),
+      name: p.name,
+      slug: p.slug,
+      image: p.image || '',
+      rating: p.rating || 0,
+      rating_count: p.rating_count || 0,
+      price: p.variants?.[0]?.price || 0,
+      discounted_price: p.variants?.[0]?.discounted_price || 0,
+      original_price: p.variants?.[0]?.price || 0,
+      unit: p.variants?.[0]?.unit || 'pcs',
+      category_id: p.category_id,
+      seller_id: p.seller_id,
+      is_deal_of_the_day: p.is_deal_of_the_day || false,
+      stock: p.variants?.[0]?.stock || 0,
+    });
+
+    const formatBanner = (b: any) => ({
+      id: String(b._id),
+      image: b.image_url || b.image || '',
+      redirect_type: b.link_type || 'none',
+      redirect_id: b.link_id || null,
+      title: b.title || '',
+    });
+
+    const formatCategory = (c: any) => ({
+      id: c.category_id || String(c._id),
+      name: c.name,
+      slug: c.slug,
+      image: c.icon || c.image || '',
+    });
+
+    const sections = [];
+
+    if (dealProducts.length > 0) {
+      sections.push({
+        id: 1,
+        title: 'Deal of the Day 🔥',
+        style_type: 'deal_of_the_day',
+        products: dealProducts.map(formatProduct),
+      });
+    }
+
+    if (popularProducts.length > 0) {
+      sections.push({
+        id: 2,
+        title: 'Popular Products',
+        style_type: 'horizontal',
+        products: popularProducts.map(formatProduct),
+      });
+    }
+
+    if (newProducts.length > 0) {
+      sections.push({
+        id: 3,
+        title: 'New Arrivals ✨',
+        style_type: 'horizontal',
+        products: newProducts.map(formatProduct),
+      });
+    }
+
+    return NextResponse.json({
       status: 200,
       result: 'true',
       message: 'Home data fetched successfully',
       data: {
-        banners: [
-          {
-            id: 1,
-            image: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=800',
-            redirect_type: 'category',
-            redirect_id: 1,
-          },
-          {
-            id: 2,
-            image: 'https://images.unsplash.com/photo-1619566636858-adf3ef46400b?w=800',
-            redirect_type: 'product',
-            redirect_id: 101,
-          },
-        ],
-        categories: [
-          { id: 1, name: 'Vegetables', slug: 'vegetables', image: 'https://images.unsplash.com/photo-1459411621453-7b03977f4bfc?w=300' },
-          { id: 2, name: 'Fruits', slug: 'fruits', image: 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=300' },
-          { id: 3, name: 'Dairy & Eggs', slug: 'dairy', image: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=300' },
-          { id: 4, name: 'Bakery', slug: 'bakery', image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=300' },
-        ],
-        sections: [
-          {
-            id: 1,
-            title: 'Deal of the Day',
-            style_type: 'horizontal',
-            products: [
-              {
-                id: 1,
-                name: 'Fresh Organic Farm Broccoli',
-                slug: 'fresh-organic-broccoli',
-                image: 'https://images.unsplash.com/photo-1459411621453-7b03977f4bfc?w=500',
-                rating: 4.9,
-                price: 3500,
-                original_price: 4900,
-              },
-              {
-                id: 2,
-                name: 'Red Sweet Crisp Apples',
-                slug: 'red-sweet-apples',
-                image: 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=500',
-                rating: 4.8,
-                price: 4500,
-                original_price: 5900,
-              },
-            ],
-          },
-        ],
+        banners: banners.map(formatBanner),
+        categories: categories.length > 0 ? categories.map(formatCategory) : [],
+        sections,
       },
-    };
-
-    return NextResponse.json(mockHomeData);
+    });
   } catch (error: any) {
+    console.error('fetchHomeData error:', error);
     return NextResponse.json(
       { status: 500, result: 'false', message: error?.message || 'Server error' },
       { status: 500 }
