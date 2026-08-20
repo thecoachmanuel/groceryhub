@@ -10,7 +10,10 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const userId = Number(body.user_id || 101);
 
-    const orders = await Order.find({ user_id: userId }).sort({ createdAt: -1 }).lean<any[]>().catch(() => []);
+    const orders = await Order.find({
+      user_id: userId,
+      order_status: { $in: ['placed', 'confirmed', 'preparing', 'out_for_delivery', 'Out for Delivery'] },
+    }).sort({ createdAt: -1 }).lean<any[]>().catch(() => []);
 
     const formattedOrders = orders.map((o: any) => ({
       id: String(o._id),
@@ -22,21 +25,21 @@ export async function POST(req: NextRequest) {
       tax: o.tax || 0,
       delivery_charge: o.delivery_charge || 0,
       payment: o.total_amount || o.subtotal || 0,
-      payment_status: o.payment_status || 'Paid',
+      payment_status: o.payment_status || 'Pending',
       status: o.order_status || o.status || 'placed',
       delivery_method: 'homeDelivery',
       timeslot: o.delivery_timeslot || 'Express Delivery',
       delivery_date: 'Today',
       items: o.items || [],
-      bg_color: '#DBEAFE',
-      text_color: '#1D4ED8',
+      bg_color: '#FEF3C7',
+      text_color: '#D97706',
     }));
 
     return NextResponse.json({
       status: 'success',
       code: 200,
       result: 'true',
-      message: 'Orders fetched successfully',
+      message: 'Running orders fetched successfully',
       data: formattedOrders,
     });
   } catch (error: any) {
@@ -44,7 +47,7 @@ export async function POST(req: NextRequest) {
       status: 'success',
       code: 200,
       result: 'true',
-      message: 'Orders fetched',
+      message: 'Running orders fetched',
       data: [],
     });
   }
