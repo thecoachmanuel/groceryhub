@@ -191,7 +191,7 @@ export default function AdminSidebar() {
               <div className="space-y-0.5">
                 {group.items.map((item) => {
                   const Icon = item.icon;
-                  const isActive = pathname === item.href;
+                  const isActive = pathname === item.href || (item.href !== '/admin/dashboard' && pathname.startsWith(item.href));
                   return (
                     <Link
                       key={item.href}
